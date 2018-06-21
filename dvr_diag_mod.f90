@@ -207,7 +207,7 @@ contains
       !! Map the grid: calculate the coordinates r(:) and the jacobian J(:)
       !select case (maptype)
       !  case('diff')
-      !    grid%dim(1)%maptype = maptype
+      !    grid%maptype = maptype
       !    call map_diff_1d(X_mapped, grid%J, r_min, r_max, r_env,     &
       !    &                V_env, nr, beta, mass, E_max,        &
       !    &                basis_for_mapping)
@@ -255,9 +255,9 @@ contains
       !  lobatto(j) = grid%gllp(j)
       !  weights(j) = grid%gllw(j)
       !end do
-      !allocate(grid%dim(dim)%weights(size(X_mapped)), stat = error)
+      !allocate(grid%weights(size(X_mapped)), stat = error)
       !call allocerror(error)
-      !allocate(grid%dim(dim)%jac(m),stat=error)
+      !allocate(grid%jac(m),stat=error)
       !call allocerror(error)
       !do l = 1,m
       !  th = nl*(l-1) + nl +1
@@ -501,6 +501,223 @@ contains
     deallocate(trans_wc)
 
   end subroutine get_lobatto_points
+
+  !! @description: Initialize the given cardinal-base work data structure for
+  !!               the application of the kinetic operator in the cardinal
+  !!               basis.
+  !! @param: Tkin_carinal  Cardinal-base work data structure
+  !! @param: grid          Spatial grid
+  !! @param: mass          Mass involved in the kinetic operator
+  subroutine init_work_cardinalbase(Tkin_cardinal, grid, mass)
+    
+    real(idp), allocatable,     intent(inout) :: Tkin_cardinal(:,:)
+    type(grid_t),               intent(inout) :: grid
+    real(idp),                  intent(in)    :: mass
+
+    real(idp), allocatable :: temp(:,:)
+    integer :: error, i, j, nl, m
+
+    allocate(temp(grid%nl+1, size(grid%r)-2),stat=error)
+    call allocerror(error)
+    call get_kin_cardinal_banded_matrix(temp, grid,  mass)
+    allocate(Tkin_cardinal(nl+1, size(grid%r)-2),stat=error)
+    call allocerror(error)
+
+    do i = 1, nl+1
+      do j = 1, size(temp(1,:))
+        Tkin_cardinal(i,j) = temp(i,j)
+      end do
+    end do
+
+  end subroutine init_work_cardinalbase
+  
+  !! @description: Initializing the mapped kinetic energy, written in
+  !!               Legendre-Gauss-Lobatto interpolation polynomials basis
+  !!               with bounded support in each element.
+  !! @param: T     The kinetic energy matrix, stored in the Lapack storage
+  !!               format for banded matrix.
+  !! @param: grid  Coordinate grid corresponding to the mapped Legendre-
+  !!               Gauss-Lobatto points.
+  !! @param: mass  Mass in kinetic operator
+  subroutine get_kin_cardinal_banded_matrix(T, grid,  mass)
+
+    real(idp), allocatable, intent(inout) :: T(:,:)
+    type(grid_t),           intent(in)    :: grid
+    real(idp),              intent(in)    :: mass
+
+    real(idp),    allocatable   :: tau(:,:)
+    integer :: error, ku, u, v, a, b, th, l, nl,m
+    integer :: i, j
+    integer :: xu
+
+    nl = grid%nl
+    m  = grid%m
+    ku = nl  !! Number of superdiagonals
+    if (.not. allocated(T)) then
+      allocate(T(nl+1, nl*m-1), stat=error)
+      call allocerror(error)
+    end if
+    allocate(tau(0:nl,0:nl), stat=error)
+    call allocerror(error)
+    do i = 0, nl
+      do j = 0, nl
+        tau(i,j) = grid%D_primitive(i,j)
+      end do
+    end do
+    T = real(0,idp)
+    xu = 0
+    xu = xu +1
+
+    do l = 1, m
+      do a = 0, nl
+        do b = a, nl
+           u = a + nl*(l-1)
+           v = b + nl*(l-1)
+           th = nl*(l-1) + 1
+           if (((u < nl*m) .and. (u > 0)) .and. ((v < nl*m) .and. (v > 0))) then
+             if ((l > 1) .and. (u .eq. nl*(l-1)) .and. (v .eq. nl*(l-1))) then
+               T(ku+1+u-v,v) = (   tau(0,0)  / grid%jac(l)              &
+               &                 + tau(nl,nl)/ grid%jac(l-1) )          &
+               &               / grid%weights(th)
+             else
+               T(ku+1+u-v,v) =  (tau(a,b)/grid%jac(l))                  &
+               &                / ( sqrt(grid%weights(th+a))            &
+               &                   *sqrt(grid%weights(th+b)))
+             end if
+           end if
+        end do
+      end do
+    end do
+    T = T / (two*mass)
+
+  end subroutine get_kin_cardinal_banded_matrix
+  
+  !! @description: Redefine the projection of operators in the modifiedy
+  !!               Gaus-Lobatto-Legendre grid points to take into account
+  !!               the homogenous Direchlet boundary conditions.
+  !! @param: pot   Potential 
+  subroutine redefine_ops_cardinal(pot)
+
+    real(idp), allocatable, intent(inout) :: pot(:)
+
+    real(idp), allocatable :: temp(:)
+    integer :: error, i, j, k
+
+    allocate(temp(size(pot)-2),stat=error)
+    call allocerror(error)
+    do j = 2, size(pot)-1
+       temp(j-1) = pot(j)
+    end do
+    deallocate(pot)
+    allocate(pot(size(temp)))
+    do k = 1, size(temp)
+       pot(k) = temp(k)
+    end do
+    temp = zero
+    deallocate(temp,stat=error)
+
+  end subroutine redefine_ops_cardinal
+  
+  !! @description: Initialize a simple 1D Legendre-Gauss-Lobatto grid between
+  !!               `r_min` and `r_max` (exclusively) with `nl\times m-1` grid
+  !!               points,\ where $nl$ and $m$ stand for the highest
+  !!               polynomial interpolation in each element and the total number
+  !!               of elements respectively, as a consequence of the homogeneous
+  !!               Dirichlet boundary conditions at the edges of the global
+  !!               grid.
+  !! @param: grid  Grid variable to redefine.
+  subroutine redefine_GLL_grid_1d(grid)
+
+    type(grid_t), intent(inout)  :: grid
+
+    real(idp), allocatable :: r(:), k(:), Jac(:), global_weights(:)
+    integer                :: nr, error, j
+    logical                :: J_alloc, w_alloc
+
+    nr = size(grid%r) - 2
+
+    allocate(r(nr), stat=error)
+    call allocerror(error)
+    allocate(k(nr), stat=error)
+    call allocerror(error)
+    allocate(Jac(nr), stat=error)
+    call allocerror(error)
+    allocate(global_weights(nr), stat=error)
+    call allocerror(error)
+
+    J_alloc = allocated(grid%J)
+    w_alloc = allocated(grid%weights)
+
+    do j = 1, nr
+      r(j)                           = grid%r(j+1)
+      if (J_alloc) Jac(j)            = grid%J(j+1)
+      if (w_alloc) global_weights(j) = grid%weights(j+1)
+    end do
+
+    deallocate(grid%r)
+    allocate(grid%r(nr), stat=error)
+    call allocerror(error)
+    if (J_alloc) then
+      deallocate(grid%J)
+      allocate(grid%J(nr), stat=error)
+      call allocerror(error)
+    end if
+    if (w_alloc) then
+      deallocate(grid%weights)
+      allocate(grid%weights(nr), stat=error)
+      call allocerror(error)
+    end if
+
+    do j = 1, nr
+      grid%r(j)                    = r(j)
+      if (J_alloc) grid%J(j)       = Jac(j)
+      if (w_alloc) grid%weights(j) = global_weights(j)
+    end do
+
+    deallocate(r, Jac, global_weights)
+
+  end subroutine redefine_GLL_grid_1d
+  
+  !! @description: Construct the explicit `nl+1` $\times$ `nr` matrix (because
+  !!               of banded storage!) that is the Hamiltonian for a single
+  !!               surface, consisting of the potential for that surface
+  !!               (ignoring imaginary potentials, hence 'real'), and the
+  !!               kinetic operator.
+  !! @param: matrix       On output, explicit Hamiltonian matrix
+  !! @param: grid         Coordinate Grid based on Gauss-Legendre-Lobatto points
+  !! @param: Tkin_carinal Work array 
+  subroutine get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
+
+    real(idp), allocatable, intent(inout) :: matrix(:,:)
+    type(grid_t),           intent(in)    :: grid
+    real(idp), allocatable, intent(in)    :: pot(:) 
+    real(idp), allocatable, intent(in)    :: Tkin_cardinal(:,:)
+
+    integer                 :: nl, ku
+    integer                 :: i, ir, error, j
+    complex(idp)            :: cpulse
+    real(idp)               :: rpulse
+
+    ku = grid%nl
+
+    if (allocated(matrix)) deallocate(matrix)
+    allocate(matrix(ku+1, size(grid%r)), stat=error)
+    call allocerror(error)
+
+    ! kinetic operator
+    do i = 1,size(Tkin_cardinal(:,1))
+      do j = 1,size(Tkin_cardinal(1,:))
+        matrix(i,j) = Tkin_cardinal(i,j)
+      end do
+    end do
+
+    ku = grid%nl
+
+    do ir = 1, size(pot)
+      matrix(ku + 1,ir) = matrix(ku+1,ir) + rpulse * pot(ir)
+    end do
+
+  end subroutine get_real_surf_matrix_cardinal
   
   !! @description: Report an allocation error. Print out given the given
   !!               `module_name`, the given `routine_name`, a description of the

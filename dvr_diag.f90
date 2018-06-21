@@ -4,7 +4,11 @@ program dvr_diag
 
   implicit none
 
+  type(grid_t)                :: grid
+  type(para_t)                :: para
   real(idp), allocatable      :: pot(:)
+  real(idp)                   :: mass
+  real(idp), allocatable      :: Tkin_cardinal(:,:)
   !type(state_t), target      :: psi, psi_temp
   !type(para_t)               :: para
   !real(idp), allocatable     :: eigen_vals(:)
@@ -19,8 +23,12 @@ program dvr_diag
 
   write(*,*) 'Bonjour, tout le monde.'
   call dummy_dummy()
+        
+  call init_grid_dim_GLL(grid, para, .false.) 
+  call init_work_cardinalbase(Tkin_cardinal, grid, mass)
+  call redefine_ops_cardinal(pot)
+  call redefine_GLL_grid_1d(grid)
 
-  !call get_command_argument(1, runfolder)
   !call read_para(para, runfolder, 'config')
   !call init(para, grid=grid, gen=gen, pulses=pulses, quiet=.false.)
   !write(*,*) " * Spectral radius: ", gen%ham%de
@@ -28,7 +36,7 @@ program dvr_diag
   !write(*,'("")')
 
 
-  !! Set up potential (for now: 1/r for hydrogen) 
+  !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
   !do i = 1,size(gen%ham%ops(1)%a)
   !   gen%ham%ops(1)%a(i) = - one / grid%dim(1)%r(i)
   !end do
