@@ -108,12 +108,6 @@ module dvr_diag_mod
 
 contains
 
-  subroutine dummy_dummy()
-
-    write(*,*) 'Das Dummy'
-
-  end subroutine dummy_dummy
-  
   !! @description: Initializes the dimension `dim` of the given grid as a GLL
   !! (Gauss-Lobatto-Legendre) grid according to the grid parameters given in
   !! `para`. If mapped is set to true the grid will be initialized as a mapped
@@ -517,6 +511,8 @@ contains
     real(idp), allocatable :: temp(:,:)
     integer :: error, i, j, nl, m
 
+    nl = grid%nl
+
     allocate(temp(grid%nl+1, size(grid%r)-2),stat=error)
     call allocerror(error)
     call get_kin_cardinal_banded_matrix(temp, grid,  mass)
@@ -714,7 +710,7 @@ contains
     ku = grid%nl
 
     do ir = 1, size(pot)
-      matrix(ku + 1,ir) = matrix(ku+1,ir) + rpulse * pot(ir)
+      matrix(ku + 1,ir) = matrix(ku+1,ir) + pot(ir)
     end do
 
   end subroutine get_real_surf_matrix_cardinal

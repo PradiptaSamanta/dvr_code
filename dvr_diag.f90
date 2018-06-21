@@ -13,18 +13,24 @@ program dvr_diag
   real(idp), allocatable     :: Tkin_cardinal(:,:)
   integer                    :: i, j
 
-  write(*,*) 'Bonjour, tout le monde.'
-  call dummy_dummy()
+  para%r_min = 0.0
+  para%r_max = 300.0
+  para%nr    = 1001
+  para%m     = 200
+  para%nl    = 5
+  mass       = 1.0
         
   call init_grid_dim_GLL(grid, para, .false.) 
-  call init_work_cardinalbase(Tkin_cardinal, grid, mass)
-  call redefine_ops_cardinal(pot)
-  call redefine_GLL_grid_1d(grid)
-
+  
   !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
+  allocate(pot(size(grid%r)))
   do i = 1,size(pot)
      pot(i) = - one / grid%r(i)
   end do
+  
+  call init_work_cardinalbase(Tkin_cardinal, grid, mass)
+  call redefine_ops_cardinal(pot)
+  call redefine_GLL_grid_1d(grid)
 
   !! Write out potential as it was interpolated on the Gauss-Lobatto grid
   !call write_op(gen%ham, pulses, pulse_val_i=0, grid=grid, op_type='pot',      &
