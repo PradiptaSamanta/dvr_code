@@ -4,9 +4,7 @@ program dvr_diag
 
   implicit none
 
-  write(*,*) 'Bonjour, tout le monde.'
-  call dummy_dummy()
-
+  real(idp), allocatable      :: pot(:)
   !type(state_t), target      :: psi, psi_temp
   !type(para_t)               :: para
   !real(idp), allocatable     :: eigen_vals(:)
@@ -18,6 +16,9 @@ program dvr_diag
   !type(pulse_t), allocatable :: pulses(:)
   !integer                    :: i, j
   !character(len=runfolder_l) :: runfolder
+
+  write(*,*) 'Bonjour, tout le monde.'
+  call dummy_dummy()
 
   !call get_command_argument(1, runfolder)
   !call read_para(para, runfolder, 'config')
