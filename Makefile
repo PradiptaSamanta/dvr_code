@@ -24,7 +24,7 @@ all: arpack dvr_diag
 %.a:
 	bash -c "cd arpack && make clean all && cd .." 
 
-OBJ = dvr_diag_mod.o dvr_diag.o
+OBJ = dvr_spline_mod.o dvr_diag_mod.o dvr_diag.o
 
 dvr_diag: $(OBJ)
 	$(FC) $(FFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
@@ -33,6 +33,6 @@ arpack: $(PREFIX)/arpack/libarpack.a
 #	bash -c "echo 'Compiling Arpack library'"
 
 clean:
-	@rm -f arpack/libarpack.a arpack/*.o *.o *.g90 *.mod *.dat *.out qdyn_backtrace_*.txt
+	@rm -f arpack/libarpack.a arpack/*.o *.o *.g90 *.mod *.dat *.out dvr_diag
 
 .PHONY: all clean 

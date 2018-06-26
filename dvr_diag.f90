@@ -11,21 +11,31 @@ program dvr_diag
   real(idp), allocatable     :: matrix(:,:)
   real(idp), allocatable     :: Tkin_cardinal(:,:)
   integer                    :: i, j
+  real(idp),  allocatable    :: file_r(:), file_pot(:)
 
-  para%r_min = 0.0
-  para%r_max = 300.0
-  para%nr    = 1001
-  para%m     = 200
-  para%nl    = 5
-  para%mass  = 1.0
+  para%pottype      = 'analytical' 
+  para%pot_filename = 'input_pot.dat' 
+  para%r_min        = 0.0
+  para%r_max        = 300.0
+  para%nr           = 1001
+  para%m            = 200
+  para%nl           = 5
+  para%mass         = 1.0
         
   call init_grid_dim_GLL(grid, para, .false.) 
-  
-  !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
-  allocate(pot(size(grid%r)))
-  do i = 1,size(pot)
-     pot(i) = - one / grid%r(i)
-  end do
+ 
+  if (para%pottype == 'analytical') then
+    !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
+    allocate(pot(size(grid%r)))
+    do i = 1,size(pot)
+       pot(i) = - one / grid%r(i)
+    end do
+  elseif (para%pottype == 'file') then
+    call init_grid_op_file_1d(file_pot, file_r, para%pot_filename)
+    call map_op(grid%r, pot, file_r, file_pot) !Perform splining
+  else
+    write(*,*) "ERROR: Invalid pottype"
+  end if
   
   call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)

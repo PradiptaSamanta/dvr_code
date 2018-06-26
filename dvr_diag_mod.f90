@@ -1,36 +1,17 @@
 module dvr_diag_mod
+
+  use dvr_spline_mod
   
   implicit none
 
   public
-
-  integer, parameter :: idp = kind(1.0d0) !Value of internal double precision
-  integer, parameter :: datline_l    = 255 ! Maximum length of a line in a file
-  integer, parameter :: file_l       = 512 ! Maximum length of filenames/paths
-  integer, parameter :: maptype_l    = 4   ! length of a maptype
-  
-  ! named real numbers
-  real(idp), parameter :: zero  = 0.0_idp, one = 1.0_idp, two = 2.0_idp
-  real(idp), parameter :: eight = 8.0_idp
-  real(idp), parameter :: half  = 0.5_idp, quart = 0.25_idp
-  real(idp), parameter :: three = 3.0_idp, four = 4.0_idp
-  real(idp), parameter :: third = one/three
-  real(idp), parameter :: Pi     = 3.14159265358979323846_idp
-  real(idp), parameter :: Pihalf = 1.5707963267948965600_idp
-  real(idp), parameter :: FourPi = 4.0_idp * Pi
-
-  ! named complex numbers
-  complex(idp), parameter :: czero = (0.0_idp, 0.0_idp)
-  complex(idp), parameter :: cone  = (1.0_idp, 0.0_idp)
-  complex(idp), parameter :: ci    = (0.0_idp, 1.0_idp)
-  complex(idp), parameter :: cid   = (1.0_idp, 1.0_idp)
   
   !! @description: Parameters 
   !! @param: mass            Mass of particle (usually electron mass = 1 amu)
   !! @param: r_min           Minimum $r$
   !! @param: r_max           Maximum $r$
+  !! @param: pottype         Type of potential {'analytical'|'file'}
   !! @param: maptype         Type of mapping {'diff'|'int'}
-  !!                         mapping)
   !! @param: read_envelope   If set to something other than '', read the mapping
   !!                         envelope potential from the given filename.
   !! @param: write_envelope  If set to something other than '', write the
@@ -53,6 +34,8 @@ module dvr_diag_mod
     real(idp)                   :: mass
     real(idp)                   :: r_min
     real(idp)                   :: r_max
+    character(len=pottype_l)    :: pottype
+    character(len=file_l)       :: pot_filename 
     !character(len=maptype_l)    :: maptype
     !character(len=file_l)       :: read_envelope
     !character(len=file_l)       :: write_envelope
@@ -142,6 +125,7 @@ contains
 
     if (m * nl + 1 .ne. nr) then
       write(*,*) "ERROR: For the GLL grid, nr must equal m * nl + 1"
+      stop
     end if
 
     if (mapped) then ! Initialize dimension dim as mapped GLL grid
@@ -338,6 +322,318 @@ contains
 
   end subroutine init_grid_dim_GLL
   
+  !! @description: Initialize an one dimensional operator via reading data from
+  !! a given file. The file must contain two columns where the first column is
+  !! treated as the x-axis and the second column as the y-axis.
+  !! @param: op_a       One dimensional operator vector
+  !! @param: r          Spatial grid
+  !! @param: filename   Filename of the operator data
+  subroutine init_grid_op_file_1d(op_a, r, filename)
+
+    real(idp),        allocatable,  intent(out) :: op_a(:)
+    real(idp),        allocatable,  intent(out) :: r(:)
+    character(len=*),               intent(in)  :: filename
+
+    integer                 :: i
+
+    call read_ascii(r, op_a, filename)
+    do i = 1, size(r)-1
+      if (r(i+1) < r(i)) then
+        write(*,*) "ERROR: Input file must be sorted with an increasing grid!"
+        stop
+      end if
+    end do
+
+  end subroutine init_grid_op_file_1d
+  
+  !! @description: Read two columns from an ascii file.
+  !!               If there are not enough columns in the file, fill the
+  !!               remaining ones with zero.
+  !! @param: col1     Unallocated array for the first column
+  !! @param: col2     Unallocated array for the second column
+  !! @param: filename File name
+  subroutine read_ascii(col1, col2, filename)
+
+    real(idp), allocatable, intent(inout) :: col1(:), col2(:)
+    character(len=*),       intent(in)    :: filename
+
+    integer :: n_rows, n_cols
+    integer :: error
+    integer :: shape_table(2)
+    real(idp), allocatable :: table(:,:)
+
+    call read_ascii_table(table, filename)
+
+    shape_table = shape(table)
+    n_rows = shape_table(1)
+    n_cols = shape_table(2)
+
+    if (allocated(col1)) then
+      if (size(col1) /= n_rows) deallocate(col1)
+    end if
+    if (.not. allocated(col1)) then
+      allocate(col1(n_rows), stat=error)
+      call allocerror(error)
+    end if
+    if (allocated(col2)) then
+      if (size(col2) /= n_rows) deallocate(col2)
+    end if
+    if (.not. allocated(col2)) then
+      allocate(col2(n_rows), stat=error)
+      call allocerror(error)
+    end if
+
+    select case (n_cols)
+    case (1)
+      col1(:) = table(:,1)
+      col2 = zero
+    case (2:)
+      col1(:) = table(:,1)
+      col2(:) = table(:,2)
+    end select
+
+  end subroutine read_ascii
+  
+  !! @description: Read a table from an ascii file.
+  !! @param: table       Unallocated table of reals
+  !! @param: filename    Name of file from which data is read
+  subroutine read_ascii_table(table, filename)
+
+    real(idp), allocatable, intent(out) :: table(:,:)
+    character(len=*),       intent(in)  :: filename
+
+    integer :: row, line_nr
+    integer :: error
+    integer :: n_rows, n_cols
+    integer, allocatable :: non_data_lines(:)
+    integer :: cur_non_data_line
+    real(idp), allocatable :: row_data(:)
+    integer :: j ! pointer to where cur_non_data_line is in non_data_lines
+    character(len=datline_l) :: line
+    integer :: u
+
+    call file_shape(filename, n_rows, non_data_lines=non_data_lines)
+    if (n_rows == 0) then
+      write(*,*) "ERROR: The file contains no data rows"
+      stop
+    end if
+    n_cols = 2 
+
+    allocate(table(n_rows, n_cols), stat=error)
+    call allocerror(error)
+    allocate(row_data(n_cols), stat=error)
+    call allocerror(error)
+
+    open(newunit=u, file=filename, action='READ', iostat=error)
+
+    row = 1
+    line_nr = 1
+    j = 1
+    do
+      if (j > size(non_data_lines)) then
+        cur_non_data_line = 0
+      else
+        cur_non_data_line = non_data_lines(j)
+      end if
+      if (line_nr == cur_non_data_line) then
+        read(u, '(A)', iostat=error) line
+        j = j + 1
+        if (error < 0) exit ! End of File
+      else
+        ! we must use row_data as a temporary store. If we read directly
+        ! from the file into table(row,:), we would get a segmentation fault
+        ! when the EOF is reached.
+        read(u, *, iostat=error) row_data(:)
+        if (error < 0) exit ! End of File
+        table(row,:) = row_data(:)
+        row = row + 1
+      end if
+      line_nr = line_nr + 1
+    end do
+
+    close(u, iostat=error)
+    deallocate(non_data_lines, row_data)
+
+  end subroutine read_ascii_table
+  
+  !! @description: Return .true. if a line is a comment. Comments are lines
+  !!               that start with '#', or the given `comment_char`. Leading
+  !!               whitespace in the line is ignored.
+  !! @param: line          String read from a file
+  !! @param: comment_char  If given, character that indicates a comment.
+  !!                       Defaults to `'#'`
+  logical function is_comment(line, comment_char)
+
+    character(len=*),           intent(in) :: line
+    character(len=1), optional, intent(in) :: comment_char
+
+    character(len=1) :: first_char
+
+    is_comment = .false.
+    first_char = adjustl(line)
+    if (present(comment_char)) then
+      if (first_char == comment_char) is_comment = .true.
+    else
+      if (first_char == "#") is_comment = .true.
+    end if
+
+  end function is_comment
+  
+  !! @description: Calculate shape of a data file, i.e. the number
+  !!               of rows and the number of columns in the file.
+  !!               Columns are separated by spaces. Empty lines or
+  !!               lines starting with '#' are not counted.
+  !! @param: filename        File name
+  !! @param: number_of_rows  Number of rows in the file
+  !! @param: non_data_lines  If given, a sorted combination of comment_lines and
+  !!                         blank_lines
+  subroutine file_shape(filename, number_of_rows, non_data_lines)
+
+    character(len=*),               intent(in)    :: filename
+    integer,                        intent(out)   :: number_of_rows
+    integer, allocatable, optional, intent(inout) :: non_data_lines(:)
+
+    logical :: ex
+    integer :: error, i, j, k
+    integer :: u
+    integer :: c_i, b_i ! index for comments, blanks
+    integer :: line_nr
+    integer :: columns
+    character(len=datline_l) :: line
+    integer, pointer :: comments(:)
+    integer, pointer :: blanks(:)
+    integer, pointer :: temp(:)
+
+    allocate(comments(5), stat=error)
+    call allocerror(error)
+    comments = 0
+    allocate(blanks(5), stat=error)
+    call allocerror(error)
+    blanks = 0
+    nullify(temp)
+
+    inquire(file=filename, exist=ex)
+    if (.not. ex) then
+      write(*,*) "ERROR: Cannot find file: "//trim(filename)
+      stop
+    end if
+
+    open(newunit=u, file=filename, action='READ', iostat=error)
+    number_of_rows = 0
+    c_i = 0
+    b_i = 0
+    line_nr = 0
+    loop_over_lines: do
+      read(u, '(A)', iostat=error) line
+      line_nr = line_nr + 1
+      if (error < 0) then
+        exit loop_over_lines
+      end if
+      if (is_comment(line)) then
+        c_i = c_i + 1
+        if (c_i > size(comments)) then
+          ! resize
+          allocate(temp(2*size(comments)), stat=error)
+          call allocerror(error)
+          temp = 0
+          temp(1:size(comments)) = comments(:)
+          deallocate(comments)
+          comments => temp
+          nullify(temp)
+        end if
+        comments(c_i) = line_nr
+      elseif (line == '') then
+        b_i = b_i + 1
+        if (b_i > size(blanks)) then
+          ! resize
+          allocate(temp(2*size(blanks)), stat=error)
+          call allocerror(error)
+          temp = 0
+          temp(1:size(blanks)) = blanks(:)
+          deallocate(blanks)
+          blanks => temp
+          nullify(temp)
+        end if
+        blanks(b_i) = line_nr
+      else
+        number_of_rows = number_of_rows + 1
+      end if
+    end do loop_over_lines
+    close(u, iostat=error)
+
+    if (present(non_data_lines)) then
+      allocate(non_data_lines(b_i+c_i), stat=error)
+      call allocerror(error)
+      j = 1
+      k = 1
+      do i = 1, size(non_data_lines)
+        if (((comments(j) < blanks(k)) .or. (k > b_i)) .and. (j <= c_i)) then
+          non_data_lines(i) = comments(j)
+          j = j + 1
+        else
+          non_data_lines(i) = blanks(k)
+          k = k + 1
+        end if
+      end do
+    end if
+
+    if (associated(comments)) deallocate(comments)
+    if (associated(blanks)) deallocate(blanks)
+    if (associated(temp)) deallocate(temp)
+
+  end subroutine file_shape
+  
+  !! @description: Load a given operator with it's own number of grid points
+  !! onto a new set of grid points. This is done by interpolating the given
+  !! operator via splining onto the new grid points.
+  !! @param: new_r      New set of grid points
+  !! @param: new_op_a   New operator data
+  !! @param: old_r      Old set of grid points
+  !! @param: old_op_a   Old operator data
+  subroutine map_op(new_r, new_op_a, old_r, old_op_a)
+
+    real(idp),              intent(in)  :: new_r(:)
+    real(idp), allocatable, intent(out) :: new_op_a(:)
+    real(idp),              intent(in)  :: old_r(:)
+    real(idp),              intent(in)  :: old_op_a(:)
+
+    type(spline_t)          :: spline
+    integer                 :: i, error
+
+    call init_spline(spline, old_r, old_op_a)
+    allocate(new_op_a(size(new_r)), stat=error)
+    call allocerror(error)
+    do i = 1, size(new_r)
+      call spline_value(spline, new_r(i), new_op_a(i))
+    end do
+    call delete_spline_t(spline)
+
+  end subroutine map_op
+
+  !! @description: Delete a variable of type `spline_t`
+  !! @param: var        Variable to delete
+  !! @param: thorough  If given as `.true.`, zero all components
+  subroutine delete_spline_t(var, thorough)
+
+    type(spline_t), intent(inout) :: var
+    logical, optional, intent(in) :: thorough
+
+    integer :: i1
+    integer :: error
+    logical :: l_thorough
+
+    l_thorough=.false.
+    if (present(thorough)) l_thorough=thorough
+
+    if (allocated(var%cm)) deallocate(var%cm)
+    if (allocated(var%x)) deallocate(var%x)
+    if (allocated(var%y)) deallocate(var%y)
+    if (l_thorough) then
+      var%n = 0
+    end if
+
+  end subroutine delete_spline_t
+  
   !! @description: Initialize `nl+1` Legendre-Gauss-Lobatto  grid points in
   !!               the primitive interval $[-1,1]$
   !! @param: nl         Highest degree of Legendre Polynomials use for
@@ -393,6 +689,7 @@ contains
     &           lwork, info )
     if (info /= 0) then
       write(*,*) "ERROR: Could not calculate optimal sizes for WORK array!"
+      stop
     end if
 
     lwork = work(1) ! XXX possible change of value in conversion real -> int
@@ -818,6 +1115,7 @@ contains
               exit
             case default
               write(*,*) "ERROR: Unknown value for ido: ", ido
+              stop
           end select
         end do
 
@@ -848,13 +1146,15 @@ contains
             case (99)
               exit
             case default
-              write(*,*) "ERROR: Unknown value for ido: ", ido 
+              write(*,*) "ERROR: Unknown value for ido: ", ido
+              stop 
           end select
         end do
 
       case default
 
         write(*,*) "ERROR: Unknown format"
+        stop
 
     end select ! formt
 
