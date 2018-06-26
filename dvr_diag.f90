@@ -13,8 +13,8 @@ program dvr_diag
   integer                    :: i, j
   real(idp),  allocatable    :: file_r(:), file_pot(:)
 
-  para%pottype      = 'analytical' 
-  para%pot_filename = 'input_pot.dat' 
+  para%pottype      = 'file' 
+  para%pot_filename = 'input_pot.in' 
   para%r_min        = 0.0
   para%r_max        = 300.0
   para%nr           = 1001
@@ -25,12 +25,22 @@ program dvr_diag
   call init_grid_dim_GLL(grid, para, .false.) 
  
   if (para%pottype == 'analytical') then
+    write(*,*) 'Using analytical potential'
     !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
     allocate(pot(size(grid%r)))
     do i = 1,size(pot)
        pot(i) = - one / grid%r(i)
     end do
+    open(11, file="input_pot.ana", form="formatted", &
+    &    action="write")
+    write(11,*) '# File emulating a V = - 1/r hydrogen potential'
+    do i = 1, 100000
+      write(11,*) 300.0d0 * (real(i,idp)/100000d0),                            &
+      &           - one / (300.0d0 * (real(i,idp)/100000d0))
+    end do
+  close(11)
   elseif (para%pottype == 'file') then
+    write(*,*) 'Using potential from file '//trim(para%pot_filename)
     call init_grid_op_file_1d(file_pot, file_r, para%pot_filename)
     call map_op(grid%r, pot, file_r, file_pot) !Perform splining
   else
@@ -40,6 +50,15 @@ program dvr_diag
   call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)
   call redefine_GLL_grid_1d(grid)
+  
+  ! Write potential 
+  open(11, file="input_pot.out", form="formatted", &
+  &    action="write")
+  write(11,*) '# input potential after splining and adjusting to GLL grid'
+  do i = 1, size(pot(:))
+    write(11,*) grid%r(i), pot(i)
+  end do
+  close(11)
 
   !! Write out potential as it was interpolated on the Gauss-Lobatto grid
   !call write_op(gen%ham, pulses, pulse_val_i=0, grid=grid, op_type='pot',      &

@@ -33,6 +33,9 @@ arpack: $(PREFIX)/arpack/libarpack.a
 #	bash -c "echo 'Compiling Arpack library'"
 
 clean:
-	@rm -f arpack/libarpack.a arpack/*.o *.o *.g90 *.mod *.dat *.out dvr_diag
+	@rm -f *.o *.g90 *.mod *.dat *.out dvr_diag
+
+fullclean:
+	@rm arpack/libarpack.a arpack/*.o -f *.o *.g90 *.mod *.dat *.out dvr_diag
 
 .PHONY: all clean 
