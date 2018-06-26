@@ -6,7 +6,6 @@ program dvr_diag
 
   real(idp), allocatable     :: pot(:)
   type(para_t)               :: para
-  real(idp)                  :: mass
   type(grid_t)               :: grid
   real(idp), allocatable     :: eigen_vals(:)
   real(idp), allocatable     :: matrix(:,:)
@@ -18,7 +17,7 @@ program dvr_diag
   para%nr    = 1001
   para%m     = 200
   para%nl    = 5
-  mass       = 1.0
+  para%mass  = 1.0
         
   call init_grid_dim_GLL(grid, para, .false.) 
   
@@ -28,7 +27,7 @@ program dvr_diag
      pot(i) = - one / grid%r(i)
   end do
   
-  call init_work_cardinalbase(Tkin_cardinal, grid, mass)
+  call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)
   call redefine_GLL_grid_1d(grid)
 

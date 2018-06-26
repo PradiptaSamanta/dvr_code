@@ -26,6 +26,7 @@ module dvr_diag_mod
   complex(idp), parameter :: cid   = (1.0_idp, 1.0_idp)
   
   !! @description: Parameters 
+  !! @param: mass            Mass of particle (usually electron mass = 1 amu)
   !! @param: r_min           Minimum $r$
   !! @param: r_max           Maximum $r$
   !! @param: maptype         Type of mapping {'diff'|'int'}
@@ -49,6 +50,7 @@ module dvr_diag_mod
   !! @param: spher_method    Name of the method to use for spherical
   !!                         coordinates {'dvr'|'fbr'|'fbrgll'}
   type para_t
+    real(idp)                   :: mass
     real(idp)                   :: r_min
     real(idp)                   :: r_max
     !character(len=maptype_l)    :: maptype
@@ -115,20 +117,9 @@ contains
   !! initialized as a unmapped grid.
   !! @param: grid     Grid for which the dimension dim should be initialized
   !!                  as a cartesian grid.
-  !! @param: dim      Dimension in grid that should be initialized as a
-  !!                  cartesian grid.
   !! @param: para     Parameters defining the spatial grid.
-  !! @param: gpos     Position of the grid-data stored in para%grid(:)
-  !!                  corresponding to the dimension dim
-  !! @param: hpos     Position of the hamiltonian in para%ham(:) corresponding
-  !!                  to the label for which the grid should be initialized
-  !!                  (Note: For the grid initialization we only need global
-  !!                  data from the hamiltonian like for instance the mass. So
-  !!                  it is sufficient to specify the position of an arbitrary
-  !!                  hamiltonian connected to `label`!)
   !! @param: mapped   Defines if the grid should be initialized as a mapped or
   !!                  constant grid.
-  !! @param: quiet    If `.true.`, do not print any status messages
   subroutine init_grid_dim_GLL(grid, para, mapped)
     type(grid_t), intent(inout) :: grid
     type(para_t), intent(in)    :: para
@@ -203,7 +194,7 @@ contains
       !  case('diff')
       !    grid%maptype = maptype
       !    call map_diff_1d(X_mapped, grid%J, r_min, r_max, r_env,     &
-      !    &                V_env, nr, beta, mass, E_max,        &
+      !    &                V_env, nr, beta, para%mass, E_max,        &
       !    &                basis_for_mapping)
       !    grid%dr = one
 
@@ -515,7 +506,7 @@ contains
 
     allocate(temp(grid%nl+1, size(grid%r)-2),stat=error)
     call allocerror(error)
-    call get_kin_cardinal_banded_matrix(temp, grid,  mass)
+    call get_kin_cardinal_banded_matrix(temp, grid, mass)
     allocate(Tkin_cardinal(nl+1, size(grid%r)-2),stat=error)
     call allocerror(error)
 
