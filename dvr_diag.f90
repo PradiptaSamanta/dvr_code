@@ -13,32 +13,37 @@ program dvr_diag
   integer                    :: i, j
   real(idp),  allocatable    :: file_r(:), file_pot(:)
 
-  para%pottype      = 'file' 
-  para%pot_filename = 'input_pot.in' 
-  para%r_min        = 0.0
-  para%r_max        = 300.0
-  para%nr           = 1001
-  para%m            = 200
-  para%nl           = 5
-  para%mass         = 1.0
+  para%pottype       = 'analytical' 
+  para%pot_filename  = 'input_pot.in' 
+  para%r_min         = 0.0
+  para%r_max         = 300.0
+  para%nr            = 1001
+  para%m             = 200
+  para%nl            = 5
+  para%mass          = 1.0
+
+  para%mapped_grid   = .false.
+  para%maptype       = 'diff'
+  para%read_envelope = ''
+  para%beta          = 0.015
+  para%E_max         = 1d-5
         
-  call init_grid_dim_GLL(grid, para, .false.) 
+  call init_grid_dim_GLL(grid, para) 
  
   if (para%pottype == 'analytical') then
     write(*,*) 'Using analytical potential'
-    !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
     allocate(pot(size(grid%r)))
     do i = 1,size(pot)
-       pot(i) = analytical_potential(grid%r(i))
+       pot(i) = analytical_potential(grid%r(i), para%mass)
     end do
-    open(11, file="input_pot.ana", form="formatted", &
-    &    action="write")
-    write(11,*) '# File emulating a V = - 1/r hydrogen potential'
-    do i = 1, 100000
-      write(11,*) 300.0d0 * (real(i,idp)/100000d0),                            &
-      &           - one / (300.0d0 * (real(i,idp)/100000d0))
-    end do
-  close(11)
+    !open(11, file="input_pot.ana", form="formatted", &
+    !&    action="write")
+    !write(11,*) '# File emulating a V = - 1/r hydrogen potential'
+    !do i = 1, 100000
+    !  write(11,*) 300.0d0 * (real(i,idp)/100000d0),                            &
+    !  &           - one / (300.0d0 * (real(i,idp)/100000d0))
+    !end do
+    !close(11)
   elseif (para%pottype == 'file') then
     write(*,*) 'Using potential from file '//trim(para%pot_filename)
     call init_grid_op_file_1d(file_pot, file_r, para%pot_filename)

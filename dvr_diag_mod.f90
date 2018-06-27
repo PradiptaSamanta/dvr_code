@@ -11,6 +11,8 @@ module dvr_diag_mod
   !! @param: r_min           Minimum $r$
   !! @param: r_max           Maximum $r$
   !! @param: pottype         Type of potential {'analytical'|'file'}
+  !! @param: pot_filename    Name of file with potential data
+  !! @param: mapped_grid     Decides whether mapping is employed for the grid 
   !! @param: maptype         Type of mapping {'diff'|'int'}
   !! @param: read_envelope   If set to something other than '', read the mapping
   !!                         envelope potential from the given filename.
@@ -34,6 +36,7 @@ module dvr_diag_mod
     real(idp)                   :: r_max
     character(len=pottype_l)    :: pottype
     character(len=file_l)       :: pot_filename 
+    logical                     :: mapped_grid
     character(len=maptype_l)    :: maptype
     character(len=file_l)       :: read_envelope
     real(idp)                   :: beta
@@ -97,10 +100,9 @@ contains
   !! @param: para     Parameters defining the spatial grid.
   !! @param: mapped   Defines if the grid should be initialized as a mapped or
   !!                  constant grid.
-  subroutine init_grid_dim_GLL(grid, para, mapped)
+  subroutine init_grid_dim_GLL(grid, para)
     type(grid_t), intent(inout) :: grid
     type(para_t), intent(in)    :: para
-    logical,      intent(in)    :: mapped
 
     real(idp), allocatable      :: r_env(:), V_env(:), weight(:), jac(:),  &
     &                              X_mapped(:), lobatto(:), weights(:)
@@ -122,7 +124,7 @@ contains
       stop
     end if
 
-    if (mapped) then ! Initialize dimension dim as mapped GLL grid
+    if (para%mapped_grid) then ! Initialize mapped GLL grid
 
       beta = para%beta
       E_max = para%E_max
@@ -145,6 +147,7 @@ contains
       else
         call min_dr_1d(para, min_dr)
         nr_env = floor((r_max - r_min) / min_dr) + 1
+        write(*,*) 'Calculating Envelope, initial nr_env:', nr_env
         if (nr_env < 1) then
           write(*,*) "********* nr_env =", nr_env
           write(*,*) "ERROR: Internal error in &
@@ -740,7 +743,7 @@ contains
     if (para%pottype == 'analytical') then
       allocate(pot(size(r)))
       do j = 1, size(r)
-        pot(j) = analytical_potential(r(j))
+        pot(j) = analytical_potential(r(j), para%mass)
         if (pot(j) < venv(j)) then
           venv(j) = pot(j)
         end if
@@ -1860,11 +1863,24 @@ contains
   
   !! @description: Returns potential values of an analytical potential
   !! @param: r_val         Value of radial coordinate 
-  real(idp) function analytical_potential(r_val)
+  real(idp) function analytical_potential(r_val, mass)
 
     real(idp), intent(in) :: r_val
+    real(idp), intent(in) :: mass 
 
-    analytical_potential = - one / r_val
+    !Regularised -1/r potential
+    !if (r_val > 1d-16) then
+    !  analytical_potential = - one / r_val
+    !else
+    !  analytical_potential = 1d16
+    !end if
+    
+    !Alternatively regularised -1/r potential
+    !analytical_potential = - r_val / (r_val**2 + 1d-6)
+
+    !Alternatively regularised -1/r potential with rotational barrier
+    analytical_potential = - r_val / (r_val**2 + 1d-6) +                       &
+    &                      two / (two * mass * r_val**2 + 1d-6)
 
   end function analytical_potential
 
