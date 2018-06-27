@@ -14,8 +14,6 @@ module dvr_diag_mod
   !! @param: maptype         Type of mapping {'diff'|'int'}
   !! @param: read_envelope   If set to something other than '', read the mapping
   !!                         envelope potential from the given filename.
-  !! @param: write_envelope  If set to something other than '', write the
-  !!                         mapping envelope potential to the given file.
   !! @param: beta            $\beta$ mapping factor
   !! @param: E_max           $E_{\max}$ mapping factor
   !! @param: dr_max          Maximal size of `dr` when using mapping.
@@ -36,12 +34,11 @@ module dvr_diag_mod
     real(idp)                   :: r_max
     character(len=pottype_l)    :: pottype
     character(len=file_l)       :: pot_filename 
-    !character(len=maptype_l)    :: maptype
-    !character(len=file_l)       :: read_envelope
-    !character(len=file_l)       :: write_envelope
-    !real(idp)                   :: beta
-    !real(idp)                   :: E_max
-    !real(idp)                   :: dr_max
+    character(len=maptype_l)    :: maptype
+    character(len=file_l)       :: read_envelope
+    real(idp)                   :: beta
+    real(idp)                   :: E_max
+    real(idp)                   :: dr_max
     integer                     :: nr
     integer                     :: nl
     integer                     :: m
@@ -74,13 +71,10 @@ module dvr_diag_mod
   !!                      $[-1,1]$
   type grid_t
     real(idp), allocatable   :: r(:)
-    !real(idp), allocatable   :: k(:)
     real(idp), allocatable   :: J(:)
     real(idp), allocatable   :: weights(:)
     real(idp), allocatable   :: dvr_matrix(:,:)
     real(idp)                :: dr
-    !real(idp)                :: dk
-    !real(idp)                :: k_max
     logical                  :: mapped
     character(len=maptype_l) :: maptype
     integer                  :: nl
@@ -113,9 +107,9 @@ contains
     real(idp)                   :: r_min, r_max, V_dr, min_dr, beta, E_max
     integer                     :: error, nl, m, l, j, nr_env, th, nr
     character(len=datline_l)    :: header
-    character(len=file_l)       :: write_envelope, read_envelope
-    !character(len=maptype_l)    :: maptype
-    !character (len = maptype_l) :: basis_for_mapping
+    character(len=file_l)       :: read_envelope
+    character(len=maptype_l)    :: maptype
+    character(len=maptype_l)    :: basis_for_mapping
 
     nr    = para%nr
     nl    = para%nl
@@ -130,143 +124,118 @@ contains
 
     if (mapped) then ! Initialize dimension dim as mapped GLL grid
 
-      write(*,*) "ERROR: Mapped grids not yet implemented."
-      stop
+      beta = para%beta
+      E_max = para%E_max
+      maptype = para%maptype
+      read_envelope = para%read_envelope
 
-      !beta = para%beta
-      !E_max = para%E_max
-      !maptype = para%maptype
-      !read_envelope = para%read_envelope
-      !write_envelope = para%write_envelope
+      ! sanity checks
+      if (maptype .eq. 'diff') then
+        basis_for_mapping = 'sin'
+      elseif(maptype .eq. 'int') then
+        basis_for_mapping = 'exp'
+      end if
 
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !!! Mapping Block - disabled for now !!!
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      grid%nl = nl
+      grid%m = m
+      ! Get envelope potential
+      ! This goes together with a constant spatial envelop grid r_env
+      if (read_envelope /= '') then
+        call read_ascii(r_env, V_env, read_envelope)
+      else
+        call min_dr_1d(para, min_dr)
+        nr_env = floor((r_max - r_min) / min_dr) + 1
+        if (nr_env < 1) then
+          write(*,*) "********* nr_env =", nr_env
+          write(*,*) "ERROR: Internal error in &
+          &calculating the temporary grid, for mapping. Possibly some &
+          &potential data files could not be read correctly."
+        end if
+        call get_spatial_coord(r_env, V_dr, weight, r_min, r_max, nr_env,      &
+        &                      'const')
+        call envelope_pot_1d(V_env, r_env, para, 1)
+      end if
+      ! Map the grid: calculate the coordinates r(:) and the jacobian J(:)
+      select case (maptype)
+        case('diff')
+          grid%maptype = maptype
+          call map_diff_1d(X_mapped, grid%J, r_min, r_max, r_env,     &
+          &                V_env, nr, beta, para%mass, E_max,        &
+          &                basis_for_mapping)
+          grid%dr = one
 
-      !! sanity checks
-      !if (maptype .eq. 'diff') then
-      !  basis_for_mapping = 'sin'
-      !elseif(maptype .eq. 'int') then
-      !  basis_for_mapping = 'exp'
-      !end if
+        case('int')
+          call map_int_1d(X_mapped, grid%J, r_min, r_max, r_env,      &
+          &               V_env, nr, beta, para%mass, E_max,         &
+          &               basis_for_mapping)
+          deallocate(grid%J)
 
-      !grid%nl = nl
-      !grid%m = m
-      !! Get envelope potential
-      !! This goes together with a constant spatial envelop grid r_env
-      !if (read_envelope /= '') then
-      !  call read_ascii(r_env, V_env, read_envelope)
-      !else
-      !  call min_dr_1d(para, 1, min_dr)
-      !  nr_env = floor((r_max - r_min) / min_dr) + 1
-      !  if (nr_env < 1) then
-      !    write(*,*) "********* nr_env =", nr_env
-      !    call abort_error(module_name, routine_name, "Internal error in &
-      !    &calculating the temporary grid, for mapping. Possibly some &
-      !    &potential data files could not be read correctly.")
-      !  end if
-      !  call get_spatial_coord(r_env, V_dr, weight, r_min, r_max, nr_env,      &
-      !  &                      'const')
-      !  call envelope_pot_1d(V_env, r_env, para, 1)
-      !end if
-      !if (write_envelope /= '') then
-      !  header = "#  r[iu]                   V[iu]"
-      !  call write_ascii(r_env, V_env, write_envelope, header)
-      !end if
-      !! Map the grid: calculate the coordinates r(:) and the jacobian J(:)
-      !select case (maptype)
-      !  case('diff')
-      !    grid%maptype = maptype
-      !    call map_diff_1d(X_mapped, grid%J, r_min, r_max, r_env,     &
-      !    &                V_env, nr, beta, para%mass, E_max,        &
-      !    &                basis_for_mapping)
-      !    grid%dr = one
+       case default
+         write(*,*) "ERROR: Cannot initialize mapped GLL grid! Unknown maptype."
+         stop
+      end select
 
-      !    ! Calculate momentum grid
-      !    call get_mom_coord(grid%k, grid%dk,                &
-      !    &                  grid%k_max, grid%dr, nr,        &
-      !    &                  mapped=.true.)
-
-      !  case('int')
-      !    call map_int_1d(X_mapped, grid%J, r_min, r_max, r_env,      &
-      !    &               V_env, nr, beta, para%mass, E_max,         &
-      !    &               basis_for_mapping)
-      !    deallocate(grid%J)
-
-      !    ! Calculate momentum grid
-      !    call get_mom_coord(grid%k, grid%dk,                &
-      !    &                  grid%k_max, grid%dr, nr,        &
-      !    &                  mapped=.true.)
-
-      ! case default
-      !  call abort_error(module_name, routine_name, "Unable to initialize &
-      !  &mapped GLL grid for dimension "//trim(nr2str(1))//"! (Reason: &
-      !  &Unknown maptype: `"//trim(maptype)//"`)")
-      !end select
-
-      !! Set variables indicating that the grid is of type mapped
-      !grid%mapped = .true.
-      !grid%maptype = maptype
-      !
-
+      ! Set variables indicating that the grid is of type mapped
+      grid%mapped = .true.
+      grid%maptype = maptype
      
-      !! Calculate the global weights and GLL points
-      !allocate(jac(m), stat = error)
-      !call allocerror(error)
-      !call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
-      !&                       grid%D_primitive)
-      !allocate(lobatto(0:nl),stat=error)
-      !call allocerror(error)
-      !allocate(weights(0:nl),stat=error)
-      !call allocerror(error)
+      ! Calculate the global weights and GLL points
+      allocate(jac(m), stat = error)
+      call allocerror(error)
+      call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
+      &                       grid%D_primitive)
+      allocate(lobatto(0:nl),stat=error)
+      call allocerror(error)
+      allocate(weights(0:nl),stat=error)
+      call allocerror(error)
 
-      !do j = 0, nl
-      !  lobatto(j) = grid%gllp(j)
-      !  weights(j) = grid%gllw(j)
-      !end do
-      !allocate(grid%weights(size(X_mapped)), stat = error)
-      !call allocerror(error)
-      !allocate(grid%jac(m),stat=error)
-      !call allocerror(error)
-      !do l = 1,m
-      !  th = nl*(l-1) + nl +1
-      !  jac(l) = half*(X_mapped(th) - X_mapped(th-nl))
-      !  grid%jac(l) = half*(X_mapped(th) - X_mapped(th-nl))
-      !end do
+      do j = 0, nl
+        lobatto(j) = grid%gllp(j)
+        weights(j) = grid%gllw(j)
+      end do
+      allocate(grid%weights(size(X_mapped)), stat = error)
+      call allocerror(error)
+      allocate(grid%jac(m),stat=error)
+      call allocerror(error)
+      do l = 1,m
+        th = nl*(l-1) + nl +1
+        jac(l) = half*(X_mapped(th) - X_mapped(th-nl))
+        grid%jac(l) = half*(X_mapped(th) - X_mapped(th-nl))
+      end do
 
-      !do j = 0, nl
-      !  grid%weights(j+1) = jac(1)*weights(j)
-      !end do
-      !do l=2,m
-      ! do j = 0,nl
-      !   if (j == 0) then
-      !     grid%weights(j+nl*(l-1)+1)                                 &
-      !     & = grid%weights(nl+nl*(l-2)+1) + jac(l)*weights(0)
-      !    else
-      !     grid%weights(j+nl*(l-1)+1) = jac(l)*weights(j)
-      !   end if
-      !  end do
-      ! end do
-      !deallocate(weights,stat=error)
-      !call allocerror(error)
+      do j = 0, nl
+        grid%weights(j+1) = jac(1)*weights(j)
+      end do
+      do l=2,m
+       do j = 0,nl
+         if (j == 0) then
+           grid%weights(j+nl*(l-1)+1)                                 &
+           & = grid%weights(nl+nl*(l-2)+1) + jac(l)*weights(0)
+          else
+           grid%weights(j+nl*(l-1)+1) = jac(l)*weights(j)
+         end if
+        end do
+       end do
+      deallocate(weights,stat=error)
+      call allocerror(error)
 
-      !if (allocated(grid%r)) deallocate(grid%r)
-      !call allocerror(error)
+      if (allocated(grid%r)) deallocate(grid%r)
+      call allocerror(error)
 
-      !allocate(grid%r(size(X_mapped)), stat=error)
-      !call allocerror(error)
+      allocate(grid%r(size(X_mapped)), stat=error)
+      call allocerror(error)
 
-      !do l = 1,m
-      !  th = nl*(l-1) + nl + 1
-      !  do j = 0,nl
-      !    grid%r(j+nl*(l-1) + 1 )                                     &
-      !    & =   half*(X_mapped(th) - X_mapped(th-nl))* lobatto(j)              &
-      !    &   + half*(X_mapped(th) + X_mapped(th-nl))
-      !  end do
-      !end do
+      do l = 1,m
+        th = nl*(l-1) + nl + 1
+        do j = 0,nl
+          grid%r(j+nl*(l-1) + 1 )                                     &
+          & =   half*(X_mapped(th) - X_mapped(th-nl))* lobatto(j)              &
+          &   + half*(X_mapped(th) + X_mapped(th-nl))
+        end do
+      end do
 
-      !! Cleanup
-      !deallocate(r_env, V_env, lobatto, X_mapped)
+      ! Cleanup
+      deallocate(r_env, V_env, lobatto, X_mapped)
 
     else ! Initialize dimension dim as unmapped GLL grid
 
@@ -633,6 +602,635 @@ contains
     end if
 
   end subroutine delete_spline_t
+  
+  !! @description:
+  !! Initializes a set of real space grid points on the given interval
+  !! $I=\left[r_{\text{min}},\,r_{\text{max}}\right]. If the given type is
+  !! `const` the spatial points will be calculated using a constant
+  !! stepsize. If the type is given as `exp` the grid points will be calculated
+  !! for the grid $y$ with constant stepsize $\text{d}y$ to which the real
+  !! spatial grid is mapped by $y=\log(r)$. The spatial grid points are then
+  !! obtained by inverting the prevous formula and stored to the $r$-aray.
+  !! @param: r       Vector representing the spatial $r$-grid.
+  !! @param: dr      Stepsize of the spatial grid.
+  !! @param: weights Weights of coordinate transformation.
+  !! @param: r_min   Minimum $r$ value.
+  !! @param: r_max   Maximum $r$ value.
+  !! @param: nr      Number of grid points.
+  !! @param: type    Maptype of the spatial grid. Allowed values are either
+  !!                 `const` or `exp`.
+  subroutine get_spatial_coord(r, dr, weights, r_min, r_max, nr, type)
+
+    real(idp), allocatable, intent(out) :: r(:)
+    real(idp),              intent(out) :: dr
+    real(idp), allocatable, intent(out) :: weights(:)
+    real(idp),              intent(in)  :: r_min
+    real(idp),              intent(in)  :: r_max
+    integer,                intent(in)  :: nr
+    character(len=*),       intent(in)  :: type
+
+    integer :: ir, error
+
+    allocate(r(nr), stat=error)
+    call allocerror(error)
+    allocate(weights(nr), stat=error)
+    call allocerror(error)
+    r       = zero
+    weights = zero
+
+    if (nr .eq. 1) then
+      dr         = one
+      r(1)       = zero
+      weights(1) = one
+    else
+      select case (type)
+        case('const')
+          dr = (r_max - r_min) / real(nr - 1,idp)
+          do ir = 1, nr, 1
+            r(ir) = r_min + real(ir - 1,idp) * dr
+            weights(ir) = one
+          end do
+
+        case('exp')
+          dr = (log(r_max) - log(r_min)) / real(nr - 1,idp)
+          do ir=1, nr
+            r(ir) = exp(log(r_min) + real(ir - 1,idp) * dr)
+            weights(ir) = one
+          end do
+
+        case default
+          write(*,*) "ERROR: Unable to initialize spatial grid! Unknown type!"
+          stop
+      end select
+    endif
+
+  end subroutine get_spatial_coord
+  
+  !! @description: Calculate the minimal `dr` for all the potentials in the same
+  !! system as the `grid`
+  !! @param: para    Parameter
+  !! @param: min_dr  Resulting minimal `dr`
+  subroutine min_dr_1d(para, min_dr)
+
+    type (para_t),    intent(in)  :: para
+    real(idp),        intent(out) :: min_dr
+
+    integer                 :: j, k, nr, npot
+    real(idp)               :: rmax, rmin
+    real(idp),  allocatable :: pot(:), r(:)
+
+    rmin = para%r_min
+    rmax = para%r_max
+    nr = para%nr
+
+    min_dr = huge(zero)
+
+    if (para%pottype == 'analytical') then 
+      if (((rmax - rmin) / real(nr-1,idp)) < min_dr) then
+        min_dr = (rmax - rmin) / real(nr-1,idp)
+      end if
+    elseif (para%pottype == 'file') then
+      call init_grid_op_file_1d(pot, r, para%pot_filename)
+      ! Check for lower dr in current potential file
+      do k = 1, size(r)-1
+        if ((r(k+1)-r(k)) < min_dr) then
+          if (r(k+1) > r(k)) then
+            min_dr = r(k+1) - r(k)
+          else
+            write(*,*) "ERROR: dr at grid point ", k, " in file "              &
+            &          //trim(para%pot_filename)//" is negative"
+          end if
+        end if
+      end do
+      if (allocated(pot)) deallocate(pot)
+      if (allocated(r)) deallocate(r)
+    else
+      write(*,*) "ERROR: Unknown pottype."
+      stop
+    end if
+
+  end subroutine min_dr_1d
+  
+  !! @description: Calculate an envelope potential (defined on grid r) for all
+  !! potentials in para that have the same label as `para%grid(gi)`. The
+  !! envelope potential is calculated as the minimum of all potentials at any
+  !! given position. Potentials loaded from file are spline-interpolated at the
+  !! given positions. Note that the differentiability of the envelope potential
+  !! cannot be guaranteed (e.g. if there are crossing potentials).
+  !! @param: venv    Envelope potential
+  !! @param: r       Grid vector of the envelope potential
+  !! @param: para    Parameter
+  !! @param: gi      Index of grid that decides the system
+  subroutine envelope_pot_1d(venv, r, para, gi)
+
+    real(idp),  allocatable, intent(out) :: venv(:)
+    real(idp),               intent(in)  :: r(:)
+    type(para_t),            intent(in)  :: para
+    integer,                 intent(in)  :: gi
+
+    type(spline_t)          :: spline
+    real(idp),  allocatable :: pot(:), file_pot(:), file_r(:)
+    real(idp)               :: newpotval
+    integer                 :: i, j, ir, nr, error, npot
+
+    nr = size(r)
+    allocate (venv(nr), stat=error)
+    call allocerror(error)
+    venv = huge(zero)
+    if (para%pottype == 'analytical') then
+      allocate(pot(size(r)))
+      do j = 1, size(r)
+        pot(j) = analytical_potential(r(j))
+        if (pot(j) < venv(j)) then
+          venv(j) = pot(j)
+        end if
+      end do
+      if (allocated(pot)) deallocate(pot)
+    elseif (para%pottype == 'file') then
+      call init_grid_op_file_1d(file_pot, file_r, para%pot_filename)
+      call init_spline(spline, file_r, file_pot)
+      do j=1, size(r)
+        call spline_value(spline, r(j), newpotval)
+        if (newpotval < venv(j)) then
+          venv(j) = newpotval
+        end if
+      end do
+      call delete_spline_t(spline)
+      if (allocated(file_pot)) deallocate(file_pot)
+      if (allocated(file_r)) deallocate(file_r)
+    else
+      write(*,*) "ERROR: Unknown pottype."
+      stop
+    end if
+
+    ! Modify envelopment potential so that it is monotonically increasing.
+    ! By doing this the derivative of the Jacobian becomes continuous
+    do ir=nr-1, 1, -1
+      venv(ir) = min(venv(ir),venv(ir+1))
+    end do
+
+  end subroutine envelope_pot_1d
+  
+  !! @description: Map the given grid vector r by the differential mapping
+  !!               method
+  !! @param: r      Grid vector r
+  !! @param: J      Jacobian
+  !! @param: r_min  Minimum r value
+  !! @param: r_max  Maximum r value
+  !! @param: r_env  Grid vector of the envelope potential
+  !! @param: V_env  Potential vector of the envelope potential
+  !! @param: nr     Number of grid points
+  !! @param: beta   Mapping Parameter
+  !! @param: mass   Mass of the molecule
+  !! @param: E_max  Maximum energy cutoff
+  !! @param: base   Base to be used in later propagation
+  subroutine map_diff_1d(r, J, r_min, r_max, r_env, V_env, nr, beta, mass,     &
+  &                     E_max, base)
+
+    real(idp), allocatable, intent(out)   :: r(:)
+    real(idp), allocatable, intent(out)   :: J(:)
+    real(idp),              intent(in)    :: r_min
+    real(idp),              intent(in)    :: r_max
+    real(idp),              intent(in)    :: r_env(:)
+    real(idp),              intent(in)    :: V_env(:)
+    integer,                intent(inout) :: nr
+    real(idp),              intent(in)    :: beta
+    real(idp),              intent(in)    :: mass
+    real(idp),              intent(in)    :: E_max
+    character(len=*),       intent(in)    :: base
+
+    type (spline_t) :: spline
+    real (idp), allocatable :: x(:)
+    real (idp) :: dr, V_eff
+    integer :: ir, error
+
+    allocate (r(nr), stat=error)
+    call allocerror(error)
+    allocate (J(nr), stat=error)
+    call allocerror(error)
+
+    !calculate r(:)
+    r(1) = r_min
+    call init_spline(spline, r_env, V_env) ! prepare interpolation V_env(r)
+    do ir=2, nr
+      call spline_value(spline, r(ir-1), V_eff) ! V_eff = V_env(r), via spline
+      dr = beta * Pi / sqrt(two * mass * abs(E_max - V_eff))
+      r(ir) = r(ir-1) + dr
+    end do
+    call delete_spline_t(spline)
+
+    write (*,'(A61)') "    Original grid parameters were changed by &
+                       &differential mapping"
+    write (*,'(A53)') "               original                 after mapping"
+    write (*,'(A11,2ES25.17)') "    r_min  ", r_min,       r_min
+    write (*,'(A11,2ES25.17)') "    r_max  ", r_max,       r(nr)
+    write (*,'(A11,I8, A20, I8)') "    nr     ", nr , " ", nr
+
+    if ((abs(r_max - r(nr)) / r_max) > 0.5_idp) then
+      write(*,*) "ERROR: r_max differs by more than 50% of the original value."
+      stop
+    end if
+
+    ! calculate J(:)
+    allocate (x(nr), stat=error)
+    call allocerror(error)
+    do ir=1, nr
+      x(ir) = real(ir,idp)
+    end do
+    call init_spline(spline, x, r) ! prepare interpolation r(x)
+    do ir=1, nr
+      call getderivative(spline, x(ir), J(ir)) ! J = r'(x)
+    end do
+    call delete_spline_t(spline)
+    deallocate (x)
+
+  end subroutine map_diff_1d
+  
+  !! @description: Map the given grid vector r by the integral mapping
+  !!               method
+  !! @param: r      Grid vector r
+  !! @param: J      Jacobian
+  !! @param: r_min  Minimum r value
+  !! @param: r_max  Maximum r value
+  !! @param: r_env  Grid vector of the envelope potential
+  !! @param: V_env  Potential vector of the envelope potential
+  !! @param: nr     Maximum number of grid points
+  !! @param: beta   Mapping Parameter
+  !! @param: mass   Mass of the molecule
+  !! @param: E_max  Maximum energy cutoff
+  !! @param: base   Base to be used in later propagation
+  subroutine map_int_1d(r, J, r_min, r_max, r_env, V_env, nr, beta, mass,      &
+  &                     E_max, base)
+    real(idp), allocatable, intent(out)   :: r(:)
+    real(idp), allocatable, intent(out)   :: J(:)
+    real(idp),              intent(in)    :: r_min
+    real(idp),              intent(in)    :: r_max
+    real(idp),              intent(in)    :: r_env(:)
+    real(idp),              intent(in)    :: V_env(:)
+    integer,                intent(inout) :: nr
+    real(idp),              intent(in)    :: beta
+    real(idp),              intent(in)    :: mass
+    real(idp),              intent(in)    :: E_max
+    character(len=*),       intent(in)    :: base
+
+    real(idp), allocatable :: temp_r(:)
+    real(idp), allocatable :: temp_J(:)
+    real(idp) :: V_eff
+    type (spline_t) :: V_spline
+    real(idp) :: r_prev
+    real(idp) :: dummy
+    integer :: error
+    integer :: i, k
+    integer :: new_nr, nr_add
+
+    ! initialize
+    allocate (temp_r(nr), stat=error)
+    call allocerror(error)
+    allocate (temp_J(nr), stat=error)
+    call allocerror(error)
+
+    call init_spline(V_spline, r_env, V_env) ! prepare interpolation V_env(r)
+
+    call spline_value(V_spline, r_max, V_eff) ! V_eff = V_env(r_max), via spline
+    temp_r(nr) = r_max
+    temp_J(nr) = Pi/sqrt(two * mass * abs(E_max - V_eff))
+    dummy = intmap_eq(r_min, r_min + beta, V_spline, E_max, beta, mass) ! init
+
+    ! calculate r and J
+    r_prev = r_max
+
+    i = nr
+    do while (r_prev >= r_min)
+      i = i - 1
+      if (i < 0) then
+         write(*,*) "ERROR: nr is too small"
+         stop
+      end if
+      r_prev = temp_r(i+1) - beta
+      call find_bracket(r_prev, temp_r(i+1), V_spline, beta)
+      r_prev = find_root(r_prev, temp_r(i+1), V_spline)
+      temp_r(i) = r_prev
+      call spline_value(V_spline, r_prev, V_eff)
+      temp_J(i) =  Pi/sqrt(two * mass * abs(E_max - V_eff))
+    end do
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! The following block is only important when a Fourier grid is employed.   !
+    ! Hence, we skip it.                                                       !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! resize to a better prime number composition
+    ! change the gridsize so that nr is a nice composition of small primes.
+    ! Then add points to the left of the former grid. For
+    ! example, if you have a grid of size 5
+    !   o     o     o     o     o
+    ! and you want to increase nr by 3, then the resulting grid of length 8 will
+    ! look like this:
+    !   x     x     x     o    o    o    o     o
+    ! where 'x' marks the new entries
+    !if (base == 'exp') then
+    !  new_nr = next_prime_comp(nr-i+1)
+    !  nr_add = new_nr - nr + i - 1 ! number of points that need to be added
+    !else
+    !  ! you're supposed to use exp base, but if you're not, we're not going to
+    !  ! change anything
+    !  new_nr = nr
+    !  nr_add = 0
+    !end if
+    new_nr = nr
+    nr_add = 0
+
+    allocate (r(new_nr), stat=error)
+    call allocerror(error)
+    allocate (J(new_nr), stat=error)
+    call allocerror(error)
+
+    ! fill r and J with the values from temp_r and temp_J
+    do k = nr, i, -1
+      r(k+new_nr-nr) = temp_r(k)
+      J(k+new_nr-nr) = temp_J(k)
+    end do
+    ! fill the additional points by continuing the exact same calculation as for
+    ! the original points
+    do i = nr_add, 1, -1
+      r_prev = r(i+1) - beta
+      call find_bracket(r_prev, r(i+1), V_spline, beta)
+      r_prev = find_root(r_prev, r(i+1), V_spline)
+      r(i) = r_prev
+      call spline_value(V_spline, r_prev, V_eff)
+      J(i) =  Pi/sqrt(two * mass * abs(E_max - V_eff))
+    end do
+    write (*,'(A61)') "    Original grid parameters were changed by &
+                       &integral mapping"
+    write (*,'(A53)') "               original                 after mapping"
+    write (*,'(A11,2ES25.17)') "    r_min  ", r_min,       r_prev
+    write (*,'(A11,2ES25.17)') "    r_max  ", r_max,       r(new_nr)
+    write (*,'(A11,I8, A20, I8)') "    nr     ", nr , " ", new_nr
+
+    if ((abs(r_max - r(new_nr)) / r_max) > 0.5_idp) then
+      write(*,*) "ERROR: r_max differs by more than 50% of the original value."
+      stop
+    end if
+    if ((abs(real(nr - new_nr,idp)) / real(nr, idp)) > 0.5_idp) then
+      write(*,*) "ERROR: nr differs by more than 50% of the original value."
+      stop
+    end if
+
+    nr = new_nr
+
+  end subroutine map_int_1d
+  
+  !! @description: You need to call this at least once with the optional
+  !!               parameters `E_max`, `beta`, and `mass`, for initialization,
+  !!               or all hell will break loose
+  !! @param: rl        Lower limit of integral
+  !! @param: ru        Upper limit of integral
+  !! @param: V_spline  `V(r)` in paper
+  !! @param: E_max     `E_add` in paper (initialize once)
+  !! @param: beta      Mapping parameter (initialize once)
+  !! @param: mass      Mass (initialize once)
+  real(idp) function intmap_eq(rl, ru, V_spline, E_max, beta, mass)
+
+    real(idp),           intent(in) :: rl
+    real(idp),           intent(in) :: ru
+    type (spline_t),     intent(in) :: V_spline
+    real(idp), optional, intent(in) :: E_max
+    real(idp), optional, intent(in) :: beta
+    real(idp), optional, intent(in) :: mass
+
+    real(idp), save :: E_max_s
+    real(idp), save :: beta_s
+    real(idp), save :: mass_s
+
+    real(idp)       :: V_eff, r, rstart
+    real(idp)       :: fsum
+    real(idp)       :: mapping_l, mapping_u
+    real(idp)       :: qromb, dqromb
+    real(idp)       :: del
+    real(idp), allocatable       :: h(:), s(:)
+    real(idp), allocatable       :: c(:), d(:), den(:)
+
+    real(idp), parameter :: eps = 1.0e-6_idp
+    integer, parameter :: jmax=60, jmaxp=jmax+1, k=5, km=k-1
+    integer             :: i, j, it, ns, m, error
+
+    if (present(E_max)) then
+      E_max_s = E_max
+      intmap_eq = zero
+    end if
+    if (present(beta)) then
+      beta_s  = beta
+      intmap_eq = zero
+    end if
+    if (present(mass)) then
+      mass_s  = mass
+      intmap_eq = zero
+      return
+    end if
+
+    allocate (h(jmaxp), stat=error)
+    call allocerror(error)
+    allocate (s(jmaxp), stat=error)
+    call allocerror(error)
+    allocate (c(k), stat=error)
+    call allocerror(error)
+    allocate (d(k), stat=error)
+    call allocerror(error)
+    allocate (den(k), stat=error)
+    call allocerror(error)
+
+    if (ru < rl) then
+      write(*,*) "ERROR: rl should be smaller then ru"
+      stop
+    end if
+    if ( rl == ru) then
+      intmap_eq = - beta_s
+      return
+    end if
+    call spline_value(V_spline, rl, V_eff)
+    mapping_l = sqrt( two * mass_s * (E_max_s-V_eff) ) / pi
+    call spline_value(V_spline, ru, V_eff)
+    mapping_u = sqrt( two * mass_s * (E_max_s-V_eff) ) / pi
+    h(1) = one
+    do j = 1, jmax
+      if (j == 1) then
+        s(j) = half * (ru-rl) * (mapping_l+ mapping_u)
+      else
+        it = 2**(j-2)
+        del = (ru-rl) / real(it,idp) ! This is the spacing of the points to be
+                                     ! added.
+        rstart = rl+half*del
+        r = rstart
+        fsum = zero
+        do i = 1, it
+          call spline_value(V_spline, r, V_eff)
+          fsum = fsum + sqrt( two * mass_s * (E_max_s-V_eff) ) / pi
+          r = rstart +  del * real(i,idp)
+        end do
+        s(j) = half*(s(j) + del*fsum) ! This replaces s by its refined value.
+      endif
+     if (j >= K) then
+       c = s(j-km:j) ; d = s(j-km:j)
+       ns = minloc(abs(h(j-km:j)), dim=1)
+       qromb = s(ns)
+       ns = ns-1
+       do m = 1, km
+         den(1:k-m)=h(1:k-m)-h(1+m:k)
+         if (any(den(1:k-m) == 0.0)) then
+           write(*,*) "ERROR: calculation failure"
+           stop
+         end if
+         den(1:k-m) = (c(2:k-m+1)-d(1:k-m)) / den(1:k-m)
+         d(1:k-m) = h(1+m:k)*den(1:k-m)
+         c(1:k-m) = h(1:k-m)*den(1:k-m)
+         if (2*ns < k-m) then
+           dqromb = c(ns+1)
+         else
+           dqromb = d(ns)
+           ns = ns-1
+         end if
+         qromb = qromb + dqromb
+       end do
+       if (abs(dqromb) <= eps*abs(qromb)) exit
+     end if
+       s(j+1) = s(j)
+       h(j+1) = 0.25d0*h(j)
+    end do
+    if (j == JMAX) then
+      write(*,*) "ERROR: too many step in qromb"
+    end if
+    intmap_eq = qromb - beta_s
+
+    deallocate(h); deallocate(s)
+    deallocate(c); deallocate(d)
+    deallocate(den)
+
+    return
+
+  end function intmap_eq
+  
+  !! @description: move down `xvar` so that `intmap_eq(x, xfix, V_spline)` has a
+  !!               root in the interval $x = [xvar, xfix]$
+  !! @param: xvar     Interval point that moves
+  !! @param: xfix     Interval point that stays fixed
+  !! @param: V_spline Spline for envelope potential
+  !! @param: beta     beta
+  subroutine find_bracket(xvar, xfix, V_spline, beta)
+
+    real(idp),       intent(inout) :: xvar
+    real(idp),       intent(in)    :: xfix
+    type(spline_t),  intent(in)    :: V_spline
+    real(idp),       intent(in)    :: beta
+
+    integer, parameter :: max_tries = 30
+    real(idp), parameter :: factor = 1.6_idp
+
+    integer :: j
+    real(idp) :: f1, f2
+
+    f2 = -beta ! = intmap_eq(xfix, xfix, V_spline)
+    f1 = intmap_eq(xvar, xfix, V_spline)
+    do j = 1, max_tries
+     if ( f1 * f2 < zero ) return
+     xvar = xvar - factor*(xfix-xvar)
+     if (xvar < zero) exit
+     f1 = intmap_eq(xvar, xfix, V_spline)
+    end do
+    write(*,*) "ERROR: Can't find bracket"
+    stop
+
+  end subroutine find_bracket
+  
+  !! @description: Assuming that there exists a root `r` so that
+  !!               `intmap_eq(r, xfix, V_spline)` is zero and `r` is in the
+  !!               interval $[r1:r2]$, find `r`.
+  !!               This is implemented as Brent's alogrithm
+  !! @param: r1       Lower limit of bracketed range
+  !! @param: r2       Upper limit of bracketed range
+  !! @param: V_spline Spline for envelope potential
+  real(idp) function find_root(r1, r2, V_spline)
+
+    real(idp),       intent(in)    :: r1
+    real(idp),       intent(inout) :: r2
+    type(spline_t),  intent(in)    :: V_spline
+
+    real(idp), parameter :: TOL = 1.0d-8 ! get within TOL of the root
+    real, parameter :: EPS = 1.0e-15_idp
+    integer, parameter :: iter_max = 100
+
+    integer :: iter
+    real(idp) :: a, b, c, d, e, fa, fb, fc, p, q, r, s, tol1, xm, ur
+
+    find_root = zero
+    a = r1
+    b = r2
+    ur = r2
+    fa = intmap_eq(a, ur, V_spline)
+    fb = intmap_eq(b, ur, V_spline)
+
+    if ( (fa > zero .and. fb > 0.) .or. (fa < zero .and. fb < zero) ) then 
+      write(*,*) "ERROR: root must be bracketed"
+      stop
+    end if
+
+    c = b
+    fc = fb
+    do iter = 1, iter_max
+      if ( (fb > zero .and. fc > zero) .or. (fb < zero .and. fc < zero) )then
+        c = a
+        fc = fa
+        d = b-a
+        e = d
+      endif
+      if (abs(fc) < abs(fb)) then
+        a = b
+        b = c
+        c = a
+        fa = fb
+        fb = fc
+        fc = fa
+      endif
+      tol1 = two * EPS * abs(b) + half * TOL
+      xm = half * (c - b)
+      if (abs(xm) <= tol1 .or. fb == zero) then
+        find_root = b
+        return
+      endif
+      if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
+        s = fb / fa
+        if (a == c) then
+          p = two * xm * s
+          q = one - s
+        else
+          q = fa / fc
+          r = fb / fc
+          p = s * (two*xm*q*(q-r) - (b-a)*(r-one))
+          q = (q-one)*(r-one)*(s-one)
+        endif
+        if (p > zero) q = -q
+        p = abs(p)
+        if( two*p < min( three*xm*q-abs(tol1*q), abs(e*q) ) ) then
+          e = d
+          d = p / q
+        else
+          d = xm
+          e = d
+        endif
+      else
+         d = xm
+         e = d
+      endif
+      a = b
+      fa = fb
+      if(abs(d) > tol1) then
+         b = b + d
+      else
+         b = b + sign(tol1, xm)
+      endif
+      fb = intmap_eq(b, ur, V_spline)
+    end do
+    write(*,*) "ERROR: root finding exceeding maximum iterations"
+
+  end function find_root
   
   !! @description: Initialize `nl+1` Legendre-Gauss-Lobatto  grid points in
   !!               the primitive interval $[-1,1]$
@@ -1259,5 +1857,15 @@ contains
     end if
 
   end subroutine allocerror
+  
+  !! @description: Returns potential values of an analytical potential
+  !! @param: r_val         Value of radial coordinate 
+  real(idp) function analytical_potential(r_val)
+
+    real(idp), intent(in) :: r_val
+
+    analytical_potential = - one / r_val
+
+  end function analytical_potential
 
 end module dvr_diag_mod

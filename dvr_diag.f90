@@ -29,7 +29,7 @@ program dvr_diag
     !! Set up potential (for now: 1/r for hydrogen, TODO: add spline module) 
     allocate(pot(size(grid%r)))
     do i = 1,size(pot)
-       pot(i) = - one / grid%r(i)
+       pot(i) = analytical_potential(grid%r(i))
     end do
     open(11, file="input_pot.ana", form="formatted", &
     &    action="write")
