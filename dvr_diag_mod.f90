@@ -59,10 +59,6 @@ module dvr_diag_mod
   !! @param: dr           Grid spacing (after mapping)
   !! @param: dk           $k$-spacing
   !! @param: k_max        Maximum value of $k$
-  !! @param: mapped       Whether or not a mapped grid is used in this spatial
-  !!                      coordinate
-  !! @param: maptype      If `mapped` is `.true.`, type of mapping (`diff`,
-  !!                      `int`)
   !! @param: nl           When using cardinal grid, $nl + 1$ is the number of
   !!                      grid points in each element
   !! @param: m            When using cardinal grid, $m$ is the number of
@@ -78,8 +74,6 @@ module dvr_diag_mod
     real(idp), allocatable   :: weights(:)
     real(idp), allocatable   :: dvr_matrix(:,:)
     real(idp)                :: dr
-    logical                  :: mapped
-    character(len=maptype_l) :: maptype
     integer                  :: nl
     integer                  :: m
     real(idp), allocatable   :: jac(:)
@@ -136,6 +130,8 @@ contains
         basis_for_mapping = 'sin'
       elseif(maptype .eq. 'int') then
         basis_for_mapping = 'exp'
+        write(*,*) "ERROR: Integral mapping not implemented."
+        stop
       end if
 
       grid%nl = nl
@@ -161,7 +157,6 @@ contains
       ! Map the grid: calculate the coordinates r(:) and the jacobian J(:)
       select case (maptype)
         case('diff')
-          grid%maptype = maptype
           call map_diff_1d(X_mapped, grid%J, r_min, r_max, r_env,     &
           &                V_env, nr, beta, para%mass, E_max,        &
           &                basis_for_mapping)
@@ -177,10 +172,6 @@ contains
          write(*,*) "ERROR: Cannot initialize mapped GLL grid! Unknown maptype."
          stop
       end select
-
-      ! Set variables indicating that the grid is of type mapped
-      grid%mapped = .true.
-      grid%maptype = maptype
      
       ! Calculate the global weights and GLL points
       allocate(jac(m), stat = error)
@@ -286,9 +277,6 @@ contains
         end do
       end do
       grid%weights = grid%jac(1) * grid%weights
-
-      !grid%maptype = para%maptype
-      !grid%mapped = .false.
 
     endif
 
@@ -882,9 +870,10 @@ contains
     type (spline_t) :: V_spline
     real(idp) :: r_prev
     real(idp) :: dummy
+    real(idp) :: extension_dr
     integer :: error
     integer :: i, k
-    integer :: new_nr, nr_add
+    integer :: new_nr
 
     ! initialize
     allocate (temp_r(nr), stat=error)
@@ -905,7 +894,7 @@ contains
     i = nr
     do while (r_prev >= r_min)
       i = i - 1
-      if (i < 0) then
+      if (i .le. 0) then
          write(*,*) "ERROR: nr is too small"
          stop
       end if
@@ -916,51 +905,26 @@ contains
       call spline_value(V_spline, r_prev, V_eff)
       temp_J(i) =  Pi/sqrt(two * mass * abs(E_max - V_eff))
     end do
+    !Once r becomes negative, continue linearly with last known spacing
+    extension_dr = temp_r(i+1) - temp_r(i)
+    do while (i > 1)
+      i = i - 1
+      r_prev    = temp_r(i+1) - extension_dr
+      temp_r(i) = r_prev
+      call spline_value(V_spline, r_prev, V_eff)
+      temp_J(i) =  Pi/sqrt(two * mass * abs(E_max - V_eff))
+    end do
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! The following block is only important when a Fourier grid is employed.   !
-    ! Hence, we skip it.                                                       !
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! resize to a better prime number composition
-    ! change the gridsize so that nr is a nice composition of small primes.
-    ! Then add points to the left of the former grid. For
-    ! example, if you have a grid of size 5
-    !   o     o     o     o     o
-    ! and you want to increase nr by 3, then the resulting grid of length 8 will
-    ! look like this:
-    !   x     x     x     o    o    o    o     o
-    ! where 'x' marks the new entries
-    !if (base == 'exp') then
-    !  new_nr = next_prime_comp(nr-i+1)
-    !  nr_add = new_nr - nr + i - 1 ! number of points that need to be added
-    !else
-    !  ! you're supposed to use exp base, but if you're not, we're not going to
-    !  ! change anything
-    !  new_nr = nr
-    !  nr_add = 0
-    !end if
     new_nr = nr
-    nr_add = 0
 
     allocate (r(new_nr), stat=error)
     call allocerror(error)
     allocate (J(new_nr), stat=error)
     call allocerror(error)
 
-    ! fill r and J with the values from temp_r and temp_J
-    do k = nr, i, -1
-      r(k+new_nr-nr) = temp_r(k)
-      J(k+new_nr-nr) = temp_J(k)
-    end do
-    ! fill the additional points by continuing the exact same calculation as for
-    ! the original points
-    do i = nr_add, 1, -1
-      r_prev = r(i+1) - beta
-      call find_bracket(r_prev, r(i+1), V_spline, beta)
-      r_prev = find_root(r_prev, r(i+1), V_spline)
-      r(i) = r_prev
-      call spline_value(V_spline, r_prev, V_eff)
-      J(i) =  Pi/sqrt(two * mass * abs(E_max - V_eff))
+    do k = i, new_nr
+      r(k) = temp_r(k)
+      J(k) = temp_J(k)
     end do
     write (*,'(A61)') "    Original grid parameters were changed by &
                        &integral mapping"
@@ -1124,7 +1088,7 @@ contains
     type(spline_t),  intent(in)    :: V_spline
     real(idp),       intent(in)    :: beta
 
-    integer, parameter :: max_tries = 30
+    integer, parameter :: max_tries = 100
     real(idp), parameter :: factor = 1.6_idp
 
     integer :: j
@@ -1138,8 +1102,14 @@ contains
      if (xvar < zero) exit
      f1 = intmap_eq(xvar, xfix, V_spline)
     end do
-    write(*,*) "ERROR: Can't find bracket"
-    stop
+    !Two possibilities to have not found success in the loop: Either max_tries
+    !was exceeded, then an error will be returned, or the resulting xvar
+    !is negative, in this case this value will be returned and treated in the
+    !mapping routine itself
+    if (xvar > zero) then
+      write(*,*) "ERROR: Can't find bracket"
+      stop
+    end if
 
   end subroutine find_bracket
   
@@ -1866,21 +1836,21 @@ contains
   real(idp) function analytical_potential(r_val, mass)
 
     real(idp), intent(in) :: r_val
-    real(idp), intent(in) :: mass 
+    real(idp), intent(in) :: mass
 
-    !Regularised -1/r potential
-    !if (r_val > 1d-16) then
-    !  analytical_potential = - one / r_val
-    !else
-    !  analytical_potential = 1d16
-    !end if
-    
-    !Alternatively regularised -1/r potential
-    !analytical_potential = - r_val / (r_val**2 + 1d-6)
+    integer :: l
 
-    !Alternatively regularised -1/r potential with rotational barrier
-    analytical_potential = - r_val / (r_val**2 + 1d-6) +                       &
-    &                      two / (two * mass * r_val**2 + 1d-6)
+    l = 1 !Roational quantum number
+
+    !Regularised -1/r potential with rotational barrier
+    !Negative values for r_val are treated with a flat, positive constant
+    !(Only relevant for integral mapping)
+    if (r_val > zero) then
+      analytical_potential = - r_val / (r_val**2 + 1d-16) +                    &
+      &                      real(l*(l+1),idp) / (two * mass * r_val**2 + 1d-16)
+    else
+      analytical_potential = 1d16
+    end if
 
   end function analytical_potential
 

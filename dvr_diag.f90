@@ -13,7 +13,7 @@ program dvr_diag
   integer                    :: i, j
   real(idp),  allocatable    :: file_r(:), file_pot(:)
 
-  para%pottype       = 'analytical' 
+  para%pottype       = 'file' 
   para%pot_filename  = 'input_pot.in' 
   para%r_min         = 0.0
   para%r_max         = 300.0
@@ -22,7 +22,7 @@ program dvr_diag
   para%nl            = 5
   para%mass          = 1.0
 
-  para%mapped_grid   = .false.
+  para%mapped_grid   = .true.
   para%maptype       = 'diff'
   para%read_envelope = ''
   para%beta          = 0.015
