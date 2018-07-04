@@ -13,7 +13,7 @@ program dvr_diag
   integer                    :: i, j
   real(idp),  allocatable    :: file_r(:), file_pot(:)
 
-  para%pottype       = 'file' ! 'density_file', 'file' or 'analytical' 
+  para%pottype       = 'file' ! 'density_file', 'file', 'analytical'
   para%pot_filename  = 'input_pot.in' 
   para%r_min         = 0.0
   para%r_max         = 300.0
@@ -23,7 +23,7 @@ program dvr_diag
   para%l             = 1 !Rotational quantum number
   para%mass          = 1.0
 
-  para%mapped_grid   = .true.
+  para%mapped_grid   = .false.
   para%maptype       = 'diff'
   para%read_envelope = ''
   para%beta          = 0.015
@@ -56,7 +56,7 @@ program dvr_diag
   call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)
   call redefine_GLL_grid_1d(grid)
-  
+
   ! Write potential 
   open(11, file="input_pot.out", form="formatted", &
   &    action="write")
@@ -90,6 +90,8 @@ program dvr_diag
     &                         dot_product(matrix(:,i), matrix(:,i))
   end do
   close(11)
+
+  write(*,*) size(grid%weights)
 
   ! Write eigenvectors. Here, if we want to represent the eigenvectors in the
   ! physical grid instead of numerical grid defined by the normalized FEM-BASIS,

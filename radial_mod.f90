@@ -1,110 +1,133 @@
 module radial_mod 
 
   use dvr_spline_mod
+  use dvr_diag_mod
   
   implicit none
 
   public
   
-  !! @description: Parameters 
-  !! @param: mass            Mass of particle (usually electron mass = 1 amu)
-  !! @param: r_min           Minimum $r$
-  !! @param: r_max           Maximum $r$
-  !! @param: pottype         Type of potential {'analytical'|'file'}
-  !! @param: pot_filename    Name of file with potential data
-  !! @param: mapped_grid     Decides whether mapping is employed for the grid 
-  !! @param: maptype         Type of mapping {'diff'|'int'}
-  !! @param: read_envelope   If set to something other than '', read the mapping
-  !!                         envelope potential from the given filename.
-  !! @param: beta            $\beta$ mapping factor
-  !! @param: E_max           $E_{\max}$ mapping factor
-  !! @param: dr_max          Maximal size of `dr` when using mapping.
-  !!                         [huge(zero)]
-  !! @param: nr              Numer of grid points
-  !! @param: nl              When using cardinal grid, $nl + 1$ is the number of
-  !!                         grid points in each element
-  !! @param: m               When using cardinal grid, $m$ is the number of
-  !!                         elements
-  !! @param: moveable        Whether or not the grid should move
-  !! @param: coord_type      Label for coordinate system {'cartesian'|'gll'|
-  !!                         'spherical'}
-  !! @param: spher_method    Name of the method to use for spherical
-  !!                         coordinates {'dvr'|'fbr'|'fbrgll'}
-  type para_t
-    real(idp)                   :: mass
-    real(idp)                   :: r_min
-    real(idp)                   :: r_max
-    character(len=pottype_l)    :: pottype
-    character(len=file_l)       :: pot_filename 
-    logical                     :: mapped_grid
-    character(len=maptype_l)    :: maptype
-    character(len=file_l)       :: read_envelope
-    real(idp)                   :: beta
-    real(idp)                   :: E_max
-    real(idp)                   :: dr_max
-    integer                     :: nr
-    integer                     :: nl
-    integer                     :: m
-    integer                     :: l 
-  end type para_t
-  
-  !! @description: Spatial grid in a specific dimension
-  !! @param: r            Array of $r$-values on the grid
-  !! @param: k            Array of $k$-values on the grid
-  !! @param: J            Jacobian to translate between physical grid and
-  !!                      working grid, when mapping is used
-  !! @param: weights      Arrays of Gauss - Legendre weights for angular
-  !!                      coordinates
-  !! @param: dvr_matrix   Unitary transformation matrix between the DVR and FBR
-  !!                      representations
-  !! @param: dr           Grid spacing (after mapping)
-  !! @param: dk           $k$-spacing
-  !! @param: k_max        Maximum value of $k$
-  !! @param: nl           When using cardinal grid, $nl + 1$ is the number of
-  !!                      grid points in each element
-  !! @param: m            When using cardinal grid, $m$ is the number of
-  !!                      elements
-  !! @param: jac          Jacobian for the cardinal grid
-  !! @param: gllp         Legendre-Gauss-Lobatto points in $[-1,1]$
-  !! @param: gllw         Gaussian weights in $[-1,1]$ for Gauss-Lobatto grid
-  !! @param: D_primitive  For cardinal grid, Kinetic matrix representation in
-  !!                      $[-1,1]$
-  type grid_t
-    real(idp), allocatable   :: r(:)
-    real(idp), allocatable   :: J(:)
-    real(idp), allocatable   :: weights(:)
-    real(idp), allocatable   :: dvr_matrix(:,:)
-    real(idp)                :: dr
-    integer                  :: nl
-    integer                  :: m
-    real(idp), allocatable   :: jac(:)
-    real(idp), allocatable   :: gllp(:)
-    real(idp), allocatable   :: gllw(:)
-    real(idp), allocatable   :: D_primitive(:,:)
-  end type grid_t
-
 contains
   
-  !! @description: Report an allocation error. Print out given the given
-  !!               `module_name`, the given `routine_name`, a description of the
-  !!               error that occured, and optionally an additional message
-  !! @param: i              Error code (`stat` in allocate)
-  !! @param: error_message  Additional error message to print
-  subroutine allocerror(i, error_message)
+  !! @description: Convert banded storage matrix to full matrix, assuming the
+  !! layout indicated by the combination of `mode`, `kl`, and `ku`.
+  !!
+  !! * `mode='g'` (general matrix) or `mode='t'` (triangular matrix):
+  !!   convert directly, assuming `full(i,j)` is stored in
+  !!   `packed(ku+1+i-j,j)` for `max(1,j-ku) <= i <= min(m, j+kl)
+  !! * `mode='h'` (Hermitian matrix) or `mode='s'` (symmetric matrix):
+  !!   If `kl=0`, assume information in `packed` describes the upper triangle
+  !!   of the matrix. In this case `full(i,j)` is stored in
+  !!   `packed(kd+1+i-j,j)` for `max(1,j-ku) <= i <= j` and `full(j,i)` is
+  !!   either the complex conjugate of `full(i,j)` (`'h'`) or identical to
+  !!   `full(i,j)` (`'s'`).
+  !!   If `ku=0`, assume information in `packed` describes the lower triangle of
+  !!   the matrix. `full(i,j)` is stored in `packed(1+i-j,j)` for
+  !!   `j <= i <= min(n, j+kd)`. Again `full(j,i)` is again completed as
+  !!   Hermitian or symmetric
+  !!
+  !! @param: full              Storage for full matrix. If already allocated,
+  !!                           must be of size $n \times n$.
+  !! @param: banded            Banded data, for input.
+  !! @param: n                 Dimension of full matrix.
+  !! @param: kl                Number of sub-diagonals. Must be 0 for Hermitian
+  !!                           matrices
+  !! @param: ku                Number of super-diagonals
+  subroutine mat_banded_to_full(full, banded, n, kl, ku)
 
-    integer,                    intent(in) :: i
-    character(len=*), optional, intent(in) :: error_message
+    real(idp), allocatable,    intent(inout) :: full(:,:)
+    real(idp),                 intent(in)    :: banded(1+kl+ku,n)
+    integer,                   intent(in)    :: n
+    integer,                   intent(in)    :: kl
+    integer,                   intent(in)    :: ku
 
-    integer :: proc_id, error
-    logical :: mpi_is_initialized
+    integer :: i, j, error, kd
 
-    if (i > 0) then
-      write(*,'("")')
-      write(*,'("================= ALLOCERROR =====================")')
-      write(*,'("ERROR: Could not allocate memory")')
-      stop
+    if (allocated(full)) then
+      if ((lbound(full, 1) /= 1) .or.  (ubound(full, 1) /= n) .or.             &
+      &   (lbound(full, 2) /= 1) .or.  (ubound(full, 2) /= n)) then
+        write(*,*) 'ERROR: Full matrix is allocated to the wrong size.'
+      end if
+    else
+      allocate(full(n,n), stat=error)
+      call allocerror(error)
     end if
 
-  end subroutine allocerror
+    full = czero
 
+    ! See formula in http://www.netlib.org/lapack/lug/node124.html
+    do j = 1, n
+      do i = max(1, j-ku), min(n, j+kl)
+        full(i,j) = full(i,j) + banded(ku+1+i-j,j)
+      end do
+    end do
+
+  end subroutine mat_banded_to_full
+  
+  ! Symmetric matrix factorization
+  !! @description: See BLAS
+  !! [dsytrf](http://www.netlib.org/blas/dsytrf.f) documentation.
+  !!
+  !! @param: n      Dimension of `a`, `x`, `y`
+  !! @param: a      Matrix
+  !! @param: ipiv   Auxiliary integer array
+  !! @param: work   Auxiliary double precision array
+  subroutine wrap_dsytrf(a, n, ipiv, work) 
+
+    real(idp),     intent(in)    :: a(n,n)
+    integer,       intent(in)    :: n
+    integer,       intent(in)    :: ipiv(n)
+    real(idp),     intent(in)    :: work(n)
+
+    integer :: error
+
+    call dsytrf('U', n, a, n, ipiv, work, n, error)
+
+    if (error .ne. 0) then
+      write(*,*) 'Error in Matrix inversion routine dsytri, error value: ',    &
+      &          trim(int2str(error))
+    end if
+
+  end subroutine wrap_dsytrf
+  
+  ! Symmetric matrix inverse
+  !! @description: See BLAS
+  !! [dsytri](http://www.netlib.org/blas/dsytri.f) documentation.
+  !!
+  !! @param: n      Dimension of `a`, `x`, `y`
+  !! @param: a      Matrix
+  !! @param: ipiv   Auxiliary integer array
+  !! @param: work   Auxiliary double precision array
+  subroutine wrap_dsytri(a, n, ipiv, work) 
+
+    real(idp),     intent(in)    :: a(n,n)
+    integer,       intent(in)    :: n
+    integer,       intent(in)    :: ipiv(n)
+    real(idp),     intent(in)    :: work(n)
+
+    integer :: error
+
+    call dsytri('U', n, a, n, ipiv, work, error)
+
+    if (error .ne. 0) then
+      write(*,*) 'Error in Matrix inversion routine dsytri, error value: ',    &
+      &          trim(int2str(error))
+    end if
+
+  end subroutine wrap_dsytri
+  
+  character(len=converted_l) function int2str(i, format)                         
+                                                                                 
+    integer,                    intent(in) :: i                                  
+    character(len=*), optional, intent(in) :: format                             
+                                                                                 
+    if (present(format)) then                                                    
+      write(int2str, format) i                                                   
+    else                                                                         
+      write(int2str, '(I25)') i                                                  
+    end if                                                                       
+    int2str = adjustl(int2str)                                                   
+                                                                                 
+  end function int2str
+  
 end module radial_mod 

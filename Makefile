@@ -3,7 +3,7 @@ MPIFORT = ifort
 #FFLAGS = -O0 -openmp -g -warn all -check all -debug all -traceback -fpe-all=0 -no-ipo -mkl=sequential
 FFLAGS = -O2 -openmp -vec-report-0 -par-report-0 -openmp-report-0 -mkl=sequential
 LIBS = -larpack -lblas
-PREFIX = /home/users/0001/uk006500/Programming/DVR_Standalone
+PREFIX = /home/users/0001/uk006500/Programming/DVR_Standalone_Daniel
 LDFLAGS = -L$(PREFIX)/arpack
 
 all: arpack dvr_diag ang_elements rad_elements
@@ -26,7 +26,7 @@ all: arpack dvr_diag ang_elements rad_elements
 
 OBJ_DIAG = dvr_spline_mod.o dvr_diag_mod.o dvr_diag.o
 OBJ_ANG = dvr_spline_mod.o angular_mod.o angular_elements.o
-OBJ_RAD = dvr_spline_mod.o radial_mod.o radial_elements.o
+OBJ_RAD = dvr_spline_mod.o dvr_diag_mod.o radial_mod.o radial_elements.o
 
 dvr_diag: $(OBJ_DIAG)
 	$(FC) $(FFLAGS) $(LDFLAGS) -o $@ $(OBJ_DIAG) $(LIBS)

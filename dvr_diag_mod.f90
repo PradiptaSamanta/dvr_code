@@ -1571,7 +1571,6 @@ contains
     if (allocated(matrix)) deallocate(matrix)
     allocate(matrix(ku+1, size(grid%r)), stat=error)
     call allocerror(error)
-
     ! kinetic operator
     do i = 1,size(Tkin_cardinal(:,1))
       do j = 1,size(Tkin_cardinal(1,:))

@@ -8,7 +8,8 @@ module dvr_spline_mod
   integer, parameter :: datline_l    = 255 ! Maximum length of a line in a file
   integer, parameter :: file_l       = 512 ! Maximum length of filenames/paths
   integer, parameter :: maptype_l    = 4   ! length of a maptype
-  integer, parameter :: pottype_l    = 10  ! length of a maptype
+  integer, parameter :: pottype_l    = 10  ! length of a pottype
+  integer, parameter :: converted_l  = 80  ! length of a converted string
   
   ! named real numbers
   real(idp), parameter :: zero  = 0.0_idp, one = 1.0_idp, two = 2.0_idp
