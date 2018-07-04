@@ -13,13 +13,14 @@ program dvr_diag
   integer                    :: i, j
   real(idp),  allocatable    :: file_r(:), file_pot(:)
 
-  para%pottype       = 'file' 
+  para%pottype       = 'file' ! 'density_file', 'file' or 'analytical' 
   para%pot_filename  = 'input_pot.in' 
   para%r_min         = 0.0
   para%r_max         = 300.0
-  para%nr            = 1001
   para%m             = 200
   para%nl            = 5
+  para%nr            = 1001 !nr = m * nl + 1
+  para%l             = 1 !Rotational quantum number
   para%mass          = 1.0
 
   para%mapped_grid   = .true.
@@ -44,9 +45,9 @@ program dvr_diag
     !  &           - one / (300.0d0 * (real(i,idp)/100000d0))
     !end do
     !close(11)
-  elseif (para%pottype == 'file') then
+  elseif ((para%pottype == 'file') .or. (para%pottype == 'density_file')) then
     write(*,*) 'Using potential from file '//trim(para%pot_filename)
-    call init_grid_op_file_1d(file_pot, file_r, para%pot_filename)
+    call init_grid_op_file_1d(file_pot, file_r, para)
     call map_op(grid%r, pot, file_r, file_pot) !Perform splining
   else
     write(*,*) "ERROR: Invalid pottype"
@@ -65,10 +66,6 @@ program dvr_diag
   end do
   close(11)
 
-  !! Write out potential as it was interpolated on the Gauss-Lobatto grid
-  !call write_op(gen%ham, pulses, pulse_val_i=0, grid=grid, op_type='pot',      &
-  !&            op_surf=1, filename="pot_on_grid.dat")
-
   !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
   call get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
 
@@ -76,8 +73,8 @@ program dvr_diag
   !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
   !! If needed, just add more
   call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)),&
-  &                                nev=90, which='SA', eigenvals=eigen_vals,   &
-  &                                rvec=.true.)
+  &                   nev=nint(0.8*para%nr), which='SA', eigenvals=eigen_vals, &
+  &                   rvec=.true.)
 
   ! Write eigenvalues.
   open(11, file="eigenvalues_GLL.dat", form="formatted", &
@@ -88,7 +85,9 @@ program dvr_diag
   write(11,*) "#     index    -    eigenvalue    -    eigenvector normalization"
   write(11,*) ""
   do i = 1, size(eigen_vals(:))
-    write(11,*) i-1, eigen_vals(i), dot_product(matrix(:,i), matrix(:,i))
+    write(11,'(I8,3ES25.17)') i-1, eigen_vals(i),                              &
+    &                         - one / (two * (real(i+para%l, idp))**2),        &
+    &                         dot_product(matrix(:,i), matrix(:,i))
   end do
   close(11)
 
@@ -96,12 +95,15 @@ program dvr_diag
   ! physical grid instead of numerical grid defined by the normalized FEM-BASIS,
   ! we should divide by the square root of the Gaussian interpolating weights,
   ! see eg. arXiv:1611.09034 (2016).
+  ! We furthermore divide by r such that we obtain the proper radial
+  ! wavefunction psi(r) instead of the rescaled object u(r) = psi(r) * r
   open(11, file="eigenvectors_GLL.dat", form="formatted",&
   &    action="write", recl=100000)
   do i = 1, size(matrix(:,1))
     write(11,*) grid%r(i),                                                     &
-    & (matrix(i,j) / sqrt(grid%weights(i)), j = 1, size(matrix(i,:)))
+    & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                      &
+    & j = 1, size(matrix(i,:)))
   end do
   close(11)
-
+  
 end program dvr_diag 

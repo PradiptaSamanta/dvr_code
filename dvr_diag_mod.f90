@@ -45,6 +45,7 @@ module dvr_diag_mod
     integer                     :: nr
     integer                     :: nl
     integer                     :: m
+    integer                     :: l 
   end type para_t
   
   !! @description: Spatial grid in a specific dimension
@@ -143,7 +144,7 @@ contains
       else
         call min_dr_1d(para, min_dr)
         nr_env = floor((r_max - r_min) / min_dr) + 1
-        write(*,*) 'Calculating Envelope, initial nr_env:', nr_env
+        !write(*,*) 'Calculating Envelope, initial nr_env:', nr_env
         if (nr_env < 1) then
           write(*,*) "********* nr_env =", nr_env
           write(*,*) "ERROR: Internal error in &
@@ -287,21 +288,33 @@ contains
   !! treated as the x-axis and the second column as the y-axis.
   !! @param: op_a       One dimensional operator vector
   !! @param: r          Spatial grid
-  !! @param: filename   Filename of the operator data
-  subroutine init_grid_op_file_1d(op_a, r, filename)
+  !! @param: para       Parameter data 
+  subroutine init_grid_op_file_1d(op_a, r, para)
 
     real(idp),        allocatable,  intent(out) :: op_a(:)
     real(idp),        allocatable,  intent(out) :: r(:)
-    character(len=*),               intent(in)  :: filename
+    type(para_t),                   intent(in)  :: para
 
     integer                 :: i
 
-    call read_ascii(r, op_a, filename)
+    call read_ascii(r, op_a, para%pot_filename)
     do i = 1, size(r)-1
       if (r(i+1) < r(i)) then
         write(*,*) "ERROR: Input file must be sorted with an increasing grid!"
         stop
       end if
+    end do
+    !If input file is a density, convert to a potential
+    if (para%pottype == 'density_file') then
+      do i = 1, size(r)
+        op_a(i) = op_a(i)
+        !TODO Needs to be implemented 
+      end do
+    end if
+    !Add rotational barrier
+    do i = 1, size(r)
+      op_a(i) = op_a(i) +                                                      &
+      &         real(para%l * (para%l + 1), idp) / (two * para%mass * r(i)**2)
     end do
 
   end subroutine init_grid_op_file_1d
@@ -680,8 +693,8 @@ contains
       if (((rmax - rmin) / real(nr-1,idp)) < min_dr) then
         min_dr = (rmax - rmin) / real(nr-1,idp)
       end if
-    elseif (para%pottype == 'file') then
-      call init_grid_op_file_1d(pot, r, para%pot_filename)
+    elseif ((para%pottype == 'file') .or. (para%pottype == 'density_file')) then
+      call init_grid_op_file_1d(pot, r, para)
       ! Check for lower dr in current potential file
       do k = 1, size(r)-1
         if ((r(k+1)-r(k)) < min_dr) then
@@ -737,8 +750,8 @@ contains
         end if
       end do
       if (allocated(pot)) deallocate(pot)
-    elseif (para%pottype == 'file') then
-      call init_grid_op_file_1d(file_pot, file_r, para%pot_filename)
+    elseif ((para%pottype == 'file') .or. (para%pottype == 'density_file')) then
+      call init_grid_op_file_1d(file_pot, file_r, para)
       call init_spline(spline, file_r, file_pot)
       do j=1, size(r)
         call spline_value(spline, r(j), newpotval)
@@ -817,10 +830,10 @@ contains
     write (*,'(A11,2ES25.17)') "    r_max  ", r_max,       r(nr)
     write (*,'(A11,I8, A20, I8)') "    nr     ", nr , " ", nr
 
-    if ((abs(r_max - r(nr)) / r_max) > 0.5_idp) then
-      write(*,*) "ERROR: r_max differs by more than 50% of the original value."
-      stop
-    end if
+    !if ((abs(r_max - r(nr)) / r_max) > 0.5_idp) then
+    !  write(*,*) "ERROR: r_max differs by more than 50% of the original value."
+    !  stop
+    !end if
 
     ! calculate J(:)
     allocate (x(nr), stat=error)
@@ -933,14 +946,14 @@ contains
     write (*,'(A11,2ES25.17)') "    r_max  ", r_max,       r(new_nr)
     write (*,'(A11,I8, A20, I8)') "    nr     ", nr , " ", new_nr
 
-    if ((abs(r_max - r(new_nr)) / r_max) > 0.5_idp) then
-      write(*,*) "ERROR: r_max differs by more than 50% of the original value."
-      stop
-    end if
-    if ((abs(real(nr - new_nr,idp)) / real(nr, idp)) > 0.5_idp) then
-      write(*,*) "ERROR: nr differs by more than 50% of the original value."
-      stop
-    end if
+    !if ((abs(r_max - r(new_nr)) / r_max) > 0.5_idp) then
+    !  write(*,*) "ERROR: r_max differs by more than 50% of the original value."
+    !  stop
+    !end if
+    !if ((abs(real(nr - new_nr,idp)) / real(nr, idp)) > 0.5_idp) then
+    !  write(*,*) "ERROR: nr differs by more than 50% of the original value."
+    !  stop
+    !end if
 
     nr = new_nr
 
@@ -1834,14 +1847,14 @@ contains
   !! @description: Returns potential values of an analytical potential
   !! @param: r_val         Value of radial coordinate 
   real(idp) function analytical_potential(r_val, mass)
-
+  
     real(idp), intent(in) :: r_val
     real(idp), intent(in) :: mass
-
+  
     integer :: l
-
-    l = 1 !Roational quantum number
-
+  
+    l = 0 !Roational quantum number
+  
     !Regularised -1/r potential with rotational barrier
     !Negative values for r_val are treated with a flat, positive constant
     !(Only relevant for integral mapping)
@@ -1851,7 +1864,7 @@ contains
     else
       analytical_potential = 1d16
     end if
-
+  
   end function analytical_potential
 
 end module dvr_diag_mod
