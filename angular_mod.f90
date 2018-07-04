@@ -6,82 +6,12 @@ module angular_mod
 
   public
   
-  !! @description: Parameters 
-  !! @param: mass            Mass of particle (usually electron mass = 1 amu)
-  !! @param: r_min           Minimum $r$
-  !! @param: r_max           Maximum $r$
-  !! @param: pottype         Type of potential {'analytical'|'file'}
-  !! @param: pot_filename    Name of file with potential data
-  !! @param: mapped_grid     Decides whether mapping is employed for the grid 
-  !! @param: maptype         Type of mapping {'diff'|'int'}
-  !! @param: read_envelope   If set to something other than '', read the mapping
-  !!                         envelope potential from the given filename.
-  !! @param: beta            $\beta$ mapping factor
-  !! @param: E_max           $E_{\max}$ mapping factor
-  !! @param: dr_max          Maximal size of `dr` when using mapping.
-  !!                         [huge(zero)]
-  !! @param: nr              Numer of grid points
-  !! @param: nl              When using cardinal grid, $nl + 1$ is the number of
-  !!                         grid points in each element
-  !! @param: m               When using cardinal grid, $m$ is the number of
-  !!                         elements
-  !! @param: moveable        Whether or not the grid should move
-  !! @param: coord_type      Label for coordinate system {'cartesian'|'gll'|
-  !!                         'spherical'}
-  !! @param: spher_method    Name of the method to use for spherical
-  !!                         coordinates {'dvr'|'fbr'|'fbrgll'}
-  type para_t
-    real(idp)                   :: mass
-    real(idp)                   :: r_min
-    real(idp)                   :: r_max
-    character(len=pottype_l)    :: pottype
-    character(len=file_l)       :: pot_filename 
-    logical                     :: mapped_grid
-    character(len=maptype_l)    :: maptype
-    character(len=file_l)       :: read_envelope
-    real(idp)                   :: beta
-    real(idp)                   :: E_max
-    real(idp)                   :: dr_max
-    integer                     :: nr
-    integer                     :: nl
-    integer                     :: m
-    integer                     :: l 
-  end type para_t
-  
-  !! @description: Spatial grid in a specific dimension
-  !! @param: r            Array of $r$-values on the grid
-  !! @param: k            Array of $k$-values on the grid
-  !! @param: J            Jacobian to translate between physical grid and
-  !!                      working grid, when mapping is used
-  !! @param: weights      Arrays of Gauss - Legendre weights for angular
-  !!                      coordinates
-  !! @param: dvr_matrix   Unitary transformation matrix between the DVR and FBR
-  !!                      representations
-  !! @param: dr           Grid spacing (after mapping)
-  !! @param: dk           $k$-spacing
-  !! @param: k_max        Maximum value of $k$
-  !! @param: nl           When using cardinal grid, $nl + 1$ is the number of
-  !!                      grid points in each element
-  !! @param: m            When using cardinal grid, $m$ is the number of
-  !!                      elements
-  !! @param: jac          Jacobian for the cardinal grid
-  !! @param: gllp         Legendre-Gauss-Lobatto points in $[-1,1]$
-  !! @param: gllw         Gaussian weights in $[-1,1]$ for Gauss-Lobatto grid
-  !! @param: D_primitive  For cardinal grid, Kinetic matrix representation in
-  !!                      $[-1,1]$
-  type grid_t
-    real(idp), allocatable   :: r(:)
-    real(idp), allocatable   :: J(:)
-    real(idp), allocatable   :: weights(:)
-    real(idp), allocatable   :: dvr_matrix(:,:)
-    real(idp)                :: dr
-    integer                  :: nl
-    integer                  :: m
-    real(idp), allocatable   :: jac(:)
-    real(idp), allocatable   :: gllp(:)
-    real(idp), allocatable   :: gllw(:)
-    real(idp), allocatable   :: D_primitive(:,:)
-  end type grid_t
+  !! Here is the data_type to containing the parameters for spherical harmonics
+  type sph_harm_t
+      integer           :: n_l  ! number of L quantum number
+      integer           :: n_mp ! orders of multipole included
+
+  end type sph_harm_t
 
 contains
   
@@ -197,5 +127,99 @@ contains
     end if
 
   end subroutine allocerror
+
+  subroutine allocate_int_ang(integrals, sph_harm)
+
+    type(sph_harm_t),  intent(in)           :: sph_harm
+    real(idp), allocatable,  intent(inout)  :: integrals(:,:,:,:,:)
+ 
+    integer    :: n_l, n_mp, error, dim_l
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+    write(*,*) "Debug:", dim_l
+
+    allocate(integrals(n_mp, dim_l, dim_l, dim_l, dim_l), stat=error)
+    call allocerror(error)
+
+    integrals = 0.0d0
+
+  end subroutine allocate_int_ang
+
+  subroutine calc_int_angular(integrals, sph_harm)      
+      
+    type(sph_harm_t),  intent(in)           :: sph_harm
+    real(idp),         intent(inout)        :: integrals(:,:,:,:,:)
+ 
+    integer    :: n_l, n_mp, error, dim_l, k, q, q_init
+    integer    :: l1, l2, l3, l4, l13, l24, n_m1, n_m2, m1, m2, m1_init, m2_init
+
+    real(idp)  :: lk, mq, la, lb, lc, ld, ma, mb
+    real(idp)  :: pre_fact_ac, pre_fact_bd 
+    real(idp)  :: w_symb_ac, w_symb_bd, w_symb_ac_q, w_symb_bd_q 
+
+!   real(idp), allocatable  ::  w_symb_ac_q, w_symb_bd_q
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+
+    do k = 1, n_mp
+      lk = dfloat(k)
+      q_init = -1*(k+1)
+      do l1 = 1, n_l
+        la = dfloat(l1 - 1)
+        do l3 = 1, n_l
+          lc = dfloat(l3 - 1)
+
+          pre_fact_ac = sqrt((2.0d0*la)+1.0d0)*sqrt((2.0d0*lc)+1.0d0)
+
+          l13 = min(l1,l3) - 1
+          n_m1 = 2*l13 + 1
+          m1_init = -1*( l13 + 1)
+
+          w_symb_ac = wigner3j(lk, la, lc, 0.0d0, 0.0d0, 0.0d0)
+
+          do l2 = 1, n_l
+            lb = dfloat(l2 - 1)
+            do l4 = 1, n_l
+              ld = dfloat(l4 - 1)
+
+              pre_fact_bd = sqrt((2.0d0*lb)+1.0d0)*sqrt((2.0d0*ld)+1.0d0)
+              l24 = min(lb,ld)
+              n_m2 = 2*l24 + 1
+              m2_init = -1*( l24 + 1)
+
+              w_symb_bd = wigner3j(lk, lb, ld, 0.0d0, 0.0d0, 0.0d0)
+
+              do m1 = 1, n_m1
+                ma = dfloat(m1_init + m1)
+                write(*,*) 'la, lc, l13, n_m1', l1-1, l3-1, int(ma)
+
+                do m2 = 1, n_m2
+                  ma = dfloat(m2_init + m2)
+                  write(*,*) 'lb, lc, l24, n_m2', l2-1, l4-1, int(mb)
+                 
+
+                  do q = 1, k
+                    mq = dfloat(q_init + q) 
+!                   w_symb_ac_q = wigner3j(lk, la, lc, mq, -1.0d0*ma, mc)
+!                   w_symb_bd_q = wigner3j(lk, lb, ld, -1.0d0*mq, -1.0d0*mb, md)
+
+
+                  end do
+                end do  ! end loop for l4
+              end do  ! end loop for l3
+            end do  ! end loop for m2
+
+          end do  ! end loop for l2
+        end do  ! end loop for m1
+      end do  ! end loop for l1
+      end do  ! end loop for k 
+
+  end subroutine calc_int_angular
 
 end module angular_mod 
