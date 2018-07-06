@@ -51,11 +51,12 @@ contains
     end if
 
     ! Compute Clebsch-Gordan coefficient C
-    if ( (J3 < abs(J1-J2)) .or.  &
-    &  (J3 > (J1+J2)) .or.       &
-    &  (abs(M1) > J1) .or.       &
-    &  (abs(M2) > J2) .or.       &
-    &  (abs(M3) > J3)) then
+    if ( (nint(J3) < abs(nint(J1-J2))) .or.  &
+    &  (nint(J3) > nint(J1+J2)) .or.       &
+    &  (abs(nint(M1+M2+M3)) > 0) .or.       &
+    &  (abs(nint(M1)) > nint(J1)) .or.       &
+    &  (abs(nint(M2)) > nint(J2)) .or.       &
+    &  (abs(nint(M3)) > nint(J3))) then
       C = zero
     else
       C = sqrt((J3+J3+one)/fact(nint(J1+J2+J3+one)))
@@ -65,11 +66,11 @@ contains
       &   fact(nint(J2-M2))*fact(nint(J3-M3))*fact(nint(J3+M3)))
       sumk = zero
       do k = 0, 99
-        if (J1+J2-J3-K < zero) cycle
-        if (J3-J1-M2+K < zero) cycle
-        if (J3-J2+M1+K < zero) cycle
-        if (J1-M1-K    < zero) cycle
-        if (J2+M2-K    < zero) cycle
+        if (nint(J1+J2-J3-K) < 0) cycle
+        if (nint(J3-J1-M2+K) < 0) cycle
+        if (nint(J3-J2+M1+K) < 0) cycle
+        if (nint(J1-M1-K)    < 0) cycle
+        if (nint(J2+M2-K)    < 0) cycle
         term = fact(nint(J1+J2-J3-k))*fact(nint(J3-J1-M2+k))* &
         &      fact(nint(J3-J2+M1+k))*fact(nint(J1-M1-k))*    &
         &      fact(nint(J2+M2-k))*fact(k)
@@ -139,7 +140,6 @@ contains
     n_mp = sph_harm%n_mp
 
     dim_l = n_l**2
-    write(*,*) "Debug:", dim_l
 
     allocate(integrals(n_mp, dim_l, dim_l, dim_l, dim_l), stat=error)
     call allocerror(error)
@@ -155,10 +155,12 @@ contains
  
     integer    :: n_l, n_mp, error, dim_l, k, q, q_init
     integer    :: l1, l2, l3, l4, l13, l24, n_m1, n_m2, m1, m2, m1_init, m2_init
+    integer    :: lma, lmb, lmc, lmd, m_abq, m_sign
 
     real(idp)  :: lk, mq, la, lb, lc, ld, ma, mb
-    real(idp)  :: pre_fact_ac, pre_fact_bd 
-    real(idp)  :: w_symb_ac, w_symb_bd, w_symb_ac_q, w_symb_bd_q 
+    real(idp)  :: pre_fact_ac, pre_fact_bd, pre_fact_prod 
+    real(idp)  :: w_symb_ac, w_symb_bd, w_symb_ac_q, w_symb_bd_q, w_symb_abcd
+    real(idp)  :: int_value
 
 !   real(idp), allocatable  ::  w_symb_ac_q, w_symb_bd_q
 
@@ -168,8 +170,8 @@ contains
     dim_l = n_l**2
 
     do k = 1, n_mp
-      lk = dfloat(k)
-      q_init = -1*(k+1)
+      lk = dfloat(k-1)
+      q_init = -1*k
       do l1 = 1, n_l
         la = dfloat(l1 - 1)
         do l3 = 1, n_l
@@ -189,37 +191,134 @@ contains
               ld = dfloat(l4 - 1)
 
               pre_fact_bd = sqrt((2.0d0*lb)+1.0d0)*sqrt((2.0d0*ld)+1.0d0)
-              l24 = min(lb,ld)
+              l24 = min(l2,l4) - 1
               n_m2 = 2*l24 + 1
               m2_init = -1*( l24 + 1)
 
               w_symb_bd = wigner3j(lk, lb, ld, 0.0d0, 0.0d0, 0.0d0)
 
+              pre_fact_prod = pre_fact_ac * pre_fact_bd
+              w_symb_abcd = w_symb_ac * w_symb_bd
+
               do m1 = 1, n_m1
                 ma = dfloat(m1_init + m1)
-                write(*,*) 'la, lc, l13, n_m1', l1-1, l3-1, int(ma)
+                !lma = (l1-1)**2 + m1
+                lma = (l1-1)**2 + int(la) + int(ma) + 1
+                !lmc = (l3-1)**2 + m1
+                lmc = (l3-1)**2 + int(lc) + int(ma) + 1
+
+!               write(*,*) 'la,lc,ma,lma,lmc',int(la),int(lc),int(ma),lma,lmc
 
                 do m2 = 1, n_m2
-                  ma = dfloat(m2_init + m2)
-                  write(*,*) 'lb, lc, l24, n_m2', l2-1, l4-1, int(mb)
+                  mb = dfloat(m2_init + m2)
+                  !lmb = (l2-1)**2 + m2
+                  lmb = (l2-1)**2 + int(lb) + int(mb) + 1
+                  !lmd = (l4-1)**2 + m2
+                  lmd = (l4-1)**2 + int(ld) + int(mb) + 1
+
+!                 write(*,*) 'lb,ld,mb,lmb,lmd',int(lb),int(ld),int(mb),lmb,lmd
+!                 write(*,*) 'la,ma,lma,lc,mc,lmc:',int(la),int(ma),lma,int(lc)&
+!                     &  ,int(ma),lmc
+!                 write(*,*) 'lb,mb,lmb,ld,md,lmd:',int(lb),int(mb),lmb,int(ld)&
+!                     &  ,int(mb),lmd
                  
-
-                  do q = 1, k
+                  int_value = 0.0d0
+                  do q = 1, 2*k-1
+!                   if (lma.eq.1.and.lmb.eq.3.and.lmc.eq.3.and.lmd.eq.1) then
                     mq = dfloat(q_init + q) 
-!                   w_symb_ac_q = wigner3j(lk, la, lc, mq, -1.0d0*ma, mc)
-!                   w_symb_bd_q = wigner3j(lk, lb, ld, -1.0d0*mq, -1.0d0*mb, md)
 
+                    m_abq = int(ma + mb + mq)
+                    m_sign = (-1)**m_abq
+!                   write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
 
-                  end do
-                end do  ! end loop for l4
-              end do  ! end loop for l3
-            end do  ! end loop for m2
+                    w_symb_ac_q = wigner3j(lk, la, lc, mq, -1.0d0*ma, ma)
+                    w_symb_bd_q = wigner3j(lk, lb, ld, -1.0d0*mq, -1.0d0*mb,mb)
+!                   write(*,*) lk, lb, ld, w_symb_bd_q
 
+                    int_value = int_value +                                    &
+               &         m_sign * pre_fact_prod * w_symb_abcd * w_symb_ac_q*   &
+               &         w_symb_bd_q 
+                    integrals(k, lma, lmb, lmc, lmd) = int_value
+!                   write(*,*) q, int_value, w_symb_ac_q, w_symb_bd_q
+
+!                 end if
+                  end do ! end loop for q
+                end do  ! end loop for m2
+              end do  ! end loop for m1
+
+            end do  ! end loop for l4
           end do  ! end loop for l2
-        end do  ! end loop for m1
+
+        end do  ! end loop for l3
       end do  ! end loop for l1
-      end do  ! end loop for k 
+    end do  ! end loop for k 
 
   end subroutine calc_int_angular
 
+  subroutine write_int_angular(integrals, sph_harm)
+      
+    type(sph_harm_t),  intent(in)           :: sph_harm
+    real(idp),         intent(in)           :: integrals(:,:,:,:,:)
+
+    integer    :: n_l, n_mp, error, dim_l, k
+    integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
+    integer    :: n_m1, n_m2, n_m3, n_m4
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+
+    do k = 1, n_mp
+      open(11, file="ang_element_l"//trim(int2str(k-1))//".dat",                          &
+  &    form="formatted", action="write")
+      
+      do l1 = 1, n_l 
+        n_m1 = 2*l1 - 1
+        do m1 = 1, n_m1
+          lm1 = (l1-1)**2 + m1
+          do l2 = 1, n_l 
+            n_m2 = 2*l2 - 1
+            do m2 = 1, n_m2
+              lm2 = (l2-1)**2 + m2
+              do l3 = 1, n_l 
+                n_m3 = 2*l3 - 1
+                do m3 = 1, n_m3
+                  lm3 = (l3-1)**2 + m3
+                  do l4 = 1, n_l 
+                    n_m4 = 2*l4 - 1
+                    do m4 = 1, n_m4
+                      lm4 = (l4-1)**2 + m4
+                      if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
+                      &   write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
+                      &   integrals(k, lm1, lm2, lm3, lm4)
+                    end do
+                  end do
+                end do
+              end do
+            end do
+          end do
+        end do
+      end do
+
+      close(11)
+    end do
+
+
+  end subroutine write_int_angular
+
+  character(len=converted_l) function int2str(i, format)                         
+                                                                                 
+    integer,                    intent(in) :: i                                  
+    character(len=*), optional, intent(in) :: format                             
+                                                                                 
+    if (present(format)) then                                                    
+      write(int2str, format) i                                                   
+    else                                                                         
+      write(int2str, '(I25)') i                                                  
+    end if                                                                       
+    int2str = adjustl(int2str)                                                   
+                                                                                 
+  end function int2str
+  
 end module angular_mod 
