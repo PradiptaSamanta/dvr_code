@@ -9,10 +9,12 @@ program radial_elements
   type(grid_t)               :: grid
   real(idp), allocatable     :: eigen_vals(:)
   real(idp), allocatable     :: matrix(:,:), matrix_full(:,:)
+  real(idp), allocatable     :: matrix_single(:,:), matrix_single_full(:,:)
+  real(idp), allocatable     :: matrix_single_all(:,:)
   real(idp), allocatable     :: matrix_all(:,:), matrix_inv_all(:,:), unity(:,:)
   real(idp), allocatable     :: Tkin_cardinal(:,:)
   integer                    :: i, j, a, b, l, l_val
-  logical                    :: inversion_check
+  logical                    :: inversion_check, alternative_formula
   real(idp),  allocatable    :: file_r(:), file_pot(:)
   integer, allocatable       :: ipiv(:)
   real(idp)                  :: full_r_max
@@ -33,6 +35,7 @@ program radial_elements
   para%nl            = 5
   para%nr            = 1001 !nr = m * nl + 1
   para%l             = l_val !Rotational quantum number
+  para%Z             = 1
   para%mass          = 1.0
 
   para%mapped_grid   = .false.
@@ -42,6 +45,8 @@ program radial_elements
   para%E_max         = 1d-5
 
   inversion_check    = .true.
+  ! 'alternative_formula' avoids some numerical issues with small denominators
+  alternative_formula= .true. 
         
   call init_grid_dim_GLL(grid, para)
 
@@ -75,9 +80,59 @@ program radial_elements
   call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)
   call redefine_GLL_grid_1d(grid)
+ 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!! Single-Particle Matrix Element !!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! First we treat the single-particle matrix element T + V_ne, the radial
+  ! potential is then given by Z / r plus the rotational barrier
+  do i = 1, size(pot)
+    pot(i) = real(para%Z, idp) / grid%r(i) +                                   &
+    &        real(para%l * (para%l + 1), idp) / (two * para%mass * grid%r(i)**2)
+  end do
   
-  ! Set the potential to zero to only treat the kinetic part in the following
-  pot = zero
+  ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
+  call get_real_surf_matrix_cardinal(matrix_single, grid, pot, Tkin_cardinal)
+  
+  !! Convert banded matrix to full matrix
+  !! Watch for the para%nr-2, because the end points are not included anymore
+  call mat_banded_to_full(matrix_single_full, matrix_single, para%nr-2, 0,     &
+  &                       para%nl)
+  
+  allocate(matrix_single_all(size(matrix_single_full(:,1)),                    &
+  &                          size(matrix_single_full(:,1))))
+  do i = 1, size(matrix_single_all(:,1))
+    do j = 1, size(matrix_single_all(:,1))
+      if (i .le. j) then
+        matrix_single_all(i,j) = matrix_single_full(i,j)
+      else
+        matrix_single_all(i,j) = matrix_single_full(j,i)
+      end if
+    end do
+  end do
+  
+  open(11, file="singleparticle_rad_elements_l"//trim(int2str(para%l))//".dat",&
+  &    form="formatted", action="write")
+  write(11,*) '# Primitive Radial Matrix Elements for the Two-index '//        &
+  &           'Integrals for l = '//trim(int2str(para%l))
+  do a = 1, size(matrix_single_all(1,:))
+    do b = 1, size(matrix_single_all(1,:))
+      write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b)
+    end do
+  end do
+  close(11)
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!! Two-Particle Matrix Element !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
+  ! Set the potential to only include the rotational barrier to only treat the
+  ! kinetic part in the following
+  do i = 1, size(pot)
+    pot(i) = pot(i) +                                                          &
+    &        real(para%l * (para%l + 1), idp) / (two * para%mass * grid%r(i)**2)
+  end do
   
   ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
   call get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
@@ -126,45 +181,17 @@ program radial_elements
   call wrap_dsytrf(matrix_full, size(matrix_full(1,:)), ipiv, work)
   call wrap_dsytri(matrix_full, size(matrix_full(1,:)), ipiv, work)
 
-  ! Now compute radial integral <ab|r_{<}^{l}/r_{>}^{l+1}|cd>, note that
-  ! it is zero unless a = b and c = d so we only store the nonzero entries
-  ! The order of storage is such that c is the inner loop, i.e.
-  ! a = 1, c = 1
-  ! a = 1, c = 2
-  ! a = 1, c = 3
-  ! ...
-  ! a = 2, c = 1
-  ! a = 2, c = 2
-  ! ...
-  ! and so on.
-  ! TODO
-  ! Consider due to symmetry of the matrix to also only store entries for a>c
-  open(11, file="rad_elements_l"//trim(int2str(para%l))//".dat",               &
-  &    form="formatted", action="write")
-  write(11,*) '# Primitive Radial Matrix Elements for the Four-index '//       &
-  &           'Integrals for l = '//trim(int2str(para%l))
-  do a = 1, size(matrix_full(1,:))
-    do b = 1, size(matrix_full(1,:))
-      l = para%l
-      write(11, '(2I8,ES25.17)') a, b,                                         &
-      & ((real(2*l+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *              &
-      &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(a,b))            &
-      & + ((grid%r(a)**l * grid%r(b)**l) / full_r_max**(2*l+1))
+  allocate(matrix_inv_all(size(matrix_full(:,1)),size(matrix_full(:,1))))
+  do i = 1, size(matrix_inv_all(:,1))
+    do j = 1, size(matrix_inv_all(:,1))
+      if (i .le. j) then
+        matrix_inv_all(i,j) = matrix_full(i,j)
+      else
+        matrix_inv_all(i,j) = matrix_full(j,i)
+      end if
     end do
   end do
-  close(11)
- 
   if (inversion_check) then
-    allocate(matrix_inv_all(size(matrix_full(:,1)),size(matrix_full(:,1))))
-    do i = 1, size(matrix_inv_all(:,1))
-      do j = 1, size(matrix_inv_all(:,1))
-        if (i .le. j) then
-          matrix_inv_all(i,j) = matrix_full(i,j)
-        else
-          matrix_inv_all(i,j) = matrix_full(j,i)
-        end if
-      end do
-    end do
     allocate(unity(size(matrix_full(:,1)),size(matrix_full(:,1))))
     unity = matmul(matrix_inv_all, matrix_all)
     do i = 1, size(unity(:,1))
@@ -172,6 +199,9 @@ program radial_elements
         if (i == j) cycle
         if (abs(unity(i,j)) > 1d-10) then
           write(*,*) "WARNING: Inversion not successful with desired precision."
+        end if
+        if (abs(unity(i,j)) > 1d-4) then
+          write(*,*) "ERROR: Inversion not successful."
         end if
       end do
     end do
@@ -193,5 +223,42 @@ program radial_elements
   !  & j = 1, size(unity(i,:)))
   !end do
   !close(11)
+  
+  ! Now compute radial integral <ab|r_{<}^{l}/r_{>}^{l+1}|cd>, note that
+  ! it is zero unless a = b and c = d so we only store the nonzero entries
+  ! The order of storage is such that c is the inner loop, i.e.
+  ! a = 1, c = 1
+  ! a = 1, c = 2
+  ! a = 1, c = 3
+  ! ...
+  ! a = 2, c = 1
+  ! a = 2, c = 2
+  ! ...
+  ! and so on.
+  ! TODO
+  ! Consider due to symmetry of the matrix to also only store entries for a>c
+  open(11, file="twoparticle_rad_elements_l"//trim(int2str(para%l))//".dat",   &
+  &    form="formatted", action="write")
+  write(11,*) '# Primitive Radial Matrix Elements for the Four-index '//       &
+  &           'Integrals for l = '//trim(int2str(para%l))
+  do a = 1, size(matrix_full(1,:))
+    do b = 1, size(matrix_full(1,:))
+      l = para%l
+      if (alternative_formula) then
+        write(11, '(2I8,ES25.17)') a, b,                                       &
+        & ((real(2*l+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+        &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b))       &
+        & + ((grid%r(a) * grid%r(b)) / full_r_max)**l *                        &
+        &   (one / (full_r_max**(l+1)))
+      else
+        write(11, '(2I8,ES25.17)') a, b,                                       &
+        & ((real(2*l+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+        &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b))       &
+        & + ((grid%r(a)**l * grid%r(b)**l) / full_r_max**(2*l+1))
+      end if
+    end do
+  end do
+  close(11)
+ 
   
 end program radial_elements

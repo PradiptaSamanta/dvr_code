@@ -73,7 +73,7 @@ program dvr_diag
   !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
   !! If needed, just add more
   call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)),&
-  &                   nev=nint(0.8*para%nr), which='SA', eigenvals=eigen_vals, &
+  &                   nev=nint(0.5*para%nr), which='SA', eigenvals=eigen_vals, &
   &                   rvec=.true.)
 
   ! Write eigenvalues.
@@ -103,6 +103,17 @@ program dvr_diag
   &    action="write", recl=100000)
   do i = 1, size(matrix(:,1))
     write(11,*) grid%r(i),                                                     &
+    & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                      &
+    & j = 1, size(matrix(i,:)))
+  end do
+  close(11)
+  
+  ! Write transformation matrix. This is the same as the eigenvectors except
+  ! without the grid as the first column 
+  open(11, file="transformation_matrix.dat", form="formatted",&
+  &    action="write", recl=100000)
+  do i = 1, size(matrix(:,1))
+    write(11,*)                                                                &
     & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                      &
     & j = 1, size(matrix(i,:)))
   end do

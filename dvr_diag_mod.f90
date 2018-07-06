@@ -8,6 +8,7 @@ module dvr_diag_mod
   
   !! @description: Parameters 
   !! @param: mass            Mass of particle (usually electron mass = 1 amu)
+  !! @param: Z               Nuclear charge
   !! @param: r_min           Minimum $r$
   !! @param: r_max           Maximum $r$
   !! @param: pottype         Type of potential {'analytical'|'file'}
@@ -32,6 +33,7 @@ module dvr_diag_mod
   !!                         coordinates {'dvr'|'fbr'|'fbrgll'}
   type para_t
     real(idp)                   :: mass
+    real(idp)                   :: Z 
     real(idp)                   :: r_min
     real(idp)                   :: r_max
     character(len=pottype_l)    :: pottype

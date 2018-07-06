@@ -6,7 +6,7 @@ LIBS = -larpack -lblas
 PREFIX = /home/users/0001/uk006500/Programming/DVR_Standalone
 LDFLAGS = -L$(PREFIX)/arpack
 
-all: arpack dvr_diag ang_elements rad_elements
+all: arpack dvr_diag ang_elements rad_elements rad_check
 
 # How to make object files from Fortran 77 files.
 %.o: %.f
@@ -27,6 +27,7 @@ all: arpack dvr_diag ang_elements rad_elements
 OBJ_DIAG = dvr_spline_mod.o dvr_diag_mod.o dvr_diag.o
 OBJ_ANG = dvr_spline_mod.o angular_mod.o angular_elements.o
 OBJ_RAD = dvr_spline_mod.o dvr_diag_mod.o radial_mod.o radial_elements.o
+OBJ_RADC = dvr_spline_mod.o dvr_diag_mod.o radial_mod.o radial_check.o
 
 dvr_diag: $(OBJ_DIAG)
 	$(FC) $(FFLAGS) $(LDFLAGS) -o $@ $(OBJ_DIAG) $(LIBS)
@@ -37,11 +38,14 @@ ang_elements: $(OBJ_ANG)
 rad_elements: $(OBJ_RAD)
 	$(FC) $(FFLAGS) $(LDFLAGS) -o $@ $(OBJ_RAD) $(LIBS)
 
+rad_check: $(OBJ_RADC)
+	$(FC) $(FFLAGS) $(LDFLAGS) -o $@ $(OBJ_RADC) $(LIBS)
+
 arpack: $(PREFIX)/arpack/libarpack.a
 #	bash -c "echo 'Compiling Arpack library'"
 
 clean:
-	@rm -f *.o *.g90 *.mod *.dat *.out dvr_diag ang_elements rad_elements
+	@rm -f *.o *.g90 *.mod *.dat *.out dvr_diag rad_elements ang_elements rad_check
 
 fullclean:
 	@rm arpack/libarpack.a arpack/*.o -f *.o *.g90 *.mod *.dat *.out dvr_diag
