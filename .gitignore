@@ -1,0 +1,6 @@
+tags
+eigenvectors_GLL.map
+input_pot.ana
+*.dat
+*.o
+*.matrix

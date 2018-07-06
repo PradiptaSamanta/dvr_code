@@ -154,10 +154,11 @@ contains
     real(idp),         intent(inout)        :: integrals(:,:,:,:,:)
  
     integer    :: n_l, n_mp, error, dim_l, k, q, q_init
-    integer    :: l1, l2, l3, l4, l13, l24, n_m1, n_m2, m1, m2, m1_init, m2_init
+    integer    :: l1, l2, l3, l4, l13, l24, n_m1, n_m2, n_m3, n_m4
+    integer    :: m1, m2, m3, m4, m1_init, m2_init, m3_init, m4_init
     integer    :: lma, lmb, lmc, lmd, m_abq, m_sign
 
-    real(idp)  :: lk, mq, la, lb, lc, ld, ma, mb
+    real(idp)  :: lk, mq, la, lb, lc, ld, ma, mb, mc, md
     real(idp)  :: pre_fact_ac, pre_fact_bd, pre_fact_prod 
     real(idp)  :: w_symb_ac, w_symb_bd, w_symb_ac_q, w_symb_bd_q, w_symb_abcd
     real(idp)  :: int_value
@@ -174,26 +175,27 @@ contains
       q_init = -1*k
       do l1 = 1, n_l
         la = dfloat(l1 - 1)
+        n_m1 = 2*l1 - 1
+        m1_init = -1*l1
         do l3 = 1, n_l
           lc = dfloat(l3 - 1)
+          n_m3 = 2*l3 - 1
+          m3_init = -1*l3
 
           pre_fact_ac = sqrt((2.0d0*la)+1.0d0)*sqrt((2.0d0*lc)+1.0d0)
-
-          l13 = min(l1,l3) - 1
-          n_m1 = 2*l13 + 1
-          m1_init = -1*( l13 + 1)
 
           w_symb_ac = wigner3j(lk, la, lc, 0.0d0, 0.0d0, 0.0d0)
 
           do l2 = 1, n_l
             lb = dfloat(l2 - 1)
+            n_m2 = 2*l2 - 1
+            m2_init = -1*l2
             do l4 = 1, n_l
               ld = dfloat(l4 - 1)
+              n_m4 = 2*l4 - 1
+              m4_init = -1*l4
 
               pre_fact_bd = sqrt((2.0d0*lb)+1.0d0)*sqrt((2.0d0*ld)+1.0d0)
-              l24 = min(l2,l4) - 1
-              n_m2 = 2*l24 + 1
-              m2_init = -1*( l24 + 1)
 
               w_symb_bd = wigner3j(lk, lb, ld, 0.0d0, 0.0d0, 0.0d0)
 
@@ -202,48 +204,50 @@ contains
 
               do m1 = 1, n_m1
                 ma = dfloat(m1_init + m1)
-                !lma = (l1-1)**2 + m1
-                lma = (l1-1)**2 + int(la) + int(ma) + 1
-                !lmc = (l3-1)**2 + m1
-                lmc = (l3-1)**2 + int(lc) + int(ma) + 1
+                lma = (l1-1)**2 + m1
+                !lma = (l1-1)**2 + int(la) + int(ma) + 1
+                do m3 = 1, n_m3
+                  mc = dfloat(m3_init + m3)
+                  lmc = (l3-1)**2 + m3
+                  !lmc = (l3-1)**2 + int(lc) + int(mc) + 1
 
-!               write(*,*) 'la,lc,ma,lma,lmc',int(la),int(lc),int(ma),lma,lmc
+                  do m2 = 1, n_m2
+                    mb = dfloat(m2_init + m2)
+                    lmb = (l2-1)**2 + m2
+                    !lmb = (l2-1)**2 + int(lb) + int(mb) + 1
+                    do m4 = 1, n_m4
+                      md = dfloat(m4_init + m4)
+                      lmd = (l4-1)**2 + m4
+                      !lmd = (l4-1)**2 + int(ld) + int(md) + 1
 
-                do m2 = 1, n_m2
-                  mb = dfloat(m2_init + m2)
-                  !lmb = (l2-1)**2 + m2
-                  lmb = (l2-1)**2 + int(lb) + int(mb) + 1
-                  !lmd = (l4-1)**2 + m2
-                  lmd = (l4-1)**2 + int(ld) + int(mb) + 1
+                      int_value = 0.0d0
+                      do q = 1, 2*k-1
+!                       if (lma.eq.1.and.lmb.eq.1.and.lmc.eq.2.and.lmd.eq.4) then
+                        mq = dfloat(q_init + q) 
 
-!                 write(*,*) 'lb,ld,mb,lmb,lmd',int(lb),int(ld),int(mb),lmb,lmd
-!                 write(*,*) 'la,ma,lma,lc,mc,lmc:',int(la),int(ma),lma,int(lc)&
-!                     &  ,int(ma),lmc
-!                 write(*,*) 'lb,mb,lmb,ld,md,lmd:',int(lb),int(mb),lmb,int(ld)&
-!                     &  ,int(mb),lmd
-                 
-                  int_value = 0.0d0
-                  do q = 1, 2*k-1
-!                   if (lma.eq.1.and.lmb.eq.3.and.lmc.eq.3.and.lmd.eq.1) then
-                    mq = dfloat(q_init + q) 
-
-                    m_abq = int(ma + mb + mq)
-                    m_sign = (-1)**m_abq
+                        m_abq = int(ma + mb + mq)
+                        m_sign = (-1)**m_abq
 !                   write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
 
-                    w_symb_ac_q = wigner3j(lk, la, lc, mq, -1.0d0*ma, ma)
-                    w_symb_bd_q = wigner3j(lk, lb, ld, -1.0d0*mq, -1.0d0*mb,mb)
+                        w_symb_ac_q =                                          &
+                        &     wigner3j(lk, la, lc, mq, -1.0d0*ma, mc)
+
+                        w_symb_bd_q =                                          &
+                        &     wigner3j(lk, lb, ld, -1.0d0*mq, -1.0d0*mb,md)
 !                   write(*,*) lk, lb, ld, w_symb_bd_q
 
-                    int_value = int_value +                                    &
-               &         m_sign * pre_fact_prod * w_symb_abcd * w_symb_ac_q*   &
-               &         w_symb_bd_q 
-                    integrals(k, lma, lmb, lmc, lmd) = int_value
-!                   write(*,*) q, int_value, w_symb_ac_q, w_symb_bd_q
+                        int_value = int_value +                                &
+                     &   m_sign * pre_fact_prod * w_symb_abcd * w_symb_ac_q*   &
+                     &   w_symb_bd_q 
+                        integrals(k, lma, lmb, lmc, lmd) = int_value
+!                        write(*,*) q, int_value, w_symb_ac_q, w_symb_bd_q
 
-!                 end if
-                  end do ! end loop for q
-                end do  ! end loop for m2
+!                     end if
+                      end do ! end loop for q
+
+                    end do ! end loop for m4
+                  end do ! end loop for m2   
+                end do  ! end loop for m3
               end do  ! end loop for m1
 
             end do  ! end loop for l4
@@ -289,8 +293,8 @@ contains
                     n_m4 = 2*l4 - 1
                     do m4 = 1, n_m4
                       lm4 = (l4-1)**2 + m4
-                      if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                      &   write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
+!                     if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
+                      write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
                       &   integrals(k, lm1, lm2, lm3, lm4)
                     end do
                   end do
