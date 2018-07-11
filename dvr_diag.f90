@@ -10,8 +10,11 @@ program dvr_diag
   real(idp), allocatable     :: eigen_vals(:)
   real(idp), allocatable     :: matrix(:,:)
   real(idp), allocatable     :: Tkin_cardinal(:,:)
-  integer                    :: i, j
+  integer                    :: i, j, l_val
   real(idp),  allocatable    :: file_r(:), file_pot(:)
+  logical                    :: only_bound ! Only writes out bound states
+  
+  l_val=12
 
   para%pottype       = 'file' ! 'density_file', 'file', 'analytical'
   para%pot_filename  = 'input_pot.in' 
@@ -20,7 +23,7 @@ program dvr_diag
   para%m             = 200
   para%nl            = 5
   para%nr            = 1001 !nr = m * nl + 1
-  para%l             = 1 !Rotational quantum number
+  para%l             = l_val !Rotational quantum number
   para%mass          = 1.0
 
   para%mapped_grid   = .false.
@@ -28,6 +31,8 @@ program dvr_diag
   para%read_envelope = ''
   para%beta          = 0.015
   para%E_max         = 1d-5
+
+  only_bound         = .true.
         
   call init_grid_dim_GLL(grid, para) 
  
@@ -99,24 +104,54 @@ program dvr_diag
   ! see eg. arXiv:1611.09034 (2016).
   ! We furthermore divide by r such that we obtain the proper radial
   ! wavefunction psi(r) instead of the rescaled object u(r) = psi(r) * r
-  open(11, file="eigenvectors_GLL.dat", form="formatted",&
-  &    action="write", recl=100000)
-  do i = 1, size(matrix(:,1))
-    write(11,*) grid%r(i),                                                     &
-    & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                      &
-    & j = 1, size(matrix(i,:)))
-  end do
-  close(11)
+
+  if (only_bound) then
+    open(11, file="eigenvectors_GLL.dat", form="formatted",&
+    &    action="write", recl=100000)
+    do i = 1, size(matrix(:,1))
+      write(11,'(ES25.17, 1x)', advance = 'No') grid%r(i)
+      do j = 1, size(matrix(i,:))
+        if (eigen_vals(j) > zero) cycle
+        write(11,'(ES25.17, 1x)', advance = 'No')                              &
+        & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+      end do
+      write(11,*) ' '
+    end do
+    close(11)
+  else
+    open(11, file="eigenvectors_GLL.dat", form="formatted",&
+    &    action="write", recl=100000)
+    do i = 1, size(matrix(:,1))
+      write(11,*) grid%r(i),                                                   &
+      & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                    &
+      & j = 1, size(matrix(i,:)))
+    end do
+    close(11)
+  end if
   
   ! Write transformation matrix. This is the same as the eigenvectors except
   ! without the grid as the first column 
-  open(11, file="transformation_matrix.dat", form="formatted",&
-  &    action="write", recl=100000)
-  do i = 1, size(matrix(:,1))
-    write(11,*)                                                                &
-    & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                      &
-    & j = 1, size(matrix(i,:)))
-  end do
-  close(11)
+  if (only_bound) then
+    open(11, file="transformation_matrix_l"//trim(int2str(para%l))//".dat",    &
+    &    form="formatted", action="write")
+    do i = 1, size(matrix(:,1))
+      do j = 1, size(matrix(i,:))
+        if (eigen_vals(j) > zero) cycle
+        write(11,'(ES25.17, 1x)', advance = 'No')                              &
+        & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+      end do
+      write(11,*) ' '
+    end do
+    close(11)
+  else
+    open(11, file="transformation_matrix_l"//trim(int2str(para%l))//".dat",    &
+    &    form="formatted", action="write")
+    do i = 1, size(matrix(:,1))
+      write(11,*)                                                              &
+      & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                    &
+      & j = 1, size(matrix(i,:)))
+    end do
+    close(11)
+  end if
   
 end program dvr_diag 

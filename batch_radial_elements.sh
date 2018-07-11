@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #Set value of maximal order of multipole expansion
-lmax=100
+lmax=6
 
 #Initialise
 make clean all

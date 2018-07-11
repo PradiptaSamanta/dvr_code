@@ -116,20 +116,6 @@ contains
 
   end subroutine wrap_dsytri
 
-  character(len=converted_l) function int2str(i, format)
-
-    integer,                    intent(in) :: i
-    character(len=*), optional, intent(in) :: format
-
-    if (present(format)) then
-      write(int2str, format) i
-    else
-      write(int2str, '(I25)') i
-    end if
-    int2str = adjustl(int2str)
-
-  end function int2str
-
   real(idp) function dvr_primitive_val(ind, para, grid, r)
 
     integer,                    intent(in) :: ind

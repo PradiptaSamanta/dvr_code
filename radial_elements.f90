@@ -8,20 +8,26 @@ program radial_elements
   type(para_t)               :: para
   type(grid_t)               :: grid
   real(idp), allocatable     :: eigen_vals(:)
-  real(idp), allocatable     :: matrix(:,:), matrix_full(:,:)
+  real(idp), allocatable     :: matrix(:,:), matrix_full(:,:), matrix_diag(:,:)
   real(idp), allocatable     :: matrix_single(:,:), matrix_single_full(:,:)
   real(idp), allocatable     :: matrix_single_all(:,:)
   real(idp), allocatable     :: matrix_all(:,:), matrix_inv_all(:,:), unity(:,:)
   real(idp), allocatable     :: Tkin_cardinal(:,:)
   integer                    :: i, j, a, b, l, l_val
+  integer                    :: nr_limit !Only use up to this amount of
+                                         !DVR primitives 
   logical                    :: inversion_check, alternative_formula
+  !logical                    :: only_bound ! Only writes out bound states
+                                ! Note that this functionality doesn't really
+                                ! make sense here, since we are on the level of
+                                ! primitives
   real(idp),  allocatable    :: file_r(:), file_pot(:)
   integer, allocatable       :: ipiv(:)
   real(idp)                  :: full_r_max
   real(idp), allocatable     :: work(:)
   integer                    :: info
 
-  l_val=100
+  l_val=6
 
   ! IMPORTANT: It is crucial that the parameters used here for the radial
   !            matrix elements are the same that will be used when obtaining
@@ -33,8 +39,8 @@ program radial_elements
   para%r_max         = 300.0
   para%m             = 200
   para%nl            = 5
-  para%nr            = 1001 !nr = m * nl + 1
-  para%l             = l_val !Rotational quantum number
+  para%nr            = 1001  !nr = m * nl + 1
+  para%l             = l_val !Multipole order
   para%Z             = 1
   para%mass          = 1.0
 
@@ -44,9 +50,11 @@ program radial_elements
   para%beta          = 0.015
   para%E_max         = 1d-5
 
+  !only_bound         = .true.
+  nr_limit           = 15 
   inversion_check    = .true.
   ! 'alternative_formula' avoids some numerical issues with small denominators
-  alternative_formula= .true. 
+  alternative_formula= .true.
         
   call init_grid_dim_GLL(grid, para)
 
@@ -80,6 +88,20 @@ program radial_elements
   call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)
   call redefine_GLL_grid_1d(grid)
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!! Get Eigenvalues !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
+  !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
+  call get_real_surf_matrix_cardinal(matrix_diag, grid, pot, Tkin_cardinal)
+
+  !! Diagonalize Hamiltonian matrix which is stored in banded format.
+  !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
+  !! If needed, just add more
+  call diag_arpack_real_sym_matrix(matrix_diag, formt='banded',                &
+  &    n=size(matrix_diag(1,:)), nev=nint(0.5*para%nr), which='SA',            &
+  &    eigenvals=eigen_vals, rvec=.true.)
  
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!! Single-Particle Matrix Element !!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -117,8 +139,19 @@ program radial_elements
   write(11,*) '# Primitive Radial Matrix Elements for the Two-index '//        &
   &           'Integrals for l = '//trim(int2str(para%l))
   do a = 1, size(matrix_single_all(1,:))
+    if (a > nr_limit) cycle
+    !if (only_bound) then
+    !  if (a > 0.5*para%nr - 1) cycle
+    !  if (eigen_vals(a) < zero) cycle
+    !end if
     do b = 1, size(matrix_single_all(1,:))
+      if (b > nr_limit) cycle
+      !if (only_bound) then
+      !  if (b > 0.5*para%nr - 1) cycle
+      !  if (eigen_vals(b) < zero) cycle
+      !end if
       write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b)
+      !write(11, '(3ES25.17)') real(a), real(b), matrix_single_all(a,b)
     end do
   end do
   close(11)
@@ -242,7 +275,17 @@ program radial_elements
   write(11,*) '# Primitive Radial Matrix Elements for the Four-index '//       &
   &           'Integrals for l = '//trim(int2str(para%l))
   do a = 1, size(matrix_full(1,:))
+    if (a > nr_limit) cycle
+    !if (only_bound) then
+    !  if (a > 0.5*para%nr - 1) cycle
+    !  if (eigen_vals(a) < zero) cycle
+    !end if
     do b = 1, size(matrix_full(1,:))
+      if (b > nr_limit) cycle
+      !if (only_bound) then
+      !  if (b > 0.5*para%nr - 1) cycle
+      !  if (eigen_vals(b) < zero) cycle
+      !end if
       l = para%l
       if (alternative_formula) then
         write(11, '(2I8,ES25.17)') a, b,                                       &
@@ -250,15 +293,23 @@ program radial_elements
         &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b))       &
         & + ((grid%r(a) * grid%r(b)) / full_r_max)**l *                        &
         &   (one / (full_r_max**(l+1)))
+        !write(11, '(3ES25.17)') real(a), real(b),                              &
+        !& ((real(2*l+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+        !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b))       &
+        !& + ((grid%r(a) * grid%r(b)) / full_r_max)**l *                        &
+        !&   (one / (full_r_max**(l+1)))
       else
         write(11, '(2I8,ES25.17)') a, b,                                       &
         & ((real(2*l+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
         &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b))       &
         & + ((grid%r(a)**l * grid%r(b)**l) / full_r_max**(2*l+1))
+        !write(11, '(3ES25.17)') real(a), real(b),                              &
+        !& ((real(2*l+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+        !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b))       &
+        !& + ((grid%r(a)**l * grid%r(b)**l) / full_r_max**(2*l+1))
       end if
     end do
   end do
   close(11)
- 
   
 end program radial_elements

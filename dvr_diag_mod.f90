@@ -387,12 +387,15 @@ contains
     character(len=datline_l) :: line
     integer :: u
 
-    call file_shape(filename, n_rows, non_data_lines=non_data_lines)
+    call file_shape(filename, n_rows, n_cols, non_data_lines=non_data_lines)
     if (n_rows == 0) then
       write(*,*) "ERROR: The file contains no data rows"
       stop
     end if
-    n_cols = 2 
+    if (n_cols == 0) then
+      write(*,*) "ERROR: The file contains no data columns"
+      stop
+    end if
 
     allocate(table(n_rows, n_cols), stat=error)
     call allocerror(error)
@@ -460,12 +463,15 @@ contains
   !!               lines starting with '#' are not counted.
   !! @param: filename        File name
   !! @param: number_of_rows  Number of rows in the file
+  !! @param: number_of_rows  Number of columns in the file
   !! @param: non_data_lines  If given, a sorted combination of comment_lines and
   !!                         blank_lines
-  subroutine file_shape(filename, number_of_rows, non_data_lines)
+  subroutine file_shape(filename, number_of_rows, number_of_cols,              &
+  &                     non_data_lines)
 
     character(len=*),               intent(in)    :: filename
     integer,                        intent(out)   :: number_of_rows
+    integer,              optional, intent(out)   :: number_of_cols
     integer, allocatable, optional, intent(inout) :: non_data_lines(:)
 
     logical :: ex
@@ -551,12 +557,95 @@ contains
         end if
       end do
     end if
+    
+    if (present(number_of_cols)) then
+      call file_columns(filename, columns)
+      number_of_cols = columns
+    end if
 
     if (associated(comments)) deallocate(comments)
     if (associated(blanks)) deallocate(blanks)
     if (associated(temp)) deallocate(temp)
 
   end subroutine file_shape
+  
+  !! @description: Calculate the number of columns in a data file
+  !! @param: filename        File name
+  !! @param: number_of_cols  Number of columns in the file
+  subroutine file_columns(filename, number_of_cols)
+
+    character(len=*),  intent(in)    :: filename
+    integer, optional, intent(out)   :: number_of_cols
+
+    integer :: ic ! character counter
+    integer :: u
+    character(len=1) :: c
+    integer :: error
+    integer :: noc ! number_of_cols
+    logical :: is_comment
+    logical :: is_blank
+    logical :: searching_for_col
+
+    open(newunit=u, file=filename, access='direct', action='READ',             &
+    &    form='formatted', recl=1)
+    ! Opening the file with direct formatted access means that we can read it
+    ! character-by-character
+    ic = 0
+    searching_for_col = .true.
+    is_blank = .true.
+    is_comment = .false.
+    noc = 0
+    do
+      ic = ic + 1
+      if (ic == huge(ic)) then
+        ! overflow is imminent
+        write(*,*) "ERROR: Could not find columns by reading a sane amount "// &
+        &          "of characters"
+      end if
+      read(u, '(A1)', rec=ic, iostat=error) c
+      if (error /= 0) then
+        exit ! end of line; we're done
+      end if
+      ! ASCII 32: space, 9: tab, 10: line-feed, 13: carriage-return
+      if (ichar(c)/=32 .and. ichar(c)/=9 .and. ichar(c)/=10 .and.              &
+      & ichar(c)/=13) then
+        is_blank = .false.
+        if (c == '#') then
+          ! here, we assume that if the charcter '#' occurs anywhere in a line,
+          ! the entire line is a comment.
+          is_comment = .true.
+        else
+          if (searching_for_col) then
+            ! We found a new column!
+            noc = noc + 1
+            searching_for_col = .false.
+          end if
+        end if
+      elseif (ichar(c)==32 .or. ichar(c)==9) then
+        ! we found a space, i.e. the delimiter between columns
+        searching_for_col = .true.
+      elseif (ichar(c)==9 .or. ichar(c)==10) then
+        ! end of line
+        if (.not. is_comment .and. .not. is_blank) then
+          ! if the line was not a comment, we're done. number_of_cols (noc)
+          ! should hold the correct value for the line we just finished
+          exit
+        else
+          ! if the line was not a data line, we just reset everything and
+          ! continue
+          noc = 0
+          is_comment = .false.
+          is_blank = .true.
+          searching_for_col = .true.
+        end if
+      end if
+    end do
+
+    if (present(number_of_cols)) number_of_cols = noc
+
+    close(u, iostat=error)
+
+  end subroutine file_columns
   
   !! @description: Load a given operator with it's own number of grid points
   !! onto a new set of grid points. This is done by interpolating the given
@@ -1822,6 +1911,20 @@ contains
     call dsbmv('U', n, ku, alpha, a, ku+1, x, 1, beta, y, 1)
 
   end subroutine wrap_dsbmv
+
+  character(len=converted_l) function int2str(i, format)
+
+    integer,                    intent(in) :: i
+    character(len=*), optional, intent(in) :: format
+
+    if (present(format)) then
+      write(int2str, format) i
+    else
+      write(int2str, '(I25)') i
+    end if
+    int2str = adjustl(int2str)
+
+  end function int2str
   
   !! @description: Report an allocation error. Print out given the given
   !!               `module_name`, the given `routine_name`, a description of the

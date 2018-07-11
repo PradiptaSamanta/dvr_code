@@ -7,7 +7,7 @@ program angular_elements
   type(sph_harm_t)        :: sph_harm
   real(idp), allocatable  :: integrals_ang(:,:,:,:,:)
 
-  sph_harm%n_l       = 4
+  sph_harm%n_l       = 2 
   sph_harm%n_mp      = 7
 
   call allocate_int_ang(integrals_ang, sph_harm)
