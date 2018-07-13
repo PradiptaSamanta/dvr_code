@@ -1,4 +1,4 @@
-module transf_ints_2e
+module transf_ints_2e_mod
 
   use gen_ints_mod
   implicit none
@@ -6,4 +6,4 @@ module transf_ints_2e
   public
 
 
-end module transf_ints_2e
+end module transf_ints_2e_mod

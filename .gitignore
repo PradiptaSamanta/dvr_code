@@ -4,3 +4,11 @@ input_pot.ana
 *.dat
 *.o
 *.matrix
+arpack/libarpack.a
+comb_ints
+dvr_diag
+rad_elements
+ang_elements
+rad_check
+transf_ints
+*.mod
