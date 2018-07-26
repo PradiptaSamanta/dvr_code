@@ -1,0 +1,9 @@
+dvr
+(rlimits  0.0 20.0
+(n_grids 40
+(n_gl 5
+(rot_qn_max 6
+(mass 1.0
+(enddvr
+
+end

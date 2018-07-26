@@ -12,3 +12,4 @@ ang_elements
 rad_check
 transf_ints
 *.mod
+build*
