@@ -33,14 +33,14 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
-    call get_real_surf_matrix_cardinal(matrix_diag, grid, pot, Tkin_cardinal)
+!   call get_real_surf_matrix_cardinal(matrix_diag, grid, pot, Tkin_cardinal)
 !
 !   !! Diagonalize Hamiltonian matrix which is stored in banded format.
 !   !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
 !   !! If needed, just add more
-    call diag_arpack_real_sym_matrix(matrix_diag, formt='banded',                &
-    &    n=size(matrix_diag(1,:)), nev=nint(0.5*para%nr), which='SA',            &
-    &    eigenvals=eigen_vals, rvec=.true.)
+!   call diag_arpack_real_sym_matrix(matrix_diag, formt='banded',                &
+!   &    n=size(matrix_diag(1,:)), nev=nint(0.5*para%nr), which='SA',            &
+!   &    eigenvals=eigen_vals, rvec=.true.)
   
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!! Single-Particle Matrix Element !!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -136,24 +136,7 @@ module DVRIntRad
         end do
       end do
     end if
-    !! Debug statements to print out initial matrix before inversion
-    !open(11, file="full_matrix.dat", form="formatted",&
-    !&    action="write", recl=100000)
-    !do i = 1, size(matrix_full(:,1))
-    !  write(11,*)                                                                &
-    !  & (matrix_full(i,j),                                                       &
-    !  & j = 1, size(matrix_full(i,:)))
-    !end do
-    !close(11)
-    !open(11, file="full_matrix_all.dat", form="formatted",&
-    !&    action="write", recl=100000)
-    !do i = 1, size(matrix_all(:,1))
-    !  write(11,*)                                                                &
-    !  & (matrix_all(i,j),                                                       &
-    !  & j = 1, size(matrix_all(i,:)))
-    !end do
-    !close(11)
- 
+
     ! Invert radial kinetic matrix
     allocate(ipiv(size(matrix_full(1,:))), stat=error)
     call allocerror(error)
@@ -177,8 +160,10 @@ module DVRIntRad
       end do
     end do
     if (inversion_check) then
+
       allocate(unity(size(matrix_full(:,1)),size(matrix_full(:,1))), stat=error)
       call allocerror(error)
+
       unity = matmul(matrix_inv_all, matrix_all)
       do i = 1, size(unity(:,1))
         do j = 1, size(unity(:,1))
@@ -191,7 +176,9 @@ module DVRIntRad
           end if
         end do
       end do
+
     end if
+
     !! Debug statements to print out matrix after full inversion
     !open(11, file="full_matrix_inverse_all.dat", form="formatted",&
     !&    action="write", recl=100000)
@@ -265,6 +252,7 @@ module DVRIntRad
     end do
     close(11)
 
+    deallocate(ipiv, work)
   end subroutine GetRadialElements
 
 end module DVRIntRad

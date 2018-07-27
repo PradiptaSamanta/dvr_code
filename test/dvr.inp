@@ -2,9 +2,10 @@ dvr
 rlimits  0.0 20.0
 n-grids 40
 n-gl 5
-rot-qn-max 0
+rot-qn-max 1
 nuclear-charge 1
 mass 1.0
+dvr-diag
 dvr-integrals
 enddvr
 end
