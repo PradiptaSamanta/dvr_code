@@ -1,9 +1,10 @@
 dvr
-(rlimits  0.0 20.0
-(n_grids 40
-(n_gl 5
-(rot_qn_max 6
-(mass 1.0
-(enddvr
-
+rlimits  0.0 20.0
+n-grids 40
+n-gl 5
+rot-qn-max 0
+nuclear-charge 1
+mass 1.0
+dvr-integrals
+enddvr
 end
