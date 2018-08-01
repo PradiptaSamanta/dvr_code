@@ -108,13 +108,11 @@ module DVRData
 
   end type sph_harm_t
 
-  real(dp), allocatable     :: pot(:)
   type(para_t)              :: para
   type(grid_t)              :: grid
   real(dp), allocatable     :: eigen_vals(:)
-  real(dp), allocatable     :: matrix(:,:)
   real(dp), allocatable     :: Tkin_cardinal(:,:)
-  real(dp),  allocatable    :: file_r(:), file_pot(:)
+  real(dp), target, allocatable     :: pot(:,:) ! Array to store the potential for all values of l
   real(dp)                  :: full_r_max
 
   type(sph_harm_t)        :: sph_harm

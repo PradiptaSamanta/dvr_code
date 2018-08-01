@@ -1,6 +1,6 @@
 dvr
-rlimits  0.0 20.0
-n-grids 40
+rlimits  0.0 300.0
+n-grids 200
 n-gl 5
 rot-qn-max 1
 nuclear-charge 1

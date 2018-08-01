@@ -10,6 +10,9 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(${PROJECT_NAME}_CONFIGURATIONS dvr)
 
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/mods/)
+set(CMAKE_BINARY_DIR ${PROJECT_SOURCE_DIR}/build/bin/)
+
 #set(${PROJECT_NAME}_CONFIGURATIONS arpack)
 
 #find_package(LAPACK REQUIRED)
@@ -22,7 +25,7 @@ set(${PROJECT_NAME}_CONFIGURATIONS dvr)
 #set (BLAS_DIR "/usr/lib64/")
 #find_package(BLAS REQUIRED)
 
-set (CMAKE_FORTRAN_FLAGS "-lblas -llapack")
+set (CMAKE_FORTRAN_FLAGS "-lblas -llapack -O3")
 # The file(GLOB...) allows for wildcard additions:
 file(GLOB SOURCES "arpack/*.f")
 #include_directories(${PROJECT_SOURCE_DIR}/src)
