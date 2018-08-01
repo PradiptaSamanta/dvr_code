@@ -5,6 +5,7 @@ module DVRData
 
   public
 
+  integer, parameter :: iout         = 13
   integer, parameter :: datline_l    = 255 ! Maximum length of a line in a file
   integer, parameter :: file_l       = 512 ! Maximum length of filenames/paths
   integer, parameter :: maptype_l    = 4   ! length of a maptype
@@ -117,5 +118,7 @@ module DVRData
 
   type(sph_harm_t)        :: sph_harm
   real(idp), allocatable  :: integrals_ang(:,:,:,:,:)
+  
+  integer                 :: debug
 
 end module DVRData

@@ -45,6 +45,8 @@ contains
       stop
     end if
 
+    write(iout, *) 'Initializing the GLL grid ...'
+
     if (para%mapped_grid) then ! Initialize mapped GLL grid
 
       beta = para%beta

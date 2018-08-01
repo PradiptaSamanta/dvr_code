@@ -58,7 +58,10 @@ module DVRIntRad
     call allocerror(error)
 
     do l = 1, para%l + 1
+
       l_val = l-1
+      write(iout, *) 'Calculating one-electron radial part of the integral for l = ', l_val
+
       do i = 1, size(pot(:,1))
         pot(i, l) = real(para%Z, idp) / grid%r(i)   +                                   &
         &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
@@ -85,30 +88,40 @@ module DVRIntRad
         end do
       end do
       
-      open(11, file="singleparticle_rad_elements_l"//trim(int2str(l_val))//".dat",&
-      &    form="formatted", action="write")
-      write(11,*) '# Primitive Radial Matrix Elements for the Two-index '//        &
-      &           'Integrals for l = '//trim(int2str(l_val))
-      do a = 1, size(matrix_single_all(1,:,l))
-        if (a > nr_limit) cycle
-        !if (only_bound) then
-        !  if (a > 0.5*para%nr - 1) cycle
-        !  if (eigen_vals(a) < zero) cycle
-        !end if
-        do b = 1, size(matrix_single_all(1,:,l))
-          if (b > nr_limit) cycle
-          !if (only_bound) then
-          !  if (b > 0.5*para%nr - 1) cycle
-          !  if (eigen_vals(b) < zero) cycle
-          !end if
-          if (abs(matrix_single_all(a,b,l)).gt.1e-12) &
-          & write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b,l)
-          !write(11, '(3ES25.17)') real(a), real(b), matrix_single_all(a,b)
-        end do
-      end do
-      close(11)
-
     end do
+
+    if (debug.gt.5) then
+
+      write(iout, *) 'writing down the one-electron radial integrals'
+
+      do l = 1, para%l + 1
+
+        l_val = l-1
+        open(11, file="singleparticle_rad_elements_l"//trim(int2str(l_val))//".dat",&
+        &    form="formatted", action="write")
+        write(11,*) '# Primitive Radial Matrix Elements for the Two-index '//        &
+        &           'Integrals for l = '//trim(int2str(l_val))
+        do a = 1, size(matrix_single_all(1,:,l))
+          if (a > nr_limit) cycle
+          !if (only_bound) then
+          !  if (a > 0.5*para%nr - 1) cycle
+          !  if (eigen_vals(a) < zero) cycle
+          !end if
+          do b = 1, size(matrix_single_all(1,:,l))
+            if (b > nr_limit) cycle
+            !if (only_bound) then
+            !  if (b > 0.5*para%nr - 1) cycle
+            !  if (eigen_vals(b) < zero) cycle
+            !end if
+            if (abs(matrix_single_all(a,b,l)).gt.1e-12) &
+            & write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b,l)
+            !write(11, '(3ES25.17)') real(a), real(b), matrix_single_all(a,b)
+          end do
+        end do
+        close(11)
+      end do
+
+    end if
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -127,7 +140,10 @@ module DVRIntRad
     ! Set the potential to only include the rotational barrier to only treat the
     ! kinetic part in the following
     do l = 1, para%l + 1
+
       l_val = l-1
+      write(iout, *) 'Calculating two-electron radial part of the integral for l = ', l_val
+
       do i = 1, size(pot(:,1))
         pot(i, l) = pot(i, l) +                                                          &
          &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
@@ -198,51 +214,62 @@ module DVRIntRad
  
       end if
 
-      open(11, file="twoparticle_rad_elements_l"//trim(int2str(l_val))//".dat",   &
-      &    form="formatted", action="write")
-      write(11,*) '# Primitive Radial Matrix Elements for the Four-index '//       &
-      &           'Integrals for l = '//trim(int2str(l_val))
-      do a = 1, size(matrix_full(1,:))
-        if (a > nr_limit) cycle
-        !if (only_bound) then
-        !  if (a > 0.5*para%nr - 1) cycle
-        !  if (eigen_vals(a) < zero) cycle
-        !end if
-        do b = 1, size(matrix_full(1,:))
-          if (b > nr_limit) cycle
-          !if (only_bound) then
-          !  if (b > 0.5*para%nr - 1) cycle
-          !  if (eigen_vals(b) < zero) cycle
-          !end if
-          if (alternative_formula) then
-            write(11, '(2I8,ES25.17)') a, b,                                       &
-            & ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-            &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-            & + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
-            &   (one / (full_r_max**(l_val+1)))
-            !write(11, '(3ES25.17)') real(a), real(b),                              &
-            !& ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-            !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-            !& + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
-            !&   (one / (full_r_max**(l_val+1)))
-          else
-            write(11, '(2I8,ES25.17)') a, b,                                       &
-            & ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-            &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-            & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
-            !write(11, '(3ES25.17)') real(a), real(b),                              &
-            !& ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-            !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-            !& + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
-          end if
-        end do
-      end do
-      close(11)
-
     end do
-    stop
+
+    if (debug.gt.5) then
+
+      write(iout, *) 'writing down the two-electron radial integrals'
+
+      do l = 1, para%l + 1
+
+        l_val = l-1
+
+        open(11, file="twoparticle_rad_elements_l"//trim(int2str(l_val))//".dat",   &
+        &    form="formatted", action="write")
+        write(11,*) '# Primitive Radial Matrix Elements for the Four-index '//       &
+        &           'Integrals for l = '//trim(int2str(l_val))
+        do a = 1, size(matrix_full(1,:))
+          if (a > nr_limit) cycle
+          !if (only_bound) then
+          !  if (a > 0.5*para%nr - 1) cycle
+          !  if (eigen_vals(a) < zero) cycle
+          !end if
+          do b = 1, size(matrix_full(1,:))
+            if (b > nr_limit) cycle
+            !if (only_bound) then
+            !  if (b > 0.5*para%nr - 1) cycle
+            !  if (eigen_vals(b) < zero) cycle
+            !end if
+            if (alternative_formula) then
+              write(11, '(2I8,ES25.17)') a, b,                                       &
+              & ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+              &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
+              & + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
+              &   (one / (full_r_max**(l_val+1)))
+              !write(11, '(3ES25.17)') real(a), real(b),                              &
+              !& ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+              !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
+              !& + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
+              !&   (one / (full_r_max**(l_val+1)))
+            else
+              write(11, '(2I8,ES25.17)') a, b,                                       &
+              & ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+              &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
+              & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
+              !write(11, '(3ES25.17)') real(a), real(b),                              &
+              !& ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
+              !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
+              !& + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
+            end if
+          end do
+        end do
+        close(11)
+
+      end do
+    end if ! End of if loop for writing the integral files
 
     deallocate(ipiv, work)
+
   end subroutine GetRadialElements
 
 end module DVRIntRad

@@ -3,6 +3,7 @@ module ReadInput
   use util_mod, only : get_free_unit, stop_all
   use input_mod
   use InputData
+  use DVRData, only : iout, debug
 
   implicit none
 
@@ -22,7 +23,7 @@ module ReadInput
 
     open (ir, File=filename, status='OLD', form= "FORMATTED", iostat = ios)
 
-    write(6,*) 'Reading the input file : ', trim(filename)
+    write(iout, *) 'Reading the input from the file : ', trim(filename)
 
     call SetDVRInpDefaults()
 
@@ -31,7 +32,6 @@ module ReadInput
     flush(6)
     if(tEof) exit
     call readu(w)
-    write(6,*) trim(w)
     select case(w)
     case("DVR")
       ! Read here the data defining DVR for the calculation
@@ -56,7 +56,7 @@ module ReadInput
     m             = 200
     nl            = 5
     nr            = m * nl + 1
-    l_max             = 3 !Rotational quantum number
+    l_max         = 3 !Rotational quantum number
     mass          = 1.0
 
     mapped_grid   = .false.
@@ -66,6 +66,7 @@ module ReadInput
     E_max         = 1d-5
     only_bound    = .true.
     
+    debug = 1
     dvr_diag = .false.
     dvr_integrals = .false.
     trans_integrals = .false.
@@ -90,33 +91,28 @@ module ReadInput
       ! Minimum and maximum limits for the radial distance
       case("RLIMITS")
         call getf(r_min,1.0d0)
-        write(6,*) r_min
         call getf(r_max,1.0d0)
-        write(6,*) r_max
 
       ! Number of Finite Elements grids
       case("N-GRIDS")
         call geti(m)
-        write(6,*) m
       ! Number of point in the Gauss-Lobato quadrature
       case("N-GL")
         call geti(nl)
-        write(6,*) nl
       ! Maximum number of the angular momentum to be involved
       case("ROT-QN-MAX")
         call geti(l_max)
-        write(6,*) l_max
       ! Mass of the Nucleus
       case("NUCLEAR-CHARGE")
         call geti(z)
       case("MASS")
         call getf(mass)
-        write(6,*) mass
       case("DVR-DIAG")
         dvr_diag = .true.
-        write(6,*) dvr_diag
       case("DVR-INTEGRALS")
         dvr_integrals = .true.
+      case("DEBUG")
+        call geti(debug)
       case("ENDDVR")
         exit
       case default
