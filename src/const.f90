@@ -32,4 +32,11 @@ module constants
   complex(idp), parameter :: ci    = (0.0_idp, 1.0_idp)
   complex(idp), parameter :: cid   = (1.0_idp, 1.0_idp)
   
+  integer, parameter :: iout         = 13
+  integer, parameter :: datline_l    = 255 ! Maximum length of a line in a file
+  integer, parameter :: file_l       = 512 ! Maximum length of filenames/paths
+  integer, parameter :: maptype_l    = 4   ! length of a maptype
+  integer, parameter :: pottype_l    = 10  ! length of a pottype
+  integer, parameter :: converted_l  = 80  ! length of a converted string
+
 end module constants

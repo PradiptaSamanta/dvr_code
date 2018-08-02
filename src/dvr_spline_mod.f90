@@ -1,7 +1,7 @@
 module dvr_spline_mod
 
   use constants
-  use DVRData
+  use DVRData, only : spline_t
 
   implicit none
 

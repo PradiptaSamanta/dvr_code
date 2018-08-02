@@ -26,6 +26,7 @@ module DVRDiag
     para%l             = l_max !Rotational quantum number
     para%Z             = z
     para%mass          = mass
+    para%nev           = nint(nev_fac*para%nr)
  
     para%mapped_grid   = .false.
     para%maptype       = 'diff'
@@ -35,14 +36,15 @@ module DVRDiag
 
     write(iout, *) '**********'
     write(iout, *) 'Setting up these parameters:'
-    write(iout, '(X,A,3X, F5.2)') 'para%r_min     =', r_min
-    write(iout, '(X,A,3X, F5.2)') 'para%r_max     =', r_max
-    write(iout, '(X,A,3X, I5)') 'para%m         =', m
-    write(iout, '(X,A,3X, I5)') 'para%nl        =', nl
-    write(iout, '(X,A,3X, I5)') 'para%nr        =', para%nr
-    write(iout, '(X,A,3X, I5)') 'para%l_max     =', l_max
-    write(iout, '(X,A,3X, I5)') 'para%Z         =', z
-    write(iout, '(X,A,3X, F5.2)') 'para%mass      =', mass
+    write(iout, '(X,A,3X, F6.2)') 'para%r_min     =', r_min
+    write(iout, '(X,A,3X, F6.2)') 'para%r_max     =', r_max
+    write(iout, '(X,A,3X, I6)') 'para%m         =', m
+    write(iout, '(X,A,3X, I6)') 'para%nl        =', nl
+    write(iout, '(X,A,3X, I6)') 'para%nr        =', para%nr
+    write(iout, '(X,A,3X, I6)') 'para%l_max     =', l_max
+    write(iout, '(X,A,3X, I6)') 'para%nev     =', para%nev
+    write(iout, '(X,A,3X, I6)') 'para%Z         =', z
+    write(iout, '(X,A,3X, F6.2)') 'para%mass      =', mass
     write(iout, *) '***********' 
 
     call init_grid_dim_GLL(grid, para) 
@@ -74,7 +76,7 @@ module DVRDiag
       write(*,*) "ERROR: Invalid pottype"
     end if
     call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
-    call redefine_ops_cardinal(pot)
+    call redefine_ops_cardinal(para, pot)
     call redefine_GLL_grid_1d(grid)
  
     write(iout, *) 'Grid initialization is done.'
@@ -85,10 +87,11 @@ module DVRDiag
 
   subroutine DVRDiagonalization()
 
-    integer                    :: i, j, l, l_val
+    integer                    :: i, j, l, l_val, error
     real(dp), allocatable      :: matrix(:,:)
     logical                    :: only_bound ! Only writes out bound states
     real(dp), pointer          :: pot_1(:)
+    real(dp), pointer          :: eigenval_p(:)
 
     only_bound         = .true.
         
@@ -101,12 +104,22 @@ module DVRDiag
     end do
     close(11)
  
+    !! Allocate the arrays for eigenvalues and eigenvectors
+
+    allocate(eigen_vals(para%nev, para%l+1),stat=error)
+    call allocerror(error)
+
+    allocate(eigen_vecs(size(grid%r), para%nev, para%l+1),stat=error)
+    call allocerror(error)
+
+    !! Here start the loop over different values of the angular quantum number
     do l = 1, para%l+1
 
       l_val = l-1
       write(iout, *) 'Solving the radial Schroedinger equation for l = ', l_val
 
       pot_1 => pot(:,l)
+      eigenval_p => eigen_vals(:,l)
 
       !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
       call get_real_surf_matrix_cardinal(matrix, grid, pot_1, Tkin_cardinal)
@@ -116,9 +129,16 @@ module DVRDiag
       !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
       !! If needed, just add more
       call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)), &
-      &                   nev=nint(0.5*para%nr), which='SA', eigenvals=eigen_vals, &
+      &                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
       &                   rvec=.true.)
   
+
+      do i = 1, size(matrix(:,1))
+        do j = 1, size(matrix(1,:))
+          eigen_vecs(i,j,l)  = matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+        end do
+      end do
+      
 
       if ( debug.gt.5) then
         write(iout,*) 'Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...'
@@ -130,8 +150,8 @@ module DVRDiag
         write(11,*) '#_______________________________________________________________'
         write(11,*) "#     index    -    eigenvalue    -    eigenvector normalization"
         write(11,*) ""
-        do i = 1, size(eigen_vals(:))
-          write(11,'(I8,3ES25.17)') i-1, eigen_vals(i),                              &
+        do i = 1, size(eigen_vals(:,l))
+          write(11,'(I8,3ES25.17)') i-1, eigen_vals(i,l),                              &
           &                         - one / (two * (real(i+l_val, idp))**2),        &
           &                         dot_product(matrix(:,i), matrix(:,i))
         end do
@@ -150,9 +170,9 @@ module DVRDiag
           do i = 1, size(matrix(:,1))
             write(11,'(ES25.17, 1x)', advance = 'No') grid%r(i)
             do j = 1, size(matrix(i,:))
-              if (eigen_vals(j) > zero) cycle
+              if (eigen_vals(j,l) > zero) cycle
               write(11,'(ES25.17, 1x)', advance = 'No')                              &
-              & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+              & eigen_vecs(i,j,l)
             end do
             write(11,*) ' '
           end do
@@ -161,8 +181,7 @@ module DVRDiag
           open(11, file="eigenvectors_GLL.dat", form="formatted",&
           &    action="write", recl=100000)
           do i = 1, size(matrix(:,1))
-            write(11,*) grid%r(i),                                                   &
-            & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                    &
+            write(11,*) grid%r(i), (eigen_vecs(i,j,l),           &
             & j = 1, size(matrix(i,:)))
           end do
           close(11)
@@ -175,9 +194,9 @@ module DVRDiag
           &    form="formatted", action="write")
           do i = 1, size(matrix(:,1))
             do j = 1, size(matrix(i,:))
-              if (eigen_vals(j) > zero) cycle
+              if (eigen_vals(j,l) > zero) cycle
               write(11,'(ES25.17, 1x)', advance = 'No')                              &
-              & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+              & eigen_vecs(i,j,l)
             end do
             write(11,*) ' '
           end do
@@ -186,8 +205,8 @@ module DVRDiag
           open(11, file="transformation_matrix_l"//trim(int2str(l_val))//".dat",    &
           &    form="formatted", action="write")
           do i = 1, size(matrix(:,1))
-            write(11,*)                                                              &
-            & (matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i)),                    &
+            write(11,*)                               &
+            & (eigen_vecs(i,j,l),                    &
             & j = 1, size(matrix(i,:)))
           end do
           close(11)
@@ -196,6 +215,8 @@ module DVRDiag
       end if  ! if files are written out
 
     end do
+
+    deallocate(matrix)
   end subroutine DVRDiagonalization
 
 end module DVRDiag

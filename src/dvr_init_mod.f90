@@ -1,7 +1,7 @@
 module dvr_init_mod
 
   use constants
-  use DVRData
+  use DVRData, only : grid_t, para_t
   use dvr_spline_mod
   use util_mod
   
@@ -1192,8 +1192,9 @@ contains
   !!               Gaus-Lobatto-Legendre grid points to take into account
   !!               the homogenous Direchlet boundary conditions.
   !! @param: pot   Potential 
-  subroutine redefine_ops_cardinal(pot)
+  subroutine redefine_ops_cardinal(para, pot)
 
+    type(para_t),            intent(in)   :: para
     real(idp), allocatable, intent(inout) :: pot(:,:)
 
     real(idp), allocatable :: temp(:,:)

@@ -13,6 +13,7 @@ set(${PROJECT_NAME}_CONFIGURATIONS dvr)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/mods/)
 set(CMAKE_BINARY_DIR ${PROJECT_SOURCE_DIR}/build/bin/)
 
+option(USE_OPENMP "Use OpenMP multi-threading" ON) 
 #set(${PROJECT_NAME}_CONFIGURATIONS arpack)
 
 #find_package(LAPACK REQUIRED)
@@ -25,7 +26,18 @@ set(CMAKE_BINARY_DIR ${PROJECT_SOURCE_DIR}/build/bin/)
 #set (BLAS_DIR "/usr/lib64/")
 #find_package(BLAS REQUIRED)
 
-set (CMAKE_FORTRAN_FLAGS "-lblas -llapack -O3")
+#HAVE_OPENMP
+
+set (CMAKE_FORTRAN_FLAGS "-qopenmp -lblas -llapack -O3")
+set (CMAKE_EXE_LINKER_FLAGS "-qopenmp -lblas -llapack -O3")
+#set (CMAKE_FORTRAN_FLAGS "-lblas -llapack -O3")
+#set (CMAKE_EXE_LINKER_FLAGS "-lblas -llapack -O3")
+
+#if (OPENMP_FOUND)
+#set(CMAKE_FORTRAN_FLAGS "${CMAKE_FORTRAN_FLAGS} ${OpenMP_FORTRAN_FLAGS}")
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+#endif()
+
 # The file(GLOB...) allows for wildcard additions:
 file(GLOB SOURCES "arpack/*.f")
 #include_directories(${PROJECT_SOURCE_DIR}/src)

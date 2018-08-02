@@ -144,10 +144,13 @@ module DVRIntRad
       l_val = l-1
       write(iout, *) 'Calculating two-electron radial part of the integral for l = ', l_val
 
+
+!$OMP PARALLEL DO 
       do i = 1, size(pot(:,1))
         pot(i, l) = pot(i, l) +                                                          &
          &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
       end do
+!OMP END PARALLEL DO
 
       pot_2 => pot(:,l)
 
@@ -165,6 +168,8 @@ module DVRIntRad
  
       if (inversion_check) then
  
+!$OMP PARALLEL DO 
+        write(*,*) 'OPM working for l', l_val
         do i = 1, size(matrix_all(:,1, l))
           do j = 1, size(matrix_all(:,1, l))
             if (i .le. j) then
@@ -174,6 +179,7 @@ module DVRIntRad
             end if
           end do
         end do
+!$OMP END PARALLEL DO
       end if
 
       ! Invert radial kinetic matrix

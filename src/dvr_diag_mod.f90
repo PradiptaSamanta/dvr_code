@@ -21,6 +21,8 @@ contains
   !! @param: Tkin_carinal Work array 
   subroutine get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
 
+    use DVRData, only : grid_t
+
     real(idp), allocatable, intent(inout) :: matrix(:,:)
     type(grid_t),           intent(in)    :: grid
     real(idp), intent(in)    :: pot(:) 
@@ -85,7 +87,7 @@ contains
     integer,                intent(in)    :: n
     integer,                intent(in)    :: nev
     character(len=2),       intent(in)    :: which
-    real(idp), allocatable, intent(inout) :: eigenvals(:)
+    real(idp),              intent(inout) :: eigenvals(:)
     logical,                intent(in)    :: rvec
 
     integer                :: ldv, mode, maxitr, lworkl
@@ -117,14 +119,6 @@ contains
     iparam(4) = 1
     iparam(7) = mode
 
-    if (allocated(eigenvals)) then 
-      deallocate(eigenvals)
-      allocate(eigenvals(nev),stat=error)
-      call allocerror(error)
-    else
-      allocate(eigenvals(nev),stat=error)
-      call allocerror(error)
-    endif
     allocate(v(ldv,ncv),stat=error)
     call allocerror(error)
     allocate(resid(n),stat=error)
@@ -218,7 +212,7 @@ contains
 
     do j = 1, nev
       do i = 1, n
-       matrix(i,j) = v(i,j)
+        matrix(i,j) = v(i,j)
       end do
     end do
 

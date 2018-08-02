@@ -58,6 +58,7 @@ module ReadInput
     nr            = m * nl + 1
     l_max         = 3 !Rotational quantum number
     mass          = 1.0
+    nev_fac       = 0.5d0
 
     mapped_grid   = .false.
     maptype       = 'diff'
@@ -102,6 +103,10 @@ module ReadInput
       ! Maximum number of the angular momentum to be involved
       case("ROT-QN-MAX")
         call geti(l_max)
+      ! The fraction of the total number of grid points to be 
+      ! obtained as eigenvalue after the diagonalization
+      case("NUM-EIG-VALUE-FAC")
+        call getf(nev_fac)
       ! Mass of the Nucleus
       case("NUCLEAR-CHARGE")
         call geti(z)

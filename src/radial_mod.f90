@@ -2,6 +2,7 @@ module radial_mod
 
   use dvr_spline_mod
   use dvr_diag_mod, only: int2str, allocerror
+  use DVRData, only: grid_t, para_t
 
   implicit none
 

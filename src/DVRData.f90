@@ -5,13 +5,6 @@ module DVRData
 
   public
 
-  integer, parameter :: iout         = 13
-  integer, parameter :: datline_l    = 255 ! Maximum length of a line in a file
-  integer, parameter :: file_l       = 512 ! Maximum length of filenames/paths
-  integer, parameter :: maptype_l    = 4   ! length of a maptype
-  integer, parameter :: pottype_l    = 10  ! length of a pottype
-  integer, parameter :: converted_l  = 80  ! length of a converted string
-
   !! @description: Data structure for splining data
   !! @param: n    Number of (x,f(x)) pairs of the spline
   !! @param: cm   Array of interpolation help coefficients
@@ -66,6 +59,7 @@ module DVRData
     integer                     :: nl
     integer                     :: m
     integer                     :: l 
+    integer                     :: nev
   end type para_t
   
   !! @description: Spatial grid in a specific dimension
@@ -111,10 +105,10 @@ module DVRData
 
   type(para_t)              :: para
   type(grid_t)              :: grid
-  real(dp), allocatable     :: eigen_vals(:)
+  real(dp), target, allocatable     :: eigen_vals(:,:), eigen_vecs(:,:,:)
   real(dp), allocatable     :: Tkin_cardinal(:,:)
   real(dp), target, allocatable     :: pot(:,:) ! Array to store the potential for all values of l
-  real(dp)                  :: full_r_max
+  real(dp)                :: full_r_max
 
   type(sph_harm_t)        :: sph_harm
   real(idp), allocatable  :: integrals_ang(:,:,:,:,:)
