@@ -105,14 +105,22 @@ module DVRData
 
   type(para_t)              :: para
   type(grid_t)              :: grid
-  real(dp), target, allocatable     :: eigen_vals(:,:), eigen_vecs(:,:,:)
   real(dp), allocatable     :: Tkin_cardinal(:,:)
   real(dp), target, allocatable     :: pot(:,:) ! Array to store the potential for all values of l
-  real(dp)                :: full_r_max
+  real(dp)               :: full_r_max
 
-  type(sph_harm_t)        :: sph_harm
-  real(idp), allocatable  :: integrals_ang(:,:,:,:,:)
-  
-  integer                 :: debug
+  type(sph_harm_t)       :: sph_harm
+
+  ! The eigen values and eigen vectors obtained as a solution of the radial Schroedinger equation are defined
+  real(dp), target, allocatable     :: eigen_vals(:,:), eigen_vecs(:,:,:)
+
+  ! The angular part of two electron integrals are defined in the spherical harmonics basis
+  real(dp), allocatable  :: integrals_ang(:,:,:,:,:)
+
+  ! The radial part of the one and two electron integrals are defined for the primitive DVR basis
+  real(dp), target, allocatable :: one_e_rad_int(:,:,:)
+  real(dp), target, allocatable :: two_e_rad_int(:,:,:)
+
+  integer                :: debug
 
 end module DVRData

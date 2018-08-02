@@ -16,14 +16,14 @@ module DVRIntRad
                                            !DVR primitives 
     logical                    :: inversion_check, alternative_formula
     integer, allocatable       :: ipiv(:)
+    real(idp)                  :: value_int
     real(idp), allocatable     :: work(:)
 
-    real(idp), allocatable     :: matrix(:,:)
-    real(idp), allocatable     :: matrix_full(:,:), matrix_diag(:,:)
-    real(idp), allocatable     :: matrix_single(:,:), matrix_single_full(:,:)
-    real(idp), allocatable     :: matrix_single_all(:,:,:)
-    real(idp), allocatable     :: matrix_all(:,:,:), matrix_inv_all(:,:,:), unity(:,:)
+    real(idp), allocatable     :: matrix(:,:), matrix_full(:,:)
+    real(idp), allocatable     :: matrix_all(:,:), unity(:,:)
     real(dp), pointer          :: pot_1(:), pot_2(:)
+    real(idp), pointer         :: one_e_int_p(:,:)
+    real(idp), pointer         :: two_e_int_p(:,:)
 
     nr_limit           = 201
     inversion_check    = .true.
@@ -54,7 +54,7 @@ module DVRIntRad
     ! potential file
 
     
-    allocate(matrix_single_all(size(grid%r), size(grid%r), para%l+1), stat=error)
+    allocate(one_e_rad_int(size(grid%r), size(grid%r), para%l+1), stat=error)
     call allocerror(error)
 
     do l = 1, para%l + 1
@@ -71,19 +71,21 @@ module DVRIntRad
       pot_1 => pot(:,l)
 
       ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
-      call get_real_surf_matrix_cardinal(matrix_single, grid, pot_1, Tkin_cardinal)
+      call get_real_surf_matrix_cardinal(matrix, grid, pot_1, Tkin_cardinal)
       
       !! Convert banded matrix to full matrix
       !! Watch for the para%nr-2, because the end points are not included anymore
-      call mat_banded_to_full(matrix_single_full, matrix_single, para%nr-2, 0,     &
+      call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0,     &
       &                       para%nl)
       
-      do i = 1, size(matrix_single_all(:,1,l))
-        do j = 1, size(matrix_single_all(:,1,l))
+      one_e_int_p => one_e_rad_int(:,:,l)
+
+      do i = 1, size(one_e_rad_int(:,1,l))
+        do j = 1, size(one_e_rad_int(:,1,l))
           if (i .le. j) then
-            matrix_single_all(i,j,l) = matrix_single_full(i,j)
+            one_e_int_p(i,j) = matrix_full(i,j)
           else
-            matrix_single_all(i,j,l) = matrix_single_full(j,i)
+            one_e_int_p(i,j) = matrix_full(j,i)
           end if
         end do
       end do
@@ -101,21 +103,20 @@ module DVRIntRad
         &    form="formatted", action="write")
         write(11,*) '# Primitive Radial Matrix Elements for the Two-index '//        &
         &           'Integrals for l = '//trim(int2str(l_val))
-        do a = 1, size(matrix_single_all(1,:,l))
+        do a = 1, size(one_e_rad_int(1,:,l))
           if (a > nr_limit) cycle
           !if (only_bound) then
           !  if (a > 0.5*para%nr - 1) cycle
           !  if (eigen_vals(a) < zero) cycle
           !end if
-          do b = 1, size(matrix_single_all(1,:,l))
+          do b = 1, size(one_e_rad_int(1,:,l))
             if (b > nr_limit) cycle
             !if (only_bound) then
             !  if (b > 0.5*para%nr - 1) cycle
             !  if (eigen_vals(b) < zero) cycle
             !end if
-            if (abs(matrix_single_all(a,b,l)).gt.1e-12) &
-            & write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b,l)
-            !write(11, '(3ES25.17)') real(a), real(b), matrix_single_all(a,b)
+            if (abs(one_e_rad_int(a,b,l)).gt.1e-12) &
+            & write(11, '(2I8,ES25.17)') a, b, one_e_rad_int(a,b,l)
           end do
         end do
         close(11)
@@ -128,10 +129,10 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!! Two-Particle Matrix Element !!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
-    allocate(matrix_all(size(grid%r),size(grid%r), para%l+1),  stat=error)
+    allocate(two_e_rad_int(size(grid%r),size(grid%r), para%l+1),  stat=error)
     call allocerror(error)
   
-    allocate(matrix_inv_all(size(grid%r),size(grid%r), para%l+1),  stat=error)
+    allocate(matrix_all(size(grid%r),size(grid%r)),  stat=error)
     call allocerror(error)
   
     allocate(unity(size(grid%r),size(grid%r)), stat=error)
@@ -170,12 +171,12 @@ module DVRIntRad
  
 !$OMP PARALLEL DO 
         write(*,*) 'OPM working for l', l_val
-        do i = 1, size(matrix_all(:,1, l))
-          do j = 1, size(matrix_all(:,1, l))
+        do i = 1, size(matrix_all(:,1))
+          do j = 1, size(matrix_all(:,1))
             if (i .le. j) then
-              matrix_all(i,j,l) = matrix_full(i,j)
+              matrix_all(i,j) = matrix_full(i,j)
             else
-              matrix_all(i,j,l) = matrix_full(j,i)
+              matrix_all(i,j) = matrix_full(j,i)
             end if
           end do
         end do
@@ -193,19 +194,22 @@ module DVRIntRad
       call wrap_dsytrf(matrix_full, size(matrix_full(1,:)), ipiv, work)
       call wrap_dsytri(matrix_full, size(matrix_full(1,:)), ipiv, work)
  
-      do i = 1, size(matrix_inv_all(:,1,l))
-        do j = 1, size(matrix_inv_all(:,1,l))
-          if (i .le. j) then
-            matrix_inv_all(i,j,l) = matrix_full(i,j)
-          else
-            matrix_inv_all(i,j,l) = matrix_full(j,i)
-          end if
-        end do
-      end do
+      ! The matrix matrix_all_inv is replaced here by a pointer
+      two_e_int_p => two_e_rad_int(:,:,l)
 
       if (inversion_check) then
  
-        unity = matmul(matrix_inv_all(:,:,l), matrix_all(:,:,l))
+        do i = 1, size(two_e_rad_int(:,1,l))
+          do j = 1, size(two_e_rad_int(:,1,l))
+            if (i .le. j) then
+              two_e_int_p(i,j) = matrix_full(i,j)
+            else
+              two_e_int_p(i,j) = matrix_full(j,i)
+            end if
+          end do
+        end do
+
+        unity = matmul(two_e_int_p, matrix_all)
         do i = 1, size(unity(:,1))
           do j = 1, size(unity(:,1))
             if (i == j) cycle
@@ -219,6 +223,30 @@ module DVRIntRad
         end do
  
       end if
+
+      do a = 1, size(two_e_rad_int(:,1,l))
+!       do b = 1, size(two_e_rad_int(:,1,l))
+        do b = 1, a
+          if (alternative_formula) then
+            value_int = ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
+            &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
+            & + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
+            &   (one / (full_r_max**(l_val+1)))
+          else
+            value_int = ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
+            &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
+            & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
+          end if
+!         if (a .le. b) then
+            two_e_int_p(b,a) = value_int
+            if (a.ne.b) two_e_int_p(a,b) = value_int
+!         else
+!           two_e_int_p(a,b) = matrix_full(b,a)
+!         end if
+        end do
+      end do
+
+
 
     end do
 
@@ -246,27 +274,7 @@ module DVRIntRad
             !  if (b > 0.5*para%nr - 1) cycle
             !  if (eigen_vals(b) < zero) cycle
             !end if
-            if (alternative_formula) then
-              write(11, '(2I8,ES25.17)') a, b,                                       &
-              & ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-              &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-              & + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
-              &   (one / (full_r_max**(l_val+1)))
-              !write(11, '(3ES25.17)') real(a), real(b),                              &
-              !& ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-              !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-              !& + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
-              !&   (one / (full_r_max**(l_val+1)))
-            else
-              write(11, '(2I8,ES25.17)') a, b,                                       &
-              & ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-              &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-              & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
-              !write(11, '(3ES25.17)') real(a), real(b),                              &
-              !& ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *            &
-              !&     grid%r(b) * sqrt(grid%weights(b)))) * matrix_inv_all(a,b,l))       &
-              !& + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
-            end if
+            write(11, '(2I8,ES25.17)') a, b,  two_e_rad_int(a,b,l)
           end do
         end do
         close(11)
