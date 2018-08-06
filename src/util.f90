@@ -52,15 +52,15 @@ module util_mod
     character(3), parameter :: error_str='999'
 
     write (*,'(/a7)') 'ERROR.'
-    write (*,'(a27,a)') ' The code DVR stops in subroutine: ',adjustl(sub_name)
-    write (*,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+    write (*,'(a35,a)') ' The code DVR stops in subroutine: ',adjustl(sub_name)
+    write (*,'(X,a,26X,a)') 'Reason: ',adjustl(error_msg)
     write (*,'(a11)') 'EXITING...'
 
     ! Also push this to the stderr unit, so it hopefully ends up somewhere
     ! more useful.
     write (7,'(/a7)') 'ERROR.'
-    write (7,'(a27,a)') ' The code DVR stops in subroutine: ',adjustl(sub_name)
-    write (7,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+    write (7,'(a35,a)') ' The code DVR stops in subroutine: ',adjustl(sub_name)
+    write (7,'(a9,26X,a)') 'Reason: ',adjustl(error_msg)
     write (7,'(a11)') 'EXITING...'
 
 !   call print_backtrace_neci()

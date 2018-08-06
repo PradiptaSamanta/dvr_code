@@ -103,6 +103,7 @@ contains
     real(idp), allocatable :: workl(:)
     integer                :: ipntr(14)
     real(idp), allocatable :: d(:)
+    real(idp)              :: start, finish
 
     ido    = 0
     info   = 0
@@ -133,6 +134,8 @@ contains
     call allocerror(error)
 
     iter = 0
+
+    call cpu_time(start)
 
     select case (formt)
 
@@ -206,6 +209,10 @@ contains
 
     end select ! formt
 
+    call cpu_time(finish)
+
+    write(iout,'(X,a,f10.5)') 'Time taken for first step of diagonalization = ', finish-start, 'seconds.'
+
     if (allocated(matrix)) deallocate(matrix)
     allocate(matrix(n,nev), stat=error)
     call allocerror(error)
@@ -216,10 +223,15 @@ contains
       end do
     end do
 
+    call cpu_time(start)
+
     call dseupd(rvec, 'A', selct, d, matrix, ldv, sigma, bmat, n, which, nev,  &
     &           tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl,  &
     &           info)
 
+    call cpu_time(finish)
+
+    write(iout,'(X,a,f10.5)') 'Time taken for second step of diagonalization = ', finish-start, 'seconds.'
     if (.not. rvec) then
       do i = 1,nev
         eigenvals(i) = d(nev+1-i)

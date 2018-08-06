@@ -1,9 +1,10 @@
 module ReadInput
 
+  use constants
   use util_mod, only : get_free_unit, stop_all
   use input_mod
   use InputData
-  use DVRData, only : iout, debug
+  use DVRData, only: debug
 
   implicit none
 
@@ -15,7 +16,7 @@ module ReadInput
 
     character(64), intent(in) :: filename
     
-    integer :: ir, ios
+    integer :: ir, ios, check
     logical :: tEof
     character(len=100)  :: w
 
@@ -27,6 +28,7 @@ module ReadInput
 
     call SetDVRInpDefaults()
 
+    check = 0
     do 
     call read_line(tEof, ir)
     flush(6)
@@ -36,10 +38,17 @@ module ReadInput
     case("DVR")
       ! Read here the data defining DVR for the calculation
       call DVRInput(ir)
+    case("ORBITAL")
+      ! Read here the data related to orbitals
+      orbital_ints = .true.
+      call OrbitalInput(ir)
+    case ("")
+      check = check + 1
+      if (check.gt.50) call report('input is empty', .true.)
     case ("END")
       exit
     case default
-      call stop_all('ReadInputMain', 'Keyword not recognized')
+      call report('Keyword not recognized',.true.)
     end select
     end do
 
@@ -72,20 +81,26 @@ module ReadInput
     dvr_integrals = .false.
     trans_integrals = .false.
 
+    n_max = 10
+
   end subroutine SetDVRInpDefaults
 
   subroutine DVRInput(ir)
 
     integer, intent(in) :: ir
+    integer             :: check
     logical :: eof
     character (len=100)  :: w
 
+    check = 0
     do
       call read_line(eof, ir)
       if (eof) then 
         exit
       end if  
       call readu(w)
+      
+      if (w(1:1).eq.'!') cycle
 
       select case(w)
       
@@ -118,6 +133,9 @@ module ReadInput
         dvr_integrals = .true.
       case("DEBUG")
         call geti(debug)
+      case("")
+        check = check + 1
+        if (check.gt.50) call report('many empty lines in the input')
       case("ENDDVR")
         exit
       case default
@@ -127,4 +145,34 @@ module ReadInput
     end do
 
   end subroutine DVRInput
+
+
+  subroutine OrbitalInput(ir)
+
+    integer, intent(in) :: ir
+    logical :: eof
+    character (len=100)  :: w
+
+    do
+      call read_line(eof, ir)
+      if (eof) then 
+        exit
+      end if  
+      call readu(w)
+
+      select case(w)
+      
+      ! Number of Finite Elements grids
+      case("NUM-N-QN")
+        call geti(n_max)
+      case("ENDORBITAL")
+        exit
+      case default
+        call stop_all('DVRInput', 'Keyword not recognized')
+      end select
+
+    end do
+
+  end subroutine OrbitalInput
+
 end module ReadInput

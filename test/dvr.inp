@@ -1,8 +1,8 @@
 dvr
-rlimits  0.0 300.0
-n-grids 200
+rlimits  0.0 20.0
+n-grids 40
 n-gl 5
-rot-qn-max 1
+rot-qn-max 3
 num-eig-value-fac 0.5
 nuclear-charge 1
 mass 1.0
@@ -10,4 +10,9 @@ dvr-diag
 dvr-integrals
 debug 6
 enddvr
+
+orbital
+num-n-qn 8
+endorbital
+
 end

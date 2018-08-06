@@ -32,7 +32,8 @@ module DVRData
   !! @param: E_max           $E_{\max}$ mapping factor
   !! @param: dr_max          Maximal size of `dr` when using mapping.
   !!                         [huge(zero)]
-  !! @param: nr              Numer of grid points
+  !! @param: nr              Initial number of grid points
+  !! @param: ng              Actual number of grid points
   !! @param: nl              When using cardinal grid, $nl + 1$ is the number of
   !!                         grid points in each element
   !! @param: m               When using cardinal grid, $m$ is the number of
@@ -47,19 +48,20 @@ module DVRData
     real(dp)                   :: Z 
     real(dp)                   :: r_min
     real(dp)                   :: r_max
-    character(len=pottype_l)    :: pottype
-    character(len=file_l)       :: pot_filename 
-    logical                     :: mapped_grid
-    character(len=maptype_l)    :: maptype
-    character(len=file_l)       :: read_envelope
+    character(len=pottype_l)   :: pottype
+    character(len=file_l)      :: pot_filename 
+    logical                    :: mapped_grid
+    character(len=maptype_l)   :: maptype
+    character(len=file_l)      :: read_envelope
     real(dp)                   :: beta
     real(dp)                   :: E_max
     real(dp)                   :: dr_max
-    integer                     :: nr
-    integer                     :: nl
-    integer                     :: m
-    integer                     :: l 
-    integer                     :: nev
+    integer                    :: nr
+    integer                    :: ng
+    integer                    :: nl
+    integer                    :: m
+    integer                    :: l 
+    integer                    :: nev
   end type para_t
   
   !! @description: Spatial grid in a specific dimension
@@ -89,8 +91,8 @@ module DVRData
     real(dp), allocatable   :: weights(:)
     real(dp), allocatable   :: dvr_matrix(:,:)
     real(dp)                :: dr
-    integer                  :: nl
-    integer                  :: m
+    integer                 :: nl
+    integer                 :: m
     real(dp), allocatable   :: jac(:)
     real(dp), allocatable   :: gllp(:)
     real(dp), allocatable   :: gllw(:)
@@ -122,5 +124,7 @@ module DVRData
   real(dp), target, allocatable :: two_e_rad_int(:,:,:)
 
   integer                :: debug
+
+
 
 end module DVRData

@@ -11,7 +11,7 @@ module DVRIntRad
 
   subroutine GetRadialElements()
 
-    integer                    :: i, j, a, b, l, l_val, error
+    integer                    :: i, j, a, b, l, l_val, error, l_n
     integer                    :: nr_limit !Only use up to this amount of
                                            !DVR primitives 
     logical                    :: inversion_check, alternative_formula
@@ -27,6 +27,7 @@ module DVRIntRad
 
     nr_limit           = 201
     inversion_check    = .true.
+!   inversion_check    = .false.
     ! 'alternative_formula' avoids some numerical issues with small denominators
     alternative_formula= .true.
  
@@ -138,6 +139,7 @@ module DVRIntRad
     allocate(unity(size(grid%r),size(grid%r)), stat=error)
     call allocerror(error)
 
+
     ! Set the potential to only include the rotational barrier to only treat the
     ! kinetic part in the following
     do l = 1, para%l + 1
@@ -170,7 +172,6 @@ module DVRIntRad
       if (inversion_check) then
  
 !$OMP PARALLEL DO 
-        write(*,*) 'OPM working for l', l_val
         do i = 1, size(matrix_all(:,1))
           do j = 1, size(matrix_all(:,1))
             if (i .le. j) then
@@ -209,7 +210,10 @@ module DVRIntRad
           end do
         end do
 
-        unity = matmul(two_e_int_p, matrix_all)
+
+!       unity = matmul(two_e_int_p, matrix_all)
+        unity = matmul(two_e_rad_int(:,:,l), matrix_all)
+
         do i = 1, size(unity(:,1))
           do j = 1, size(unity(:,1))
             if (i == j) cycle
@@ -245,7 +249,6 @@ module DVRIntRad
 !         end if
         end do
       end do
-
 
 
     end do

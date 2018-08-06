@@ -23,10 +23,15 @@ module DVRDiag
     para%m             = m
     para%nl            = nl
     para%nr            = m*nl + 1
+    para%ng            = m*nl - 1
     para%l             = l_max !Rotational quantum number
     para%Z             = z
     para%mass          = mass
-    para%nev           = nint(nev_fac*para%nr)
+    if (nev_fac.eq.1.0d0) then
+      para%nev = para%nr - 2
+    else
+      para%nev           = nint(nev_fac*para%nr)
+    end if
  
     para%mapped_grid   = .false.
     para%maptype       = 'diff'
@@ -93,6 +98,8 @@ module DVRDiag
     real(dp), pointer          :: pot_1(:)
     real(dp), pointer          :: eigenval_p(:)
 
+    real                       :: start, finish
+
     only_bound         = .true.
         
     ! Write potential 
@@ -121,9 +128,11 @@ module DVRDiag
       pot_1 => pot(:,l)
       eigenval_p => eigen_vals(:,l)
 
+
       !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
       call get_real_surf_matrix_cardinal(matrix, grid, pot_1, Tkin_cardinal)
   
+      call cpu_time(start)
 
       !! Diagonalize Hamiltonian matrix which is stored in banded format.
       !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
@@ -132,6 +141,9 @@ module DVRDiag
       &                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
       &                   rvec=.true.)
   
+      call cpu_time(finish)
+
+      write(iout,'(X,a,f10.5)') 'Time taken for diagonalization = ', finish-start, 'seconds.'
 
       do i = 1, size(matrix(:,1))
         do j = 1, size(matrix(1,:))
