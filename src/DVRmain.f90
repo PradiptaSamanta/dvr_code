@@ -5,6 +5,16 @@ program DVR
 
   integer ( kind = 4 ) id
   real ( kind = 8 ) wtime
+! real, dimension(:,:), allocatable :: myVec
+
+! allocate(myVec(3,2))    
+
+! myVec=1.
+
+! myVec(100,3)=10.
+
+! write(*,*) myVec(1,1)
+! write(*,*) myVec(100,4)
 
   wtime = omp_get_wtime ( )
 
@@ -29,9 +39,9 @@ program DVR
 !
   wtime = omp_get_wtime ( ) - wtime
 
-! write ( *, '(a)' ) ' '
-! write ( *, '(a)' ) '  Back OUTSIDE the parallel region.'
-! write ( *, '(a)' ) ' '
-  write ( *, '(a,g14.6)' ) '  Elapsed wall clock time = ', wtime
+!write ( *, '(a)' ) ' '
+!write ( *, '(a)' ) '  Back OUTSIDE the parallel region.'
+!write ( *, '(a)' ) ' '
+ write ( *, '(a,g14.6)' ) '  Elapsed wall clock time = ', wtime
 
 end program DVR

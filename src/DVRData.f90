@@ -123,6 +123,7 @@ module DVRData
   real(dp), target, allocatable :: one_e_rad_int(:,:,:)
   real(dp), target, allocatable :: two_e_rad_int(:,:,:)
 
+  real(dp), allocatable  :: combined_two_e_int(:)
   integer                :: debug
 
 

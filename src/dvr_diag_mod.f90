@@ -211,7 +211,7 @@ contains
 
     call cpu_time(finish)
 
-    write(iout,'(X,a,f10.5)') 'Time taken for first step of diagonalization = ', finish-start, 'seconds.'
+    write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for first step of diagonalization = ', finish-start, 'seconds.'
 
     if (allocated(matrix)) deallocate(matrix)
     allocate(matrix(n,nev), stat=error)
@@ -231,7 +231,7 @@ contains
 
     call cpu_time(finish)
 
-    write(iout,'(X,a,f10.5)') 'Time taken for second step of diagonalization = ', finish-start, 'seconds.'
+    write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for second step of diagonalization = ', finish-start, 'seconds.'
     if (.not. rvec) then
       do i = 1,nev
         eigenvals(i) = d(nev+1-i)

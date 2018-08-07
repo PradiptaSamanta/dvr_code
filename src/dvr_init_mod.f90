@@ -263,7 +263,7 @@ contains
         stop
       end if
     end do
-    allocate(op_a(size(r), para%l+1))
+    allocate(op_a(size(r), 2*para%l+1))
     !If input file is a density, convert to a potential
     if (para%pottype == 'density_file') then
       do i = 1, size(r)
@@ -272,7 +272,7 @@ contains
       end do
     end if
     !Add rotational barrier
-    do l = 1, para%l+1
+    do l = 1, 2*para%l+1
       l_val = l-1
       do i = 1, size(r)
         op_a(i,l) = tmp_op_a(i) +                                                      &
@@ -1200,14 +1200,14 @@ contains
     real(idp), allocatable :: temp(:,:)
     integer :: error, i, j, k
 
-    allocate(temp(size(pot(:,1))-2,para%l+1),stat=error)
+    allocate(temp(size(pot(:,1))-2,2*para%l+1),stat=error)
     call allocerror(error)
     do j = 2, size(pot(:,1))-1
        temp(j-1,:) = pot(j,:)
     end do
     deallocate(pot)
 
-    allocate(pot(size(temp(:,1)), para%l+1))
+    allocate(pot(size(temp(:,1)), 2*para%l+1))
 
     do k = 1, size(temp(:,1))
        pot(k,:) = temp(k,:)

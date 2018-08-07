@@ -13,7 +13,16 @@ module DVRIntAng
     logical   :: all_int
 
     sph_harm%n_l   = para%l + 1
-    sph_harm%n_mp  = 7
+    sph_harm%n_mp  = 2*para%l + 1
+
+    ! Write the parameters corresponding to the spherical harmonics
+
+    write(iout, *) '**********'
+    write(iout, *) 'Setting up these parameters for the spherical harmonics:'
+    write(iout, '(X,A,3X, I6)') 'sph_harm%n_l         =', sph_harm%n_l
+    write(iout, '(X,A,3X, I6)') 'sph_harm%n_mp        =', sph_harm%n_mp
+    write(iout, *) '***********' 
+
 
 !   all_int = .true.
     all_int = .false.
@@ -145,6 +154,8 @@ module DVRIntAng
 
   subroutine calc_int_angular(integrals, sph_harm)      
       
+    implicit none 
+
     type(sph_harm_t),  intent(in)           :: sph_harm
     real(idp),         intent(inout)        :: integrals(:,:,:,:,:)
  
@@ -317,7 +328,7 @@ module DVRIntAng
                 mq = dfloat(q_init + q)
 
                 lmk = (lk-1)**2 + q
-                m_abq = int(ma + mb + mq)
+                m_abq = int(ma + mc + mq)
                 m_sign = (-1)**m_abq
 !           write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
 
@@ -361,7 +372,7 @@ module DVRIntAng
                 mq = dfloat(q_init + q) 
                 lmk = (lk-1)**2 + q
 
-                m_abq = int(ma + mb + mq)
+                m_abq = int(mb + md + mq)
                 m_sign = (-1)**m_abq
 !           write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
 

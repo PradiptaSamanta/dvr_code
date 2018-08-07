@@ -19,7 +19,8 @@ module OrbData
   integer                :: nSpatialOrbs
 
   integer, allocatable   :: SpatialOrbInd(:,:,:)
-  real(dp), allocatable  :: OneEInt(:,:) 
-  real(dp), allocatable  :: TwoEInt(:,:,:,:)
+  real(dp), allocatable  :: OneEInts(:,:) 
+  real(dp), allocatable  :: TwoERadOrbInts(:,:,:)
+  real(dp), allocatable  :: TwoEInts(:,:,:,:)
 
 end module OrbData

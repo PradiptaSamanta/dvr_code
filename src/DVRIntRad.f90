@@ -25,9 +25,9 @@ module DVRIntRad
     real(idp), pointer         :: one_e_int_p(:,:)
     real(idp), pointer         :: two_e_int_p(:,:)
 
-    nr_limit           = 201
-    inversion_check    = .true.
-!   inversion_check    = .false.
+    nr_limit           = 15
+!   inversion_check    = .true.
+    inversion_check    = .false.
     ! 'alternative_formula' avoids some numerical issues with small denominators
     alternative_formula= .true.
  
@@ -55,10 +55,10 @@ module DVRIntRad
     ! potential file
 
     
-    allocate(one_e_rad_int(size(grid%r), size(grid%r), para%l+1), stat=error)
+    allocate(one_e_rad_int(size(grid%r), size(grid%r), 2*para%l+1), stat=error)
     call allocerror(error)
 
-    do l = 1, para%l + 1
+    do l = 1, 2*para%l + 1
 
       l_val = l-1
       write(iout, *) 'Calculating one-electron radial part of the integral for l = ', l_val
@@ -97,7 +97,7 @@ module DVRIntRad
 
       write(iout, *) 'writing down the one-electron radial integrals'
 
-      do l = 1, para%l + 1
+      do l = 1, 2*para%l + 1
 
         l_val = l-1
         open(11, file="singleparticle_rad_elements_l"//trim(int2str(l_val))//".dat",&
@@ -130,7 +130,7 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!! Two-Particle Matrix Element !!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
-    allocate(two_e_rad_int(size(grid%r),size(grid%r), para%l+1),  stat=error)
+    allocate(two_e_rad_int(size(grid%r),size(grid%r), 2*para%l+1),  stat=error)
     call allocerror(error)
   
     allocate(matrix_all(size(grid%r),size(grid%r)),  stat=error)
@@ -142,7 +142,7 @@ module DVRIntRad
 
     ! Set the potential to only include the rotational barrier to only treat the
     ! kinetic part in the following
-    do l = 1, para%l + 1
+    do l = 1, 2*para%l + 1
 
       l_val = l-1
       write(iout, *) 'Calculating two-electron radial part of the integral for l = ', l_val
@@ -257,7 +257,7 @@ module DVRIntRad
 
       write(iout, *) 'writing down the two-electron radial integrals'
 
-      do l = 1, para%l + 1
+      do l = 1, 2*para%l + 1
 
         l_val = l-1
 

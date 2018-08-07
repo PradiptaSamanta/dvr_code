@@ -59,7 +59,7 @@ module DVRDiag
     ! full grid, it will be stored here
     full_r_max = maxval(grid%r)
 
-    allocate(pot(size(grid%r), para%l+1))
+    allocate(pot(size(grid%r), 2*para%l+1))
 
     if (para%pottype == 'analytical') then
       write(*,*) 'Using analytical potential'
@@ -71,7 +71,7 @@ module DVRDiag
       write(iout,*) '  '
       call init_grid_op_file_1d_all(file_pot, file_r, para)
 
-      do l = 1, para%l + 1
+      do l = 1, 2*para%l + 1
         l_val = l + 1
         pot_old => file_pot(:,l)
         pot_new => pot(:,l)
@@ -113,14 +113,14 @@ module DVRDiag
  
     !! Allocate the arrays for eigenvalues and eigenvectors
 
-    allocate(eigen_vals(para%nev, para%l+1),stat=error)
+    allocate(eigen_vals(para%nev, 2*para%l+1),stat=error)
     call allocerror(error)
 
-    allocate(eigen_vecs(size(grid%r), para%nev, para%l+1),stat=error)
+    allocate(eigen_vecs(size(grid%r), para%nev, 2*para%l+1),stat=error)
     call allocerror(error)
 
     !! Here start the loop over different values of the angular quantum number
-    do l = 1, para%l+1
+    do l = 1, 2*para%l+1
 
       l_val = l-1
       write(iout, *) 'Solving the radial Schroedinger equation for l = ', l_val
@@ -143,7 +143,7 @@ module DVRDiag
   
       call cpu_time(finish)
 
-      write(iout,'(X,a,f10.5)') 'Time taken for diagonalization = ', finish-start, 'seconds.'
+      write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for diagonalization = ', finish-start, 'seconds.'
 
       do i = 1, size(matrix(:,1))
         do j = 1, size(matrix(1,:))
@@ -153,7 +153,7 @@ module DVRDiag
       
 
       if ( debug.gt.5) then
-        write(iout,*) 'Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...'
+        write(iout,'(X,90a)') 'Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...'
         ! Write eigenvalues.
         open(11, file="eigenvalues_GLL"//trim(int2str(l_val))//".dat", form="formatted", &
         &    action="write")

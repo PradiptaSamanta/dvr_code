@@ -6,14 +6,14 @@ cmake_minimum_required(VERSION 2.8.4)
 #project(arpack Fortran)
 project(DVR Fortran)
 
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 set(${PROJECT_NAME}_CONFIGURATIONS dvr)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/mods/)
-set(CMAKE_BINARY_DIR ${PROJECT_SOURCE_DIR}/build/bin/)
+#set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/mods/)
+#set(CMAKE_BINARY_DIR ${PROJECT_SOURCE_DIR}/build/bin/)
 
-option(USE_OPENMP "Use OpenMP multi-threading" ON) 
+#option(USE_OPENMP "Use OpenMP multi-threading" ON) 
 #set(${PROJECT_NAME}_CONFIGURATIONS arpack)
 
 #find_package(LAPACK REQUIRED)
@@ -28,10 +28,14 @@ option(USE_OPENMP "Use OpenMP multi-threading" ON)
 
 #HAVE_OPENMP
 
-set (CMAKE_FORTRAN_FLAGS "-qopenmp -lblas -llapack -O3")
-set (CMAKE_EXE_LINKER_FLAGS "-qopenmp -lblas -llapack -O3")
+#set (CMAKE_FORTRAN_FLAGS "-qopenmp -lblas -llapack -C -O3")
+set(CMAKE_Fortran_FLAGS "-O3")
+#set(CMAKE_FORTRAN_FLAGS_DEBUG "-fbounds-check -check bounds -O3")
+set(CMAKE_Fortran_FLAGS_DEBUG "-C -O3")
+set(CMAKE_EXE_LINKER_FLAGS "-qopenmp -lblas -llapack -O3")
+#set(bounds "-check bounds")
 #set (CMAKE_FORTRAN_FLAGS "-lblas -llapack -O3")
-#set (CMAKE_EXE_LINKER_FLAGS "-lblas -llapack -O3")
+#set (CMAKE_EXE_LINKER_FLAGS "-O3")
 
 #if (OPENMP_FOUND)
 #set(CMAKE_FORTRAN_FLAGS "${CMAKE_FORTRAN_FLAGS} ${OpenMP_FORTRAN_FLAGS}")
@@ -47,7 +51,7 @@ add_library(arpack STATIC ${SOURCES})
 #install(TARGETS arpack DESTINATION ${PROJECT_SOURCE_DIR}/arpack/)
 #add_executable(arpack ${SOURCES})
 
-set (PROJECT_LINK_LIBS ${PROJECT_SOURCE_DIR}/build/libarpack.a -lblas -llapack)
+set (PROJECT_LINK_LIBS ${PROJECT_SOURCE_DIR}/build/libarpack.a) # -lblas -llapack)
 
 # The file(GLOB...) allows for wildcard additions:
 file(GLOB SOURCES "src/*.f90")

@@ -30,26 +30,27 @@ module ReadInput
 
     check = 0
     do 
-    call read_line(tEof, ir)
-    flush(6)
-    if(tEof) exit
-    call readu(w)
-    select case(w)
-    case("DVR")
-      ! Read here the data defining DVR for the calculation
-      call DVRInput(ir)
-    case("ORBITAL")
-      ! Read here the data related to orbitals
-      orbital_ints = .true.
-      call OrbitalInput(ir)
-    case ("")
-      check = check + 1
-      if (check.gt.50) call report('input is empty', .true.)
-    case ("END")
-      exit
-    case default
-      call report('Keyword not recognized',.true.)
-    end select
+      call read_line(tEof, ir)
+      flush(6)
+      if(tEof) exit
+      call readu(w)
+      if (w(1:1).eq.'!'.or.w(1:1).eq.'#') cycle
+      select case(w)
+      case("DVR")
+        ! Read here the data defining DVR for the calculation
+        call DVRInput(ir)
+      case("ORBITAL")
+        ! Read here the data related to orbitals
+        orbital_ints = .true.
+        call OrbitalInput(ir)
+      case ("")
+        check = check + 1
+        if (check.gt.50) call report('input is empty', .true.)
+      case ("END")
+        exit
+      case default
+        call report('Keyword not recognized',.true.)
+      end select
     end do
 
   end subroutine  ReadInputMain
@@ -100,7 +101,7 @@ module ReadInput
       end if  
       call readu(w)
       
-      if (w(1:1).eq.'!') cycle
+      if (w(1:1).eq.'!'.or.w(1:1).eq.'#') cycle
 
       select case(w)
       
@@ -159,6 +160,8 @@ module ReadInput
         exit
       end if  
       call readu(w)
+
+      if (w(1:1).eq.'!'.or.w(1:1).eq.'#') cycle
 
       select case(w)
       
