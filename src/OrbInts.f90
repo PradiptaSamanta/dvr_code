@@ -19,11 +19,6 @@ module OrbInts
 
     orb%n_max = n_max 
 
-    write(iout, *) '**********'
-    write(iout, *) 'Setting up these parameters for the orbitals:'
-    write(iout, '(X,A,3X, I6)') 'orb%n_max     =', n_max
-    write(iout, *) '***********' 
-
     allocate(SpatialOrbInd(n_max,para%l+1,2*para%l+1),stat=error)
     call allocerror(error)
 
@@ -36,13 +31,20 @@ module OrbInts
       do j = 1, l_val
         do k = 1, 2*j-1
           indx = indx + 1
-          SpatialOrbInd(i,j,k) = indx
-!         write(iout, *) i, j, k, SpatialOrbInd(i, j, k)
+          SpatialOrbInd(i-j+1,j,k) = indx
+          write(iout, *) i-j+1, j, k, SpatialOrbInd(i-j+1, j, k)
         end do
       end do
     end do
       
-    nSpatialOrbs = indx
+    orb%nSpatialOrbs = indx
+
+
+    write(iout, *) '**********'
+    write(iout, *) 'Setting up these parameters for the orbitals:'
+    write(iout, '(X,A,3X, I6)') 'orb%n_max     =', n_max
+    write(iout, '(X,A,3X, I6)') 'orb%nSpatialOrbs     =', indx
+    write(iout, *) '***********' 
 
 !   do i =  1, n_max
 !     do j = 1, para%l+1
@@ -86,7 +88,7 @@ module OrbInts
     allocate(inter_int(para%ng,orb%n_max), stat=error)
     call allocerror(error)
 
-    allocate(OneEInts(nSpatialOrbs,nSpatialOrbs), stat=error)
+    allocate(OneEInts(orb%nSpatialOrbs,orb%nSpatialOrbs), stat=error)
     call allocerror(error)
 
     OneEInts = zero
@@ -127,10 +129,12 @@ module OrbInts
 !         write(iout,*) m, n, l, int_value
 
           do ml = 1, 2*l_val+1
-            ind_1 = SpatialOrbInd(m+l-1, l, ml)
-!           if (ind_1.eq.0) write(iout,*) 'ind_1', m, l, ml, ind_1
-            ind_2 = SpatialOrbInd(n+l-1, l, ml)
-!           if (ind_2.eq.0) write(iout,*) 'ind_2', n, l, ml, ind_2
+!           ind_1 = SpatialOrbInd(m+l-1, l, ml)
+            ind_1 = SpatialOrbInd(m, l, ml)
+            if (ind_1.eq.0) write(iout,*) 'ind_1', m, l, ml, ind_1
+!           ind_2 = SpatialOrbInd(n+l-1, l, ml)
+            ind_2 = SpatialOrbInd(n, l, ml)
+            if (ind_2.eq.0) write(iout,*) 'ind_2', n, l, ml, ind_2
             OneEInts(ind_1, ind_2) = int_value
 !           write(76,*) ind_1, ind_2, int_value
           end do
@@ -141,7 +145,7 @@ module OrbInts
     end do ! end loop over para%l
 
     call cpu_time(finish)
-    write(iout,'(X,a,f10.5)') 'Time taken for 1e transformation = ', finish-start, 'seconds.'
+    write(iout,'(X,a,f10.5,X,a)') 'Time taken for 1e transformation = ', finish-start, 'seconds.'
 
   end subroutine Calc1eOrbInts
 
@@ -216,7 +220,7 @@ module OrbInts
     end do ! end loop over para%l
 
     call cpu_time(finish)
-    write(iout,'(X,a,f10.5)') 'Time taken for 2e transformation = ', finish-start, 'seconds.'
+    write(iout,'(X,a,f10.5,X,a)') 'Time taken for 2e transformation = ', finish-start, 'seconds.'
 
   end subroutine Calc2eRadOrbInts
 

@@ -8,6 +8,7 @@ module OrbData
   type orb_t
 
     integer   :: n_max
+    integer   :: nSpatialOrbs
 
   end type orb_t
 

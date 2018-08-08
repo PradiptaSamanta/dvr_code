@@ -110,5 +110,120 @@ module CombineInts
 
   subroutine CombineOrbInts()
 
+    use DVRData, only : integrals_ang, sph_harm
+    use OrbData, only : TwoERadOrbInts, TwoEInts, orb, SpatialOrbInd
+
+    integer  :: n_l, n_mp, l1, l2, l3, l4, m1, m2, m3, m4, k1, k2, l, indx
+    integer  :: la, lb, lc, ld, ma, mb, mc, md, n_m1, n_m2, n_m3, n_m4, error
+    integer  :: m1_init, m2_init, m3_init, m4_init, lma, lmb, lmc, lmd
+    integer  :: klm_1, klm_2, klm_3, klm_4
+    real(dp) :: start, finish, int_value
+
+
+    call cpu_time(start)
+
+    allocate(TwoEInts(orb%nSpatialOrbs,orb%nSpatialOrbs, orb%nSpatialOrbs, &
+    & orb%nSpatialOrbs), stat=error)
+    call allocerror(error)
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    indx = 0
+    do l1 = 1, n_l
+      la = l1 - 1
+      n_m1 = 2*l1 - 1
+      m1_init = -1*l1
+
+      do l3 = 1, n_l
+        lc = l3 - 1
+        n_m3 = 2*l3 - 1
+        m3_init = -1*l3
+
+        do l2 = 1, n_l
+          lb = l2 - 1
+          n_m2 = 2*l2 - 1
+          m2_init = -1*l2
+
+          do l4 = 1, n_l
+            ld = l4 - 1
+            n_m4 = 2*l4 - 1
+            m4_init = -1*l4
+
+
+            do m1 = 1, n_m1
+              ma = m1_init + m1
+              lma = (l1-1)**2 + m1
+              !lma = (l1-1)**2 + int(la) + int(ma) + 1
+              do m3 = 1, n_m3
+                mc = m3_init + m3
+                lmc = (l3-1)**2 + m3
+                !lmc = (l3-1)**2 + int(lc) + int(mc) + 1
+
+                do m2 = 1, n_m2
+                  mb = m2_init + m2
+                  lmb = (l2-1)**2 + m2
+                  !lmb = (l2-1)**2 + int(lb) + int(mb) + 1
+                  do m4 = 1, n_m4
+                    md = m4_init + m4
+                    lmd = (l4-1)**2 + m4
+                    !lmd = (l4-1)**2 + int(ld) + int(md) + 1
+
+                    do k1 = 1, orb%n_max - max(l1,l3) + 1
+                      do k2 = 1, orb%n_max - max(l2,l4) + 1  
+                        indx = indx + 1
+                        int_value = 0.0d0
+
+                        klm_1 = SpatialOrbInd(k1,l1,m1)
+                        klm_2 = SpatialOrbInd(k2,l2,m2)
+                        klm_3 = SpatialOrbInd(k1,l3,m3)
+                        klm_4 = SpatialOrbInd(k2,l4,m4)
+
+                        do l = 1, 2*para%l + 1
+                          int_value = int_value + (integrals_ang(l, lma, lmb, lmc, lmd)* &
+                          &  TwoERadOrbInts(k1,k2,l))
+                          if (klm_1.eq.1.and.klm_2.eq.1.and.klm_3.eq.1) then
+                            write(77,'(7I4,X,2F15.10)') k1, k2, lma, lmb, lmc, lmd, klm_4, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,l)
+                          end if
+                        end do
+                          if (klm_1.eq.1.and.klm_2.eq.1.and.klm_3.eq.1) then
+                            write(77,*) ''
+                          end if
+                        TwoEInts(klm_1, klm_2, klm_3, klm_4) = int_value
+!                       write(77, '(6I5,X,f15.10)') k1, k2, lma, lmb, lmc, lmd, int_value
+!                       write(78, '(4I5,X,f15.10)') klm_1, klm_2, klm_3, klm_4, int_value
+!                       write(79, '(4I5,X,f15.10)') lma, lmb, lmc, lmd, int_value
+                      end do
+                    end do
+                  
+                  end do
+                end do  
+              end do
+            end do
+
+          end do
+        end do
+      end do  
+    end do  
+
+    write(iout, *) 'Index:', indx
+
+    do l1 = 1, orb%nSpatialOrbs
+      do l2 = 1, orb%nSpatialOrbs
+        do l3 = 1, orb%nSpatialOrbs
+          do l4 = 1, orb%nSpatialOrbs
+            write(80,*)  l1, l2, l3, l4, TwoEInts(l1,l2,l3,l4)
+            if (abs(TwoEInts(l1,l2,l3,l4)).gt.0.0d0) then
+              write(81,*)  l1, l2, l3, l4, TwoEInts(l1,l2,l3,l4)
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    call cpu_time(finish)
+
+    write(iout,'(X,a,f10.5,X,a)') 'Time taken for combining integrals = ', finish-start, 'seconds.'
   end subroutine CombineOrbInts
+
 end module CombineInts
