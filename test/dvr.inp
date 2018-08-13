@@ -1,17 +1,27 @@
 dvr
-rlimits  0.0 20.0
-n-grids 40
+!lower and upper limit of r
+rlimits  0.0 300.0 
+! Total number of grid for the finite elements
+n-grids 200
+! Number of Gauss-Lobato points
 n-gl 5
+! Higher rotational quantum number to be used
 rot-qn-max 2
+! A factor to decide on the number of eigenvalues to be calculated from the radial S.E.
 num-eig-value-fac 0.5
 nuclear-charge 1
 mass 1.0
+! option to solve the radial S.E. Comment it out if not necessary
 dvr-diag
+! Calculation of integrals 
 dvr-integrals
+! for printing out all the data files (integrals, matrices), debug has to be > 5
 debug 6
 enddvr
 
+! give informations for the non-primitive orbitals
 orbital
+! highest priniciple quantum number to be used for the non-primitives
 num-n-qn 4
 endorbital
 

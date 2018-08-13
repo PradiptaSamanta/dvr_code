@@ -1,0 +1,11 @@
+Here are some instructions to compile and run the code in the 'all_in_one' branch
+
+To compile: here are the steps
+1) mkdir build
+2) cmake ..
+3) make -j6 arpack
+4) make -j6
+The compiled binary 'dvr' will be found inside the 'build' directory
+
+To run a test calculation, the necessary input file 'dvr.inp' can be found inside the 'test' directory. 
+Output from this calculation will be written out in  the file 'dvr.out'.
