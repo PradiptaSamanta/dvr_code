@@ -134,6 +134,9 @@ module ReadInput
         dvr_integrals = .true.
       case("DEBUG")
         call geti(debug)
+      case("MAPPED-GRID")
+        mapped_grid = .true.
+        call getf(beta)
       case("")
         check = check + 1
         if (check.gt.50) call report('many empty lines in the input')

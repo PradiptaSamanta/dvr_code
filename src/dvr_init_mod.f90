@@ -223,7 +223,7 @@ contains
     real(idp),        allocatable,  intent(out) :: r(:)
     type(para_t),                   intent(in)  :: para
 
-    integer                 :: i
+    integer                 :: i, l
 
     call read_ascii(r, op_a, para%pot_filename)
     do i = 1, size(r)-1
@@ -239,10 +239,13 @@ contains
         !TODO Needs to be implemented 
       end do
     end if
+!   write(iout, *) 'Rotational barrier not added while getting the mapped r values'
     !Add rotational barrier
+    l = 2*para%l + 1  ! The value of l determine the lowest r value
+
     do i = 1, size(r)
       op_a(i) = op_a(i) +                                                      &
-      &         real(para%l * (para%l + 1), idp) / (two * para%mass * r(i)**2)
+      &         real(l * (l + 1), idp) / (two * para%mass * r(i)**2)
     end do
 
   end subroutine init_grid_op_file_1d

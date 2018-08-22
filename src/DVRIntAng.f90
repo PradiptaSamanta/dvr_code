@@ -327,7 +327,8 @@ module DVRIntAng
 !               if (lma.eq.1.and.lmb.eq.1.and.lmc.eq.2.and.lmd.eq.4) then
                 mq = dfloat(q_init + q)
 
-                lmk = (lk-1)**2 + q
+!               lmk = (lk-1)**2 + q  !! CHECK IF IT IS A BUG
+                lmk = (k-1)**2 + q
                 m_abq = int(ma + mc + mq)
                 m_sign = (-1)**m_abq
 !           write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
@@ -370,7 +371,8 @@ module DVRIntAng
               do q = 1, 2*k-1
 !               if (lma.eq.1.and.lmb.eq.1.and.lmc.eq.2.and.lmd.eq.4) then
                 mq = dfloat(q_init + q) 
-                lmk = (lk-1)**2 + q
+!               lmk = (lk-1)**2 + q  !! CHECK IF IT IS A BUG
+                lmk = (k-1)**2 + q
 
                 m_abq = int(mb + md + mq)
                 m_sign = (-1)**m_abq
@@ -418,7 +420,8 @@ module DVRIntAng
                       do q = 1, 2*k-1
 !               if (lma.eq.1.and.lmb.eq.1.and.lmc.eq.2.and.lmd.eq.4) then
                         mq = dfloat(q_init + q) 
-                        lmk = (lk-1)**2 + q
+!                       lmk = (lk-1)**2 + q  !! ANOTHER PLACE TO CHECK THE BUG
+                        lmk = (k-1)**2 + q
    
                         m_abq = int(ma + mb + mq)
                         m_sign = (-1)**m_abq

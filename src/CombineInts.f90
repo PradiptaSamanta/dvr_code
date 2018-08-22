@@ -126,6 +126,8 @@ module CombineInts
     & orb%nSpatialOrbs), stat=error)
     call allocerror(error)
 
+    TwoEInts = zero
+
     n_l  = sph_harm%n_l
     n_mp = sph_harm%n_mp
 
@@ -183,11 +185,11 @@ module CombineInts
                           int_value = int_value + (integrals_ang(l, lma, lmb, lmc, lmd)* &
                           &  TwoERadOrbInts(k1,k2,l))
                           if (klm_1.eq.1.and.klm_2.eq.1.and.klm_3.eq.1) then
-                            write(77,'(7I4,X,2F15.10)') k1, k2, lma, lmb, lmc, lmd, klm_4, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,l)
+!                           write(77,'(7I4,X,2F15.10)') k1, k2, lma, lmb, lmc, lmd, klm_4, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,l)
                           end if
                         end do
                           if (klm_1.eq.1.and.klm_2.eq.1.and.klm_3.eq.1) then
-                            write(77,*) ''
+!                           write(77,*) ''
                           end if
                         TwoEInts(klm_1, klm_2, klm_3, klm_4) = int_value
 !                       write(77, '(6I5,X,f15.10)') k1, k2, lma, lmb, lmc, lmd, int_value
@@ -206,20 +208,20 @@ module CombineInts
       end do  
     end do  
 
-    write(iout, *) 'Index:', indx
+!   write(iout, *) 'Index:', indx
 
-    do l1 = 1, orb%nSpatialOrbs
-      do l2 = 1, orb%nSpatialOrbs
-        do l3 = 1, orb%nSpatialOrbs
-          do l4 = 1, orb%nSpatialOrbs
-            write(80,*)  l1, l2, l3, l4, TwoEInts(l1,l2,l3,l4)
-            if (abs(TwoEInts(l1,l2,l3,l4)).gt.0.0d0) then
-              write(81,*)  l1, l2, l3, l4, TwoEInts(l1,l2,l3,l4)
-            end if
-          end do
-        end do
-      end do
-    end do
+!   do l1 = 1, orb%nSpatialOrbs
+!     do l2 = 1, orb%nSpatialOrbs
+!       do l3 = 1, orb%nSpatialOrbs
+!         do l4 = 1, orb%nSpatialOrbs
+!!          write(80,'(4i5, f20.12)')  l1, l2, l3, l4, TwoEInts(l1,l2,l3,l4)
+!           if (abs(TwoEInts(l1,l2,l3,l4)).gt.0.0d0) then
+!!            write(81,*)  l1, l2, l3, l4, TwoEInts(l1,l2,l3,l4)
+!           end if
+!         end do
+!       end do
+!     end do
+!   end do
 
     call cpu_time(finish)
 

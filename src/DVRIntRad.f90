@@ -64,10 +64,12 @@ module DVRIntRad
       write(iout, *) 'Calculating one-electron radial part of the integral for l = ', l_val
 
       do i = 1, size(pot(:,1))
-        pot(i, l) = real(para%Z, idp) / grid%r(i)   +                                   &
+        pot(i, l) = - real(para%Z, idp) / grid%r(i)   +                                   &
+!       pot(i, l) = real(para%Z, idp) / grid%r(i)   +                                   &
         &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
       end do
 
+      write(iout, *) 'DEBUGING', real(para%Z, idp)
         
       pot_1 => pot(:,l)
 
@@ -150,8 +152,10 @@ module DVRIntRad
 
 !$OMP PARALLEL DO 
       do i = 1, size(pot(:,1))
-        pot(i, l) = pot(i, l) +                                                          &
-         &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
+        pot(i, l) = pot(i, l)                                        &
+!       pot(i, l) = pot(i, l) +                                      &
+!        &        - real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2) &
+         &        + real(para%Z, idp) / grid%r(i) 
       end do
 !OMP END PARALLEL DO
 

@@ -33,10 +33,10 @@ module DVRDiag
       para%nev           = nint(nev_fac*para%nr)
     end if
  
-    para%mapped_grid   = .false.
+    para%mapped_grid   = mapped_grid
     para%maptype       = 'diff'
     para%read_envelope = ''
-    para%beta          = 0.015
+    para%beta          = beta
     para%E_max         = 1d-5
 
     write(iout, *) '**********'
@@ -147,7 +147,8 @@ module DVRDiag
 
       do i = 1, size(matrix(:,1))
         do j = 1, size(matrix(1,:))
-          eigen_vecs(i,j,l)  = matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+!         eigen_vecs(i,j,l)  = matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+          eigen_vecs(i,j,l)  = matrix(i,j)
         end do
       end do
       
@@ -164,7 +165,7 @@ module DVRDiag
         write(11,*) ""
         do i = 1, size(eigen_vals(:,l))
           write(11,'(I8,3ES25.17)') i-1, eigen_vals(i,l),                              &
-          &                         - one / (two * (real(i+l_val, idp))**2),        &
+!         &                         - one / (two * (real(i+l_val, idp))**2),        &
           &                         dot_product(matrix(:,i), matrix(:,i))
         end do
         close(11)
@@ -187,6 +188,7 @@ module DVRDiag
               & eigen_vecs(i,j,l)
             end do
             write(11,*) ' '
+            write(76,'(i5,f15.8)') i, grid%r(i)
           end do
           close(11)
         else

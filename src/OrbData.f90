@@ -24,4 +24,6 @@ module OrbData
   real(dp), allocatable  :: TwoERadOrbInts(:,:,:)
   real(dp), allocatable  :: TwoEInts(:,:,:,:)
 
+  character(32)          :: file_int
+
 end module OrbData
