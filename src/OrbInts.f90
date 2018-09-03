@@ -287,8 +287,8 @@ module OrbInts
 
     do i = 1, norbs
       do j = 1, i
-!       if (abs(OneEInts(i,j)).gt.tol) &
-        if (i.eq.j) &
+        if (abs(OneEInts(i,j)).gt.tol) &
+!       if (i.eq.j) &
         & write(f_int, 1005) OneEInts(i,j), i, j, 0, 0
       end do 
     end do
