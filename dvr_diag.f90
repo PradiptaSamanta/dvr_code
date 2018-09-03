@@ -113,7 +113,9 @@ program dvr_diag
       do j = 1, size(matrix(i,:))
         if (eigen_vals(j) > zero) cycle
         write(11,'(ES25.17, 1x)', advance = 'No')                              &
-        & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+!       & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+        & matrix(i,j) ! the eigenvectors do not have the weights and r, it will be added separately
+                      ! while calculating the integrals
       end do
       write(11,*) ' '
     end do
