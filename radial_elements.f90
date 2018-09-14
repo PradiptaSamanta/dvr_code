@@ -110,7 +110,8 @@ program radial_elements
   ! First we treat the single-particle matrix element T + V_ne, the radial
   ! potential is then given by Z / r plus the rotational barrier
   do i = 1, size(pot)
-    pot(i) = real(para%Z, idp) / grid%r(i) +                                   &
+!   pot(i) = real(para%Z, idp) / grid%r(i) +                                   &
+    pot(i) = - real(para%Z, idp) / grid%r(i) +   & ! There should be a negative sign infront
     &        real(para%l * (para%l + 1), idp) / (two * para%mass * grid%r(i)**2)
   end do
   
@@ -150,7 +151,8 @@ program radial_elements
       !  if (b > 0.5*para%nr - 1) cycle
       !  if (eigen_vals(b) < zero) cycle
       !end if
-      write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b)
+      if (abs(matrix_single_all(a,b)).gt.1e-12) &
+&      write(11, '(2I8,ES25.17)') a, b, matrix_single_all(a,b)
       !write(11, '(3ES25.17)') real(a), real(b), matrix_single_all(a,b)
     end do
   end do
@@ -164,7 +166,8 @@ program radial_elements
   ! kinetic part in the following
   do i = 1, size(pot)
     pot(i) = pot(i) +                                                          &
-    &        real(para%l * (para%l + 1), idp) / (two * para%mass * grid%r(i)**2)
+!   &        real(para%l * (para%l + 1), idp) / (two * para%mass * grid%r(i)**2)
+    &        real(para%Z, idp) / grid%r(i)  ! This is the term that should be substracted here
   end do
   
   ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis

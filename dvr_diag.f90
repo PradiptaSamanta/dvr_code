@@ -82,10 +82,10 @@ program dvr_diag
   &                   rvec=.true.)
 
   ! Write eigenvalues.
-  open(11, file="eigenvalues_GLL.dat", form="formatted", &
+  open(11, file="eigenvalues_GLL"//trim(int2str(para%l))//".dat", form="formatted", &
   &    action="write")
   write(11,*) '#_______________________________________________________________'
-  write(11,*) "#              eigenvalues for hydrogen with l = 0 "
+  write(11,*) "#              eigenvalues for hydrogen with l = ", trim(int2str(para%l))
   write(11,*) '#_______________________________________________________________'
   write(11,*) "#     index    -    eigenvalue    -    eigenvector normalization"
   write(11,*) ""
@@ -106,20 +106,22 @@ program dvr_diag
   ! wavefunction psi(r) instead of the rescaled object u(r) = psi(r) * r
 
   if (only_bound) then
-    open(11, file="eigenvectors_GLL.dat", form="formatted",&
+    open(11, file="eigenvectors_GLL"//trim(int2str(para%l))//".dat", form="formatted",&
     &    action="write", recl=100000)
     do i = 1, size(matrix(:,1))
       write(11,'(ES25.17, 1x)', advance = 'No') grid%r(i)
       do j = 1, size(matrix(i,:))
         if (eigen_vals(j) > zero) cycle
         write(11,'(ES25.17, 1x)', advance = 'No')                              &
-        & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+!       & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+        & matrix(i,j) ! the eigenvectors do not have the weights and r, it will be added separately
+                      ! while calculating the integrals
       end do
       write(11,*) ' '
     end do
     close(11)
   else
-    open(11, file="eigenvectors_GLL.dat", form="formatted",&
+    open(11, file="eigenvectors_GLL"//trim(int2str(para%l))//".dat", form="formatted",&
     &    action="write", recl=100000)
     do i = 1, size(matrix(:,1))
       write(11,*) grid%r(i),                                                   &
