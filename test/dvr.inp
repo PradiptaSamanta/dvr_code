@@ -8,6 +8,7 @@ nuclear-charge 1
 mass 1.0
 dvr-diag
 dvr-integrals
+direct-integrals
 debug 6
 enddvr
 

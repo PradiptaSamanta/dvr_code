@@ -125,6 +125,7 @@ module DVRData
 
   real(dp), allocatable  :: combined_two_e_int(:)
   integer                :: debug
+  logical                :: direct_2e
 
 
 

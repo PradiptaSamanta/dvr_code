@@ -4,7 +4,7 @@ module ReadInput
   use util_mod, only : get_free_unit, stop_all
   use input_mod
   use InputData
-  use DVRData, only: debug
+  use DVRData, only: debug, direct_2e
 
   implicit none
 
@@ -81,6 +81,7 @@ module ReadInput
     dvr_diag = .false.
     dvr_integrals = .false.
     trans_integrals = .false.
+    direct_2e = .false.
 
     n_max = 10
 
@@ -132,6 +133,8 @@ module ReadInput
         dvr_diag = .true.
       case("DVR-INTEGRALS")
         dvr_integrals = .true.
+      case("DIRECT-INTEGRALS")
+        direct_2e = .true.
       case("DEBUG")
         call geti(debug)
       case("MAPPED-GRID")

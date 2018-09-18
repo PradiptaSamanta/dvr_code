@@ -17,7 +17,7 @@ module DVRIntRad
                                            !DVR primitives 
     logical                    :: inversion_check, alternative_formula
     integer, allocatable       :: ipiv(:)
-    real(idp)                  :: value_int
+    real(idp)                  :: value_int, r, r_prime
     real(idp), allocatable     :: work(:)
 
     real(idp), allocatable     :: matrix(:,:), matrix_full(:,:)
@@ -134,129 +134,179 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     allocate(two_e_rad_int(size(grid%r),size(grid%r), 2*para%l+1),  stat=error)
+    write(*,*) 'print r', size(grid%r)
     call allocerror(error)
   
-    allocate(matrix_all(size(grid%r),size(grid%r)),  stat=error)
-    call allocerror(error)
-  
-    allocate(unity(size(grid%r),size(grid%r)), stat=error)
-    call allocerror(error)
 
+    if (direct_2e) then
 
-    ! Set the potential to only include the rotational barrier to only treat the
-    ! kinetic part in the following
-    do l = 1, 2*para%l + 1
+      write(iout, '(80a)') ' Two-electron integrals are calculated directly from the corresponding expression...'
 
-      l_val = l-1
-      write(iout, *) 'Calculating two-electron radial part of the integral for l = ', l_val
-
-
-!$OMP PARALLEL DO 
-      do i = 1, size(pot(:,1))
-        pot(i, l) = pot(i, l)                                        &
-!       pot(i, l) = pot(i, l) +                                      &
-!        &        - real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2) &
-         &        + real(para%Z, idp) / grid%r(i) 
-      end do
-!OMP END PARALLEL DO
-
-      pot_2 => pot(:,l)
-
-      ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
-      call get_real_surf_matrix_cardinal(matrix, grid, pot_2, Tkin_cardinal)
-  
-      ! Remove 1/(2m) factor from kinetic operator to obtain properly
-      ! scaled radial matrix elements
-      matrix = (two * para%mass) * matrix
-  
-      matrix_full = zero
-      !! Convert banded matrix to full matrix
-      !! Watch for the para%nr-2, because the end points are not included anymore
-      call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0, para%nl)
+      do l = 1, 2*para%l + 1
  
-      if (inversion_check) then
- 
-!$OMP PARALLEL DO 
-        do i = 1, size(matrix_all(:,1))
-          do j = 1, size(matrix_all(:,1))
-            if (i .le. j) then
-              matrix_all(i,j) = matrix_full(i,j)
-            else
-              matrix_all(i,j) = matrix_full(j,i)
-            end if
-          end do
-        end do
-!$OMP END PARALLEL DO
-      end if
+        l_val = l-1
+        write(iout, *) 'Calculating two-electron radial part of the integral for l = ', l_val
 
-      ! Invert radial kinetic matrix
-      if (allocated(ipiv)) deallocate(ipiv)
-      allocate(ipiv(size(matrix_full(1,:))), stat=error)
-      call allocerror(error)
-      if (allocated(work)) deallocate(work)
-      allocate(work(size(matrix_full(1,:))), stat=error)
-      call allocerror(error)
- 
-      call wrap_dsytrf(matrix_full, size(matrix_full(1,:)), ipiv, work)
-      call wrap_dsytri(matrix_full, size(matrix_full(1,:)), ipiv, work)
- 
-      ! The matrix matrix_all_inv is replaced here by a pointer
-      two_e_int_p => two_e_rad_int(:,:,l)
+        ! The matrix matrix_all_inv is replaced here by a pointer
+        two_e_int_p => two_e_rad_int(:,:,l)
 
-      if (inversion_check) then
- 
-        do i = 1, size(two_e_rad_int(:,1,l))
-          do j = 1, size(two_e_rad_int(:,1,l))
-            if (i .le. j) then
-              two_e_int_p(i,j) = matrix_full(i,j)
-            else
-              two_e_int_p(i,j) = matrix_full(j,i)
-            end if
-          end do
-        end do
-
-
-!       unity = matmul(two_e_int_p, matrix_all)
-        unity = matmul(two_e_rad_int(:,:,l), matrix_all)
-
-        do i = 1, size(unity(:,1))
-          do j = 1, size(unity(:,1))
-            if (i == j) cycle
-            if (abs(unity(i,j)) > 1d-10) then
-              write(*,*) "WARNING: Inversion not successful with desired precision."
-            end if
-            if (abs(unity(i,j)) > 1d-4) then
-              write(*,*) "ERROR: Inversion not successful."
-            end if
-          end do
-        end do
- 
-      end if
-
-      do a = 1, size(two_e_rad_int(:,1,l))
-!       do b = 1, size(two_e_rad_int(:,1,l))
-        do b = 1, a
-          if (alternative_formula) then
-            value_int = ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
-            &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
-            & + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
-            &   (one / (full_r_max**(l_val+1)))
-          else
-            value_int = ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
-            &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
-            & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
-          end if
-!         if (a .le. b) then
+        do a = 1, size(two_e_rad_int(:,1,l))
+!         do b = 1, size(two_e_rad_int(:,1,l))
+          r = grid%r(a)
+          do b = 1, a
+            r_prime = grid%r(b)
+!           value_int = & ! dvr_primitive_val_esteban(a, para, grid, r) 
+!           &            dvr_primitive_val_esteban(b, para, grid, r_prime) * &
+!                          ( min(r, r_prime)**(l_val) /            &
+!           &                max(r, r_prime)**(l_val+1) )
+            value_int =  & !dvr_primitive_val_esteban(a, para, grid, r) *       &
+            &            & !dvr_primitive_val_esteban(b, para, grid, r_prime) * &
+            &              ( min(r, r_prime)**(l_val) /            &
+            &                max(r, r_prime)**(l_val+1) )
+!           ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
+!           &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
+!           & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
+!           if (a .le. b) then
             two_e_int_p(b,a) = value_int
             if (a.ne.b) two_e_int_p(a,b) = value_int
-!         else
-!           two_e_int_p(a,b) = matrix_full(b,a)
-!         end if
+!           two_e_rad_int(b,a,l) = value_int
+!           if (a.ne.b) two_e_rad_int(a,b,l) = value_int
+!           else
+!             two_e_int_p(a,b) = matrix_full(b,a)
+!           end if
+          end do
         end do
+
       end do
 
+    else
 
-    end do
+      write(iout, *) 'two-electron integrals are calculated indirectly from an alternative expression'
+
+      allocate(matrix_all(size(grid%r),size(grid%r)),  stat=error)
+      call allocerror(error)
+    
+      allocate(unity(size(grid%r),size(grid%r)), stat=error)
+      call allocerror(error)
+ 
+ 
+      ! Set the potential to only include the rotational barrier to only treat the
+      ! kinetic part in the following
+      do l = 1, 2*para%l + 1
+ 
+        l_val = l-1
+        write(iout, *) 'Calculating two-electron radial part of the integral for l = ', l_val
+
+
+!$OMP PARALLEL DO 
+        do i = 1, size(pot(:,1))
+          pot(i, l) = pot(i, l)                                        &
+!         pot(i, l) = pot(i, l)                                       &
+!          &        + real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
+           &        + real(para%Z, idp) / grid%r(i) 
+        end do
+!OMP END PARALLEL DO
+
+        pot_2 => pot(:,l)
+     
+        ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
+        call get_real_surf_matrix_cardinal(matrix, grid, pot_2, Tkin_cardinal)
+   
+        ! Remove 1/(2m) factor from kinetic operator to obtain properly
+        ! scaled radial matrix elements
+        matrix = (two * para%mass) * matrix
+   
+        matrix_full = zero
+        !! Convert banded matrix to full matrix
+        !! Watch for the para%nr-2, because the end points are not included anymore
+        call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0, para%nl)
+     
+        if (inversion_check) then
+ 
+!$OMP PARALLEL DO 
+          do i = 1, size(matrix_all(:,1))
+            do j = 1, size(matrix_all(:,1))
+              if (i .le. j) then
+                matrix_all(i,j) = matrix_full(i,j)
+              else
+                matrix_all(i,j) = matrix_full(j,i)
+              end if
+            end do
+          end do
+!$OMP END PARALLEL DO
+        end if
+    
+        ! Invert radial kinetic matrix
+        if (allocated(ipiv)) deallocate(ipiv)
+        allocate(ipiv(size(matrix_full(1,:))), stat=error)
+        call allocerror(error)
+        if (allocated(work)) deallocate(work)
+        allocate(work(size(matrix_full(1,:))), stat=error)
+        call allocerror(error)
+  
+        call wrap_dsytrf(matrix_full, size(matrix_full(1,:)), ipiv, work)
+        call wrap_dsytri(matrix_full, size(matrix_full(1,:)), ipiv, work)
+  
+        ! The matrix matrix_all_inv is replaced here by a pointer
+        two_e_int_p => two_e_rad_int(:,:,l)
+    
+        if (inversion_check) then
+  
+          do i = 1, size(two_e_rad_int(:,1,l))
+            do j = 1, size(two_e_rad_int(:,1,l))
+              if (i .le. j) then
+                two_e_int_p(i,j) = matrix_full(i,j)
+              else
+                two_e_int_p(i,j) = matrix_full(j,i)
+              end if
+            end do
+          end do
+    
+    
+!         unity = matmul(two_e_int_p, matrix_all)
+          unity = matmul(two_e_rad_int(:,:,l), matrix_all)
+    
+          do i = 1, size(unity(:,1))
+            do j = 1, size(unity(:,1))
+              if (i == j) cycle
+              if (abs(unity(i,j)) > 1d-10) then
+                write(*,*) "WARNING: Inversion not successful with desired precision."
+              end if
+              if (abs(unity(i,j)) > 1d-4) then
+                write(*,*) "ERROR: Inversion not successful."
+              end if
+            end do
+          end do
+          deallocate(ipiv, work)
+  
+        end if
+    
+        do a = 1, size(two_e_rad_int(:,1,l))
+!         do b = 1, size(two_e_rad_int(:,1,l))
+          do b = 1, a
+            if (alternative_formula) then
+              value_int = ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
+              &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
+              & + ((grid%r(a) * grid%r(b)) / full_r_max)**l_val *                        &
+              &   (one / (full_r_max**(l_val+1)))
+            else
+              value_int = ((real(2*l_val+1, idp) / (grid%r(a) * sqrt(grid%weights(a)) *  &
+              &     grid%r(b) * sqrt(grid%weights(b)))) * matrix_full(b,a))              &
+              & + ((grid%r(a)**l_val * grid%r(b)**l_val) / full_r_max**(2*l_val+1))
+            end if
+!           if (a .le. b) then
+              two_e_int_p(b,a) = value_int
+              if (a.ne.b) two_e_int_p(a,b) = value_int
+!           else
+!             two_e_int_p(a,b) = matrix_full(b,a)
+!           end if
+          end do
+        end do
+
+
+      end do
+
+    end if
 
     if (debug.gt.5) then
 
@@ -270,13 +320,13 @@ module DVRIntRad
         &    form="formatted", action="write")
         write(11,*) '# Primitive Radial Matrix Elements for the Four-index '//       &
         &           'Integrals for l = '//trim(int2str(l_val))
-        do a = 1, size(matrix_full(1,:))
+        do a = 1, size(two_e_rad_int(1,:,l))
           if (a > nr_limit) cycle
           !if (only_bound) then
           !  if (a > 0.5*para%nr - 1) cycle
           !  if (eigen_vals(a) < zero) cycle
           !end if
-          do b = 1, size(matrix_full(1,:))
+          do b = 1, size(two_e_rad_int(1,:,l))
             if (b > nr_limit) cycle
             !if (only_bound) then
             !  if (b > 0.5*para%nr - 1) cycle
@@ -286,13 +336,12 @@ module DVRIntRad
           end do
         end do
         close(11)
+        write(*,*) 'done here', l
 
       end do
     end if ! End of if loop for writing the integral files
 
-    deallocate(ipiv, work)
-
-    call radial_check()
+!   call radial_check()
 
   end subroutine GetRadialElements
 

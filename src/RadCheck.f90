@@ -60,7 +60,6 @@ contains
     end do
     end do
     
-    write(*,*) para%nr
     do a = 1, 4
     do b = 1,4
       do c = 1, 4
@@ -130,7 +129,6 @@ contains
             &              dvr_primitive_val_esteban(b, para, grid, curr_r)
          end do
          write(15,'(2I4, ES25.17)') a, b, integral_val_1
-         write(78,'(2I4, ES25.17)') a, b, integral_val_2
        end do
      end do
      close(15)
@@ -276,9 +274,7 @@ contains
     integer :: k, ind
     real(idp) :: r_min, r_max
 
-    write(*,*) 'Get here 1' 
     ind = i_val * para%nl + m_val
-    write(*,*) i_val, para%nl
     r_min = grid%r(i_val*para%nl)
     r_max = grid%r(i_val*para%nl+para%nl-1)
 
@@ -291,15 +287,12 @@ contains
       return
     end if
     
-    write(*,*) 'Get here 2' 
     !write(*,*) i_val*para%nl, i_val*para%nl+para%nl
     !write(*,*) r, r_min, r_max
 
     dvr_product = one
-    write(*,*) ind, i_val, m_val 
     do k = 0, para%nl - 1
       if (k == m_val) cycle
-      write(*,*) r, k, grid%r(i_val*para%nl+k) 
       !write(*,*) r-grid%r(i_val*para%nl+k), grid%r(ind), grid%r(i_val*para%nl+k)
       !write(*,*) i_val*para%nl+k, ind, i_val, m_val
       dvr_product = dvr_product * ((r - grid%r(i_val*para%nl+k)) /             &
