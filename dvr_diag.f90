@@ -10,20 +10,24 @@ program dvr_diag
   real(idp), allocatable     :: eigen_vals(:)
   real(idp), allocatable     :: matrix(:,:)
   real(idp), allocatable     :: Tkin_cardinal(:,:)
-  integer                    :: i, j, l_val
+  integer                    :: i, j, l_val, ith, jth, a, b
+  real(idp)                  :: dr, curr_r, curr_r_prime, integral_val,        &
+  &                             integral_val_ana, integral_val_ana2, th_1,     &
+  &                             th_2, dth
   real(idp),  allocatable    :: file_r(:), file_pot(:)
   logical                    :: only_bound ! Only writes out bound states
   
-  l_val=12
+  l_val=0
 
-  para%pottype       = 'file' ! 'density_file', 'file', 'analytical'
+  para%pottype       = 'analytical' ! 'density_file', 'file', 'analytical'
   para%pot_filename  = 'input_pot.in' 
   para%r_min         = 0.0
-  para%r_max         = 300.0
-  para%m             = 200
+  para%r_max         = 30.0
+  para%m             = 100
   para%nl            = 5
-  para%nr            = 1001 !nr = m * nl + 1
-  para%l             = l_val !Rotational quantum number
+  para%nr            = 501  !nr = m * nl + 1
+  para%l             = l_val !Multipole order
+  para%Z             = 1
   para%mass          = 1.0
 
   para%mapped_grid   = .false.
@@ -82,10 +86,10 @@ program dvr_diag
   &                   rvec=.true.)
 
   ! Write eigenvalues.
-  open(11, file="eigenvalues_GLL"//trim(int2str(para%l))//".dat", form="formatted", &
+  open(11, file="eigenvalues_GLL.dat", form="formatted", &
   &    action="write")
   write(11,*) '#_______________________________________________________________'
-  write(11,*) "#              eigenvalues for hydrogen with l = ", trim(int2str(para%l))
+  write(11,*) "#              eigenvalues for hydrogen with l = 0 "
   write(11,*) '#_______________________________________________________________'
   write(11,*) "#     index    -    eigenvalue    -    eigenvector normalization"
   write(11,*) ""
@@ -106,22 +110,21 @@ program dvr_diag
   ! wavefunction psi(r) instead of the rescaled object u(r) = psi(r) * r
 
   if (only_bound) then
-    open(11, file="eigenvectors_GLL"//trim(int2str(para%l))//".dat", form="formatted",&
+    open(11, file="eigenvectors_GLL.dat", form="formatted",&
     &    action="write", recl=100000)
     do i = 1, size(matrix(:,1))
       write(11,'(ES25.17, 1x)', advance = 'No') grid%r(i)
       do j = 1, size(matrix(i,:))
         if (eigen_vals(j) > zero) cycle
         write(11,'(ES25.17, 1x)', advance = 'No')                              &
-!       & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
-        & matrix(i,j) ! the eigenvectors do not have the weights and r, it will be added separately
-                      ! while calculating the integrals
+        & matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
       end do
       write(11,*) ' '
+    write(76,'(i5,f15.8)') i, grid%r(i)
     end do
     close(11)
   else
-    open(11, file="eigenvectors_GLL"//trim(int2str(para%l))//".dat", form="formatted",&
+    open(11, file="eigenvectors_GLL.dat", form="formatted",&
     &    action="write", recl=100000)
     do i = 1, size(matrix(:,1))
       write(11,*) grid%r(i),                                                   &
@@ -130,6 +133,71 @@ program dvr_diag
     end do
     close(11)
   end if
+
+  do a = 1, 3
+  do b = 1, 3
+
+
+
+  dr = 0.1d0
+  write(*,*) 'Doing it for a, b: ', a, b
+  integral_val_ana = zero
+  do i = 1, 501
+    curr_r = (i-1) * dr
+    do j = 1, 501
+!     if (a.ne.b) write(*,*) i, j
+      curr_r_prime = (j-1) * dr
+      if (curr_r + curr_r_prime < 1d-16) cycle
+      integral_val_ana = integral_val_ana +                                    &
+      &                  radial_hydrogen_ef(curr_r, l_val+a, l_val)**2 *       &
+      &                  radial_hydrogen_ef(curr_r_prime, l_val+b, l_val)**2 * &
+      &                  ( min(curr_r, curr_r_prime)**(l_val) /                &
+      &                    max(curr_r, curr_r_prime)**(l_val+1) ) * dr * dr *  &
+      &                  curr_r * curr_r * curr_r_prime * curr_r_prime
+    end do
+    write(79,'(2f20.12)') curr_r, radial_hydrogen_ef(curr_r, l_val+a, l_val)
+  end do
+
+  !do i = 1, 1001
+  !  curr_r = (i-1) * dr
+  !  do j = 1, 1001
+  !    curr_r_prime = (j-1) * dr
+  !    if (curr_r + curr_r_prime < 1d-16) cycle
+  !    integral_val_ana = integral_val_ana +                                    &
+  !    &                  two * exp(- curr_r) * two * exp(- curr_r) *           &
+  !    &    sqrt(two)**(-3) * (two - curr_r_prime) * exp(-curr_r_prime / two) * &
+  !    &    sqrt(two)**(-3) * (two - curr_r_prime) * exp(-curr_r_prime / two) * &
+  !    &                  ( min(curr_r, curr_r_prime)**(l_val) /                &
+  !    &                    max(curr_r, curr_r_prime)**(l_val+1) ) * dr * dr *  &
+  !    &                  curr_r * curr_r * curr_r_prime * curr_r_prime
+  !  end do
+  !end do
+  integral_val = zero
+  do i = 1, para%nr-2
+    curr_r = grid%r(i)
+    do j = 1, para%nr-2
+      curr_r_prime = grid%r(j) 
+      if (curr_r + curr_r_prime < 1d-16) cycle
+      integral_val = integral_val +                                            &
+      &              matrix(i,a) * matrix(i,a) * matrix(j,b) * matrix(j,b) *   &
+      &              ( min(curr_r, curr_r_prime)**(l_val) /                    &
+      &                max(curr_r, curr_r_prime)**(l_val+1) )
+!     write(80,'(4i4, 4f16.8)') a, b, i, j, matrix(i,a), matrix(j,b),( min(curr_r, curr_r_prime)**(l_val) /                    &
+!           &                max(curr_r, curr_r_prime)**(l_val+1)), integral_val
+    end do
+  end do
+! do i = 1, para%nr-2
+!   curr_r = grid%r(i)
+!   !write(*,*) two * exp(-curr_r), matrix(i,1)/(sqrt(grid%weights(i))*grid%r(i)), &
+!   !&          radial_hydrogen_ef(curr_r, 1, 0)
+!   !write(*,*) sqrt(two)**(-3) * (two - curr_r) * exp(-curr_r / two),          &
+!   !&          matrix(i,2)/(sqrt(grid%weights(i))*grid%r(i)),                  &
+!   !&          radial_hydrogen_ef(curr_r, 2, 0)
+! end do
+  write(78,'(2I4,2ES25.17)') a, b, integral_val, integral_val_ana
+! write(78,'(2I4,ES25.17)') a, b, integral_val
+  end do
+  end do
   
   ! Write transformation matrix. This is the same as the eigenvectors except
   ! without the grid as the first column 

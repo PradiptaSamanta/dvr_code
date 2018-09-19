@@ -1645,12 +1645,15 @@ contains
   !! @param: matrix       On output, explicit Hamiltonian matrix
   !! @param: grid         Coordinate Grid based on Gauss-Legendre-Lobatto points
   !! @param: Tkin_carinal Work array 
-  subroutine get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
+  subroutine get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal,   &
+  &                                        two_index_variant, para)
 
     real(idp), allocatable, intent(inout) :: matrix(:,:)
     type(grid_t),           intent(in)    :: grid
     real(idp), allocatable, intent(in)    :: pot(:) 
     real(idp), allocatable, intent(in)    :: Tkin_cardinal(:,:)
+    logical, optional,      intent(in)    :: two_index_variant
+    type(para_t), optional, intent(in)    :: para
 
     integer                 :: nl, ku
     integer                 :: i, ir, error, j
@@ -1671,6 +1674,19 @@ contains
 
     ku = grid%nl
 
+    if (present(two_index_variant)) then
+      if (two_index_variant) then
+        if (.not.(present(two_index_variant))) then
+          write(*,*) 'get_real_surf_matrix_cardinal needs para if '//          &
+          &          'the flag two_index_variant is set to .true.'
+          stop
+        end if
+        do ir = 1, size(pot)
+          matrix(ku + 1,ir) = para%mass * (two * matrix(ku+1,ir) + pot(ir))
+        end do
+        return
+      end if
+    end if
     do ir = 1, size(pot)
       matrix(ku + 1,ir) = matrix(ku+1,ir) + pot(ir)
     end do
@@ -1859,6 +1875,69 @@ contains
     deallocate(selct, d, v, workd)
 
   end subroutine diag_arpack_real_sym_matrix
+  
+  !! @description: Diagonalize the given complex Hermitian matrix via a call to
+  !!               the Lapack routine `zheevd`. The calculated eigenvectors are
+  !!               saved in the columns of the matrix.
+  !! @param: eigen_vecs  Matrix that should be diagonalized, will be replaced
+  !!                     by matrix of (complex) eigenvectors
+  !! @param: eigen_vals  Array of (real) eigenvalues of the matrix
+  subroutine diag_hermitian_matrix(eigen_vecs, eigen_vals)
+
+    complex(idp),              intent(inout) :: eigen_vecs(:,:)
+    real(idp),    allocatable, intent(inout) :: eigen_vals(:)
+
+    integer                   :: nn, lwork, lrwork, liwork, error
+    integer ,     allocatable :: iwork(:)
+    real(idp),    allocatable :: rwork(:)
+    complex(idp), allocatable :: work(:)
+
+    nn = size(eigen_vecs(:,1))
+
+    if (allocated(eigen_vals)) deallocate(eigen_vals)
+    allocate(eigen_vals(nn), stat=error)
+    call allocerror(error)
+    allocate (work(1), stat=error)
+    call allocerror(error)
+    allocate (iwork(1), stat=error)
+    call allocerror(error)
+    allocate (rwork(1), stat=error)
+    call allocerror(error)
+
+    ! Perform workspace query: zheevd only calculates the optimal sizes of the
+    ! WORK, RWORK and IWORK arrays, returns these values as the first entries of
+    ! the WORK, RWORK and IWORK arrays,
+    ! cf. http://www.netlib.org/lapack/complex16/zheevd.f
+    lwork = -1; liwork = -1; lrwork = -1 ! indicate workspace query
+    call zheevd('v', 'u', nn, eigen_vecs, nn, eigen_vals,                      &
+    &           work, lwork, rwork, lrwork, iwork, liwork, error)
+    if (error /= 0) then
+      write(*,*) "Could not calculate sizes for WORK, IWORK, RWORK arrays!"
+    end if
+
+    ! Now we can re-allocate WORK, IWORK, RWORK with the optimal size, obtained
+    ! from the first call to zheevd
+    lwork = work(1)
+    liwork = iwork(1)
+    lrwork = rwork(1)
+    deallocate(work, iwork, rwork)
+    allocate(work(lwork), stat=error)
+    call allocerror(error)
+    allocate(iwork(liwork), stat=error)
+    call allocerror(error)
+    allocate(rwork(lrwork), stat=error)
+    call allocerror( error)
+
+    ! The second call to zheevd performs the actual diagonalization
+    call zheevd('v', 'u', nn, eigen_vecs, nn, eigen_vals,                      &
+    &           work, lwork, rwork, lrwork, iwork, liwork, error)
+    if (error /= 0) then
+      write(*,*) "An argument of zheevd had an illegal entry!"
+    end if
+
+    deallocate(work, iwork, rwork)
+
+  end subroutine diag_hermitian_matrix
 
   ! Symmetric matrix-vector multiplication
   !! @description: See BLAS
@@ -1970,5 +2049,61 @@ contains
     end if
   
   end function analytical_potential
+  
+  !! @description: Returns value of radial hydrogen eigenfunction at given point 
+  !! @param: r_val Value of radial coordinate 
+  !! @param: n     Principal quantum number
+  !! @param: l     Orbital angular momentum quantum number
+  real(idp) function radial_hydrogen_ef(r_val, n, l)
+  
+    real(idp), intent(in) :: r_val
+    integer, intent(in)   :: n
+    integer, intent(in)   :: l
+  
+    integer :: i, k
+    real(idp), allocatable :: an(:)
+    real(idp) :: val, dr, curr_r, drho, curr_rho
+    
+    integer, save :: prev_n = -1, prev_l = -1
+    real(idp), save :: norm = - one
+
+    allocate(an(0:n-l-1))
+    an(0) = one
+
+    do k = 0, n-l-2
+      an(k+1) = an(k) * (real(k + l + 1 - n,kind=idp) /                        &
+      &                  real((k + 1) * (k + 2*l + 2),kind=idp))
+    end do
+
+    if ((n .ne. prev_n) .or. (l .ne. prev_l)) then
+      prev_n = n
+      prev_l = l
+      norm = zero
+      do i = 1, 10001
+        val = zero
+        dr = 0.01_idp
+        drho = (two / real(n, kind=idp)) * dr 
+        curr_r = (i-1) * dr
+        curr_rho = (i-1) * drho
+        do k = 0, n-l-1
+          val = val + an(k) * curr_rho**k *exp(-curr_rho/two)
+        end do
+        val = curr_rho**l * val
+        norm = norm + (val**2 * dr * curr_r**2)
+      end do
+    end if
+
+    curr_rho = (two / real(n, kind=idp)) * r_val
+    val = zero
+    do k = 0, n-l-1
+      val = val + an(k) * curr_rho**k *exp(-curr_rho/two)
+    end do
+    val = curr_rho**l * val
+
+    deallocate(an)
+
+    radial_hydrogen_ef = val / sqrt(norm)
+  
+  end function radial_hydrogen_ef 
 
 end module dvr_diag_mod

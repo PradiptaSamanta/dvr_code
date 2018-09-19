@@ -148,6 +148,7 @@ module DVRDiag
       do i = 1, size(matrix(:,1))
         do j = 1, size(matrix(1,:))
 !         eigen_vecs(i,j,l)  = matrix(i,j) / (sqrt(grid%weights(i)) * grid%r(i))
+!         eigen_vecs(i,j,l)  = matrix(i,j) * (sqrt(grid%weights(i)) )
           eigen_vecs(i,j,l)  = matrix(i,j)
         end do
       end do
