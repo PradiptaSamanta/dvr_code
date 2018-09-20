@@ -134,7 +134,6 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     allocate(two_e_rad_int(size(grid%r),size(grid%r), 2*para%l+1),  stat=error)
-    write(*,*) 'print r', size(grid%r)
     call allocerror(error)
   
 
@@ -336,7 +335,6 @@ module DVRIntRad
           end do
         end do
         close(11)
-        write(*,*) 'done here', l
 
       end do
     end if ! End of if loop for writing the integral files

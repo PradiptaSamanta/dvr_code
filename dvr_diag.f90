@@ -155,7 +155,6 @@ program dvr_diag
       &                    max(curr_r, curr_r_prime)**(l_val+1) ) * dr * dr *  &
       &                  curr_r * curr_r * curr_r_prime * curr_r_prime
     end do
-    write(79,'(2f20.12)') curr_r, radial_hydrogen_ef(curr_r, l_val+a, l_val)
   end do
 
   !do i = 1, 1001
