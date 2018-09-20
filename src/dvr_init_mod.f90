@@ -552,12 +552,12 @@ contains
     end do
     call delete_spline_t(spline)
 
-    write (*,'(A61)') "    Original grid parameters were changed by &
+    write (iout,'(A61)') "    Original grid parameters were changed by &
                        &differential mapping"
-    write (*,'(A53)') "               original                 after mapping"
-    write (*,'(A11,2ES25.17)') "    r_min  ", r_min,       r_min
-    write (*,'(A11,2ES25.17)') "    r_max  ", r_max,       r(nr)
-    write (*,'(A11,I8, A20, I8)') "    nr     ", nr , " ", nr
+    write (iout,'(A53)') "               original                 after mapping"
+    write (iout,'(A11,2ES25.17)') "    r_min  ", r_min,       r_min
+    write (iout,'(A11,2ES25.17)') "    r_max  ", r_max,       r(nr)
+    write (iout,'(A11,I8, A20, I8)') "    nr     ", nr , " ", nr
 
     !if ((abs(r_max - r(nr)) / r_max) > 0.5_idp) then
     !  write(*,*) "ERROR: r_max differs by more than 50% of the original value."
@@ -668,12 +668,12 @@ contains
       r(k) = temp_r(k)
       J(k) = temp_J(k)
     end do
-    write (*,'(A61)') "    Original grid parameters were changed by &
+    write (iout,'(A61)') "    Original grid parameters were changed by &
                        &integral mapping"
-    write (*,'(A53)') "               original                 after mapping"
-    write (*,'(A11,2ES25.17)') "    r_min  ", r_min,       r_prev
-    write (*,'(A11,2ES25.17)') "    r_max  ", r_max,       r(new_nr)
-    write (*,'(A11,I8, A20, I8)') "    nr     ", nr , " ", new_nr
+    write (iout,'(A53)') "               original                 after mapping"
+    write (iout,'(A11,2ES25.17)') "    r_min  ", r_min,       r_prev
+    write (iout,'(A11,2ES25.17)') "    r_max  ", r_max,       r(new_nr)
+    write (iout,'(A11,I8, A20, I8)') "    nr     ", nr , " ", new_nr
 
     !if ((abs(r_max - r(new_nr)) / r_max) > 0.5_idp) then
     !  write(*,*) "ERROR: r_max differs by more than 50% of the original value."
