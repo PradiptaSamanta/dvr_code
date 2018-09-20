@@ -1,0 +1,398 @@
+
+ Primary working directories    : /algpfs/samanta/scratch/mpscr.30761
+ Secondary working directories  : /algpfs/samanta/scratch/mpscr.30761
+ Wavefunction directory         : /home/samanta/wfu/
+ Main file repository           : /algpfs/samanta/scratch/mpscr.30761/
+
+ SHA1      : 15e287e0c8790f314a3b7626b3b23257946cfd9d
+ NAME      : 2015.1.33
+ ARCHNAME  : linux/x86_64
+ FC        : /opt/intel/composer_xe_2015.1.133/bin/intel64/ifort
+ BLASLIB   : -Wl,-_start-group /opt/intel/mkl/lib/intel64/libmkl_intel_ilp64.a /opt/intel/mkl/lib/intel64/libmkl_intel_thread.a /opt/intel/mkl/lib/intel64/libmkl_core.a -Wl,-_end-group
+ id        : fkfmpg
+
+ Nodes     nprocs
+ alnode002    1
+
+ Using customized tuning parameters: mindgm=1; mindgv=20; mindgc=4; mindgr=1; noblas=0; minvec=7
+ default implementation of scratch files=df  
+
+ ***,Fe atom, state-averaged CASSCF calculation
+ 
+ memory,10000,m
+ gprint,orbitals,basis
+ 
+ 
+ geom={He}
+ 
+ basis=d-aug-cc-pV5Z
+ 
+ {hf
+ wf,2,1,0}
+ 
+ core,0,0,0,0,0,0,0,0
+ fci;dump
+
+ Variables initialized (889), CPU time= 0.00 sec
+ Commands  initialized (702), CPU time= 0.01 sec, 572 directives.
+ Default parameters read. Elapsed time= 0.07 sec
+
+ Checking input...
+ Passed
+1
+
+
+                                         ***  PROGRAM SYSTEM MOLPRO  ***
+                                       Copyright, TTI GmbH Stuttgart, 2015
+                                    Version 2015.1 linked May 14 2018 10:23:42
+
+
+ **********************************************************************************************************************************
+ LABEL *   Fe atom, state-averaged CASSCF calculation                                    
+  64 bit serial version                                                                  DATE: 19-Sep-18          TIME: 16:04:31  
+ **********************************************************************************************************************************
+
+ SHA1:             15e287e0c8790f314a3b7626b3b23257946cfd9d
+ **********************************************************************************************************************************
+
+
+ Variable memory set to ********** words,  buffer space   230000 words
+
+ SETTING BASIS          =    D-AUG-CC-PV5Z
+
+
+ Recomputing integrals since basis changed
+
+
+ Using spherical harmonics
+
+ Library entry HE     S d-aug-cc-pV5Z        selected for orbital group  1
+ Library entry HE     P d-aug-cc-pV5Z        selected for orbital group  1
+ Library entry HE     D d-aug-cc-pV5Z        selected for orbital group  1
+ Library entry HE     F d-aug-cc-pV5Z        selected for orbital group  1
+ Library entry HE     G d-aug-cc-pV5Z        selected for orbital group  1
+
+
+ PROGRAM * SEWARD (Integral evaluation for generally contracted gaussian basis sets)     Author: Roland Lindh, 1990
+
+ Geometry written to block  1 of record 700
+
+ Orientation using atomic masses  
+ Molecule type: Atom
+ Symmetry elements: X,Y,Z
+ Rotational constants:       0.0000000      0.0000000      0.0000000 GHz  (calculated with average atomic masses)
+
+ Point group  D2h 
+
+
+
+ ATOMIC COORDINATES
+
+ NR  ATOM    CHARGE       X              Y              Z
+
+   1  HE      2.00    0.000000000    0.000000000    0.000000000
+
+
+ BASIS DATA
+
+   Nr Sym  Nuc  Type         Exponents   Contraction coefficients
+
+    1.1 Ag    1  1s        1145.000000     0.000359    0.000000    0.000000    0.000000    0.000000
+    2.1 Ag                  171.700000     0.002771    0.000000    0.000000    0.000000    0.000000
+    3.1 Ag                   39.070000     0.014251    0.000000    0.000000    0.000000    0.000000
+    4.1 Ag                   11.040000     0.055566    0.000000    0.000000    0.000000    0.000000
+    5.1 Ag                    3.566000     0.162091    1.000000    0.000000    0.000000    0.000000
+                              1.240000     0.332197    0.000000    1.000000    0.000000    0.000000
+                              0.447300     0.419615    0.000000    0.000000    1.000000    0.000000
+                              0.164000     0.186128    0.000000    0.000000    0.000000    1.000000
+    6.1 Ag    1  1s           0.046640     1.000000
+    7.1 Ag    1  1s           0.013300     1.000000
+    8.1 Ag    1  3d0          7.666000     1.000000
+    9.1 Ag    1  3d2+         7.666000     1.000000
+   10.1 Ag    1  3d0          2.647000     1.000000
+   11.1 Ag    1  3d2+         2.647000     1.000000
+   12.1 Ag    1  3d0          0.914000     1.000000
+   13.1 Ag    1  3d2+         0.914000     1.000000
+   14.1 Ag    1  3d0          0.289200     1.000000
+   15.1 Ag    1  3d2+         0.289200     1.000000
+   16.1 Ag    1  3d0          0.091500     1.000000
+   17.1 Ag    1  3d2+         0.091500     1.000000
+   18.1 Ag    1  5g0          3.430000     1.000000
+   19.1 Ag    1  5g4+         3.430000     1.000000
+   20.1 Ag    1  5g2+         3.430000     1.000000
+   21.1 Ag    1  5g0          0.789900     1.000000
+   22.1 Ag    1  5g4+         0.789900     1.000000
+   23.1 Ag    1  5g2+         0.789900     1.000000
+   24.1 Ag    1  5g0          0.182000     1.000000
+   25.1 Ag    1  5g4+         0.182000     1.000000
+   26.1 Ag    1  5g2+         0.182000     1.000000
+    1.2 B3u   1  2px         10.153000     1.000000
+    2.2 B3u   1  2px          3.627000     1.000000
+    3.2 B3u   1  2px          1.296000     1.000000
+    4.2 B3u   1  2px          0.463000     1.000000
+    5.2 B3u   1  2px          0.140000     1.000000
+    6.2 B3u   1  2px          0.042300     1.000000
+    7.2 B3u   1  4f1+         5.411000     1.000000
+    8.2 B3u   1  4f3+         5.411000     1.000000
+    9.2 B3u   1  4f1+         1.707000     1.000000
+   10.2 B3u   1  4f3+         1.707000     1.000000
+   11.2 B3u   1  4f1+         0.534500     1.000000
+   12.2 B3u   1  4f3+         0.534500     1.000000
+   13.2 B3u   1  4f1+         0.167000     1.000000
+   14.2 B3u   1  4f3+         0.167000     1.000000
+    1.3 B2u   1  2py         10.153000     1.000000
+    2.3 B2u   1  2py          3.627000     1.000000
+    3.3 B2u   1  2py          1.296000     1.000000
+    4.3 B2u   1  2py          0.463000     1.000000
+    5.3 B2u   1  2py          0.140000     1.000000
+    6.3 B2u   1  2py          0.042300     1.000000
+    7.3 B2u   1  4f1-         5.411000     1.000000
+    8.3 B2u   1  4f3-         5.411000     1.000000
+    9.3 B2u   1  4f1-         1.707000     1.000000
+   10.3 B2u   1  4f3-         1.707000     1.000000
+   11.3 B2u   1  4f1-         0.534500     1.000000
+   12.3 B2u   1  4f3-         0.534500     1.000000
+   13.3 B2u   1  4f1-         0.167000     1.000000
+   14.3 B2u   1  4f3-         0.167000     1.000000
+    1.4 B1g   1  3d2-         7.666000     1.000000
+    2.4 B1g   1  3d2-         2.647000     1.000000
+    3.4 B1g   1  3d2-         0.914000     1.000000
+    4.4 B1g   1  3d2-         0.289200     1.000000
+    5.4 B1g   1  3d2-         0.091500     1.000000
+    6.4 B1g   1  5g2-         3.430000     1.000000
+    7.4 B1g   1  5g4-         3.430000     1.000000
+    8.4 B1g   1  5g2-         0.789900     1.000000
+    9.4 B1g   1  5g4-         0.789900     1.000000
+   10.4 B1g   1  5g2-         0.182000     1.000000
+   11.4 B1g   1  5g4-         0.182000     1.000000
+    1.5 B1u   1  2pz         10.153000     1.000000
+    2.5 B1u   1  2pz          3.627000     1.000000
+    3.5 B1u   1  2pz          1.296000     1.000000
+    4.5 B1u   1  2pz          0.463000     1.000000
+    5.5 B1u   1  2pz          0.140000     1.000000
+    6.5 B1u   1  2pz          0.042300     1.000000
+    7.5 B1u   1  4f0          5.411000     1.000000
+    8.5 B1u   1  4f2+         5.411000     1.000000
+    9.5 B1u   1  4f0          1.707000     1.000000
+   10.5 B1u   1  4f2+         1.707000     1.000000
+   11.5 B1u   1  4f0          0.534500     1.000000
+   12.5 B1u   1  4f2+         0.534500     1.000000
+   13.5 B1u   1  4f0          0.167000     1.000000
+   14.5 B1u   1  4f2+         0.167000     1.000000
+    1.6 B2g   1  3d1+         7.666000     1.000000
+    2.6 B2g   1  3d1+         2.647000     1.000000
+    3.6 B2g   1  3d1+         0.914000     1.000000
+    4.6 B2g   1  3d1+         0.289200     1.000000
+    5.6 B2g   1  3d1+         0.091500     1.000000
+    6.6 B2g   1  5g1+         3.430000     1.000000
+    7.6 B2g   1  5g3+         3.430000     1.000000
+    8.6 B2g   1  5g1+         0.789900     1.000000
+    9.6 B2g   1  5g3+         0.789900     1.000000
+   10.6 B2g   1  5g1+         0.182000     1.000000
+   11.6 B2g   1  5g3+         0.182000     1.000000
+    1.7 B3g   1  3d1-         7.666000     1.000000
+    2.7 B3g   1  3d1-         2.647000     1.000000
+    3.7 B3g   1  3d1-         0.914000     1.000000
+    4.7 B3g   1  3d1-         0.289200     1.000000
+    5.7 B3g   1  3d1-         0.091500     1.000000
+    6.7 B3g   1  5g1-         3.430000     1.000000
+    7.7 B3g   1  5g3-         3.430000     1.000000
+    8.7 B3g   1  5g1-         0.789900     1.000000
+    9.7 B3g   1  5g3-         0.789900     1.000000
+   10.7 B3g   1  5g1-         0.182000     1.000000
+   11.7 B3g   1  5g3-         0.182000     1.000000
+    1.8 Au    1  4f2-         5.411000     1.000000
+    2.8 Au    1  4f2-         1.707000     1.000000
+    3.8 Au    1  4f2-         0.534500     1.000000
+    4.8 Au    1  4f2-         0.167000     1.000000
+
+ NUCLEAR CHARGE:                    2
+ NUMBER OF PRIMITIVE AOS:         143
+ NUMBER OF SYMMETRY AOS:          108
+ NUMBER OF CONTRACTIONS:          105   (  26Ag  +  14B3u +  14B2u +  11B1g +  14B1u +  11B2g +  11B3g +   4Au  )
+ NUMBER OF CORE ORBITALS:           0   (   0Ag  +   0B3u +   0B2u +   0B1g +   0B1u +   0B2g +   0B3g +   0Au  )
+ NUMBER OF VALENCE ORBITALS:        1   (   1Ag  +   0B3u +   0B2u +   0B1g +   0B1u +   0B2g +   0B3g +   0Au  )
+
+
+ NUCLEAR REPULSION ENERGY    0.00000000
+
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 1:   1 1 1 1 1 1 1 2 3 2   3 2 3 2 3 2 3 4 5 6   4 5 6 4 5 6
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 2:   1 1 1 1 1 1 2 3 2 3   2 3 2 3
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 3:   1 1 1 1 1 1 2 3 2 3   2 3 2 3
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 4:   1 1 1 1 1 2 3 2 3 2   3
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 5:   1 1 1 1 1 1 2 3 2 3   2 3 2 3
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 6:   1 1 1 1 1 2 3 2 3 2   3
+ EXTRA SYMMETRY OF AOS IN SYMMETRY 7:   1 1 1 1 1 2 3 2 3 2   3
+
+ Eigenvalues of metric
+
+         1 0.105E-02 0.168E-01 0.755E-01 0.131E+00 0.131E+00 0.229E+00 0.342E+00 0.342E+00
+         2 0.488E-01 0.158E+00 0.279E+00 0.279E+00 0.390E+00 0.630E+00 0.630E+00 0.917E+00
+         3 0.488E-01 0.158E+00 0.279E+00 0.279E+00 0.390E+00 0.630E+00 0.630E+00 0.917E+00
+         4 0.131E+00 0.342E+00 0.644E+00 0.644E+00 0.782E+00 0.989E+00 0.989E+00 0.137E+01
+         5 0.488E-01 0.158E+00 0.279E+00 0.279E+00 0.390E+00 0.630E+00 0.630E+00 0.917E+00
+         6 0.131E+00 0.342E+00 0.644E+00 0.644E+00 0.782E+00 0.989E+00 0.989E+00 0.137E+01
+         7 0.131E+00 0.342E+00 0.644E+00 0.644E+00 0.782E+00 0.989E+00 0.989E+00 0.137E+01
+         8 0.279E+00 0.630E+00 0.123E+01 0.186E+01
+
+
+ Contracted 2-electron integrals neglected if value below      1.0D-11
+ AO integral compression algorithm  1   Integral accuracy      1.0D-11
+
+     13.369 MB (compressed) written to integral file ( 43.8%)
+
+
+ NUMBER OF SORTED TWO-ELECTRON INTEGRALS:    2036629.     BUFFER LENGTH:  32768
+ NUMBER OF SEGMENTS:   1  SEGMENT LENGTH:    2036629      RECORD LENGTH: 524288
+
+ Memory used in sort:       2.59 MW
+
+ SORT1 READ     3878105. AND WROTE     1512229. INTEGRALS IN      5 RECORDS. CPU TIME:     0.08 SEC, REAL TIME:     0.09 SEC
+ SORT2 READ     1512229. AND WROTE     2036629. INTEGRALS IN     51 RECORDS. CPU TIME:     0.11 SEC, REAL TIME:     0.25 SEC
+
+ FILE SIZES:   FILE 1:    33.5 MBYTE,  FILE 4:    21.0 MBYTE,   TOTAL:     54.5 MBYTE
+
+ OPERATOR DM      FOR CENTER  0  COORDINATES:    0.000000    0.000000    0.000000
+
+
+ **********************************************************************************************************************************
+ DATASETS  * FILE   NREC   LENGTH (MB)   RECORD NAMES
+              1      19       27.20       500      610      700      900      950      970     1000      129      960     1100   
+                                          VAR    BASINP    GEOM    SYMINP    ZMAT    AOBASIS   BASIS     P2S    ABASIS      S 
+                                         1400     1410     1200     1210     1080     1600     1650     1300     1700   
+                                           T        V       H0       H01     AOSYM     SMH    MOLCAS    ERIS     OPER   
+
+ PROGRAMS   *        TOTAL       INT
+ CPU TIMES  *         2.91      2.82
+ REAL TIME  *         6.49 SEC
+ DISK USED  *        54.78 MB      
+ **********************************************************************************************************************************
+
+
+ PROGRAM * RHF-SCF (CLOSED SHELL)       Authors: W. Meyer, H.-J. Werner
+
+
+ NUMBER OF ELECTRONS:       1+    1-    SPACE SYMMETRY=1    SPIN SYMMETRY: Singlet 
+ CONVERGENCE THRESHOLDS:    1.00E-05 (Density)    1.00E-07 (Energy)
+ MAX. NUMBER OF ITERATIONS:       60
+ INTERPOLATION TYPE:            DIIS
+ INTERPOLATION STEPS:              2 (START)      1 (STEP)
+ LEVEL SHIFTS:                  0.00 (CLOSED)  0.00 (OPEN) 
+
+
+
+ Orbital guess generated from atomic densities. Full valence occupancy:    1   0   0   0   0   0   0   0
+
+
+ Molecular orbital dump at record        2100.2
+
+ Initial occupancy:   1   0   0   0   0   0   0   0
+
+ ITERATION    DDIFF          GRAD             ENERGY        2-EL.EN.            DIPOLE MOMENTS         DIIS   ORB.
+    1      0.000D+00      0.000D+00        -2.86162711      2.051506    0.00000    0.00000    0.00000    0    start
+    2      0.000D+00      0.345D-04        -2.86162717      2.051484    0.00000    0.00000    0.00000    1    diag
+    3      0.236D-04      0.626D-05        -2.86162717      2.051476    0.00000    0.00000    0.00000    2    diag
+    4      0.490D-05      0.345D-06        -2.86162717      2.051476    0.00000    0.00000    0.00000    0    orth
+
+ Final occupancy:   1   0   0   0   0   0   0   0
+
+ !RHF STATE 1.1 Energy                 -2.861627174064
+ Nuclear energy                         0.00000000
+ One-electron energy                   -3.88736494
+ Two-electron energy                    1.02573777
+ Virial quotient                       -1.00004171
+ !RHF STATE 1.1 Dipole moment           0.00000000     0.00000000     0.00000000
+ Dipole moment /Debye                   0.00000000     0.00000000     0.00000000
+
+ ELECTRON ORBITALS
+ =================
+
+
+   Orb  Occ    Energy  Couls-En    Coefficients
+
+                                   1 1s      1 1s      1 1s      1 1s      1 1s      1 1s      1 1s      1 3d0     1 3d2+    1 3d0  
+                                   1 3d2+    1 3d0     1 3d2+    1 3d0     1 3d2+    1 3d0     1 3d2+    1 5g0     1 5g4+    1 5g2+ 
+                                   1 5g0     1 5g4+    1 5g2+    1 5g0     1 5g4+    1 5g2+ 
+
+   1.1   2    -0.9179   -2.8616  0.999786  0.000137 -0.000347  0.001201 -0.001745  0.001164  0.000662  0.000000  0.000000 -0.000000
+                                 0.000000  0.000000  0.000000 -0.000000  0.000000  0.000000 -0.000000  0.000000  0.000000 -0.000000
+                                -0.000000 -0.000000 -0.000000  0.000000 -0.000000  0.000000
+
+ HOMO      1.1    -0.917945 =     -24.9785eV
+ LUMO      2.1     0.021690 =       0.5902eV
+ LUMO-HOMO         0.939634 =      25.5688eV
+
+
+ **********************************************************************************************************************************
+ DATASETS  * FILE   NREC   LENGTH (MB)   RECORD NAMES
+              1      19       27.20       500      610      700      900      950      970     1000      129      960     1100   
+                                          VAR    BASINP    GEOM    SYMINP    ZMAT    AOBASIS   BASIS     P2S    ABASIS      S 
+                                         1400     1410     1200     1210     1080     1600     1650     1300     1700   
+                                           T        V       H0       H01     AOSYM     SMH    MOLCAS    ERIS     OPER   
+
+              2       4        2.78       700     1000      520     2100   
+                                         GEOM     BASIS   MCVARS     RHF  
+
+ PROGRAMS   *        TOTAL        HF       INT
+ CPU TIMES  *         2.95      0.04      2.82
+ REAL TIME  *         6.54 SEC
+ DISK USED  *        54.78 MB      
+ **********************************************************************************************************************************
+
+
+ PROGRAM * FCI (Full CI)     Author: P.J. Knowles, 1984
+
+ ***  Initialisation ***
+ 
+ Molecular orbitals read from record     2100.2  Type=RHF/CANONICAL (state 1.1)
+ 
+ Frozen orbitals:              0 (  0  0  0  0  0  0  0  0)
+ Active orbitals:            105 ( 26 14 14 11 14 11 11  4)
+ Active electrons:             2
+ Spin quantum number:          0.0
+
+ Transformed integrals will be written to file FCIDUMP (relative to TMPDIR)
+ File format: FCIDUMP.
+
+ Load integrals                3.0 sec
+ Transform integrals           4.1 sec
+ Storage for integrals:        3947198
+ Remaining memory:           *********
+
+ Core energy:               0.00000000
+ Run Hamiltonian processor DUMP    
+ Symmetry:                   1
+ Trial vector:                  0.00
+ Result vector:                 0.00
+ Maximum iterations:           90
+ Convergence threshold:         0.0000100
+ RHS vector:                    0.00
+ Hamiltonian shift:             0.0000000
+ Output threshold:              0.0500000
+ Options:                        0
+ Number of roots:             1
+
+
+ **********************************************************************************************************************************
+ DATASETS  * FILE   NREC   LENGTH (MB)   RECORD NAMES
+              1      19       27.20       500      610      700      900      950      970     1000      129      960     1100   
+                                          VAR    BASINP    GEOM    SYMINP    ZMAT    AOBASIS   BASIS     P2S    ABASIS      S 
+                                         1400     1410     1200     1210     1080     1600     1650     1300     1700   
+                                           T        V       H0       H01     AOSYM     SMH    MOLCAS    ERIS     OPER   
+
+              2       4        2.78       700     1000      520     2100   
+                                         GEOM     BASIS   MCVARS     RHF  
+
+ PROGRAMS   *        TOTAL       FCI        HF       INT
+ CPU TIMES  *        11.53      8.57      0.04      2.82
+ REAL TIME  *        21.96 SEC
+ DISK USED  *        54.78 MB      
+ **********************************************************************************************************************************
+
+ FCI/D-AUG-CC-PV5Z energy=      0.000000000000
+
+        HF-SCF  
+     -2.86162717
+ **********************************************************************************************************************************
+ Molpro calculation terminated
+ Variable memory released
