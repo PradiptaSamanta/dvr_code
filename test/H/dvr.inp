@@ -3,7 +3,7 @@ rlimits  0.0 50.0
 mapped-grid 0.005
 n-grids 200
 n-gl 5
-rot-qn-max 0
+rot-qn-max 3
 num-eig-value-fac 0.5
 nuclear-charge 1
 mass 1.0
