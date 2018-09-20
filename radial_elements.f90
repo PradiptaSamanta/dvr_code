@@ -173,8 +173,8 @@ program radial_elements
   ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
   call get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
 
-  ! Remove 1/(2m) factor from kinetic operator to obtain properly
-  ! scaled radial matrix elements
+  ! Remove 1/(2m) factor from kinetic operator and rotational barrier to obtain
+  ! properly scaled radial matrix elements
   matrix = (two * para%mass) * matrix
 
   !! Convert banded matrix to full matrix
