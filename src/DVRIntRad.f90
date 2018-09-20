@@ -211,8 +211,8 @@ module DVRIntRad
         ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
         call get_real_surf_matrix_cardinal(matrix, grid, pot_2, Tkin_cardinal)
    
-        ! Remove 1/(2m) factor from kinetic operator to obtain properly
-        ! scaled radial matrix elements
+        ! Remove 1/(2m) factor from kinetic operator and rotational barrier to 
+        ! obtain properly scaled radial matrix elements
         matrix = (two * para%mass) * matrix
    
         matrix_full = zero
