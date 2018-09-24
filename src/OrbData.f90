@@ -22,7 +22,7 @@ module OrbData
   integer, allocatable   :: SpatialOrbInd(:,:,:)
   real(dp), allocatable  :: OneEInts(:,:) 
   real(dp), allocatable  :: TwoERadOrbInts_old(:,:,:)
-  real(dp), allocatable  :: TwoERadOrbInts(:,:,:,:,:)
+  real(dp), allocatable  :: TwoERadOrbInts(:,:,:,:,:,:,:)
   real(dp), allocatable  :: TwoEInts(:,:,:,:)
 
   character(32)          :: file_int
