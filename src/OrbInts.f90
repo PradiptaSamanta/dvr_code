@@ -274,19 +274,22 @@ module OrbInts
 
     use DVRData, only : two_e_rad_int, para, grid, eigen_vecs
 
-    integer  :: i, j, l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
+    integer  :: i, j, l, l1, l2, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
     real(dp) :: int_value, start, finish
     integer  :: count_i, count_j, count_l
     logical  :: split
 
-    real(dp), allocatable :: inter_int(:,:,:)
+    real(dp), allocatable :: inter_int(:,:,:,:)
 
     call cpu_time(start)
 
-    allocate(inter_int(para%ng,orb%n_max,orb%n_max), stat=error)
+    n_l = para%l+1
+
+    allocate(inter_int(para%ng,orb%n_max,orb%n_max,n_l), stat=error)
     call allocerror(error)
 
-    allocate(TwoERadOrbInts(orb%n_max,orb%n_max, orb%n_max, orb%n_max, 2*para%l+1), stat=error)
+!   allocate(TwoERadOrbInts(orb%n_max,orb%n_max, orb%n_max, orb%n_max, 2*para%l+1), stat=error)
+    allocate(TwoERadOrbInts(orb%n_max,orb%n_max, orb%n_max, orb%n_max, n_l, n_l, 2*para%l+1), stat=error)
     call allocerror(error)
 
     inter_int = zero
@@ -304,7 +307,7 @@ module OrbInts
 !   write(*,*) 'Size 2', size(eigen_vecs(1,:,1))
 !   write(*,*) 'Size 3', size(eigen_vecs(1,1,:))
 
-   flush(6)
+!   flush(6)
 
 !   split = .false.
     split = .true.
@@ -317,55 +320,63 @@ module OrbInts
       ! The first step is done here
       do m = 1, orb%n_max
         do n = 1, orb%n_max
-          do i = 1, para%ng
-      
-            int_value = 0.0d0
-            do j = 1, para%ng
-               int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,n,l)*eigen_vecs(j,m,l)
+          do l1 = 1, n_l
+            do i = 1, para%ng
+       
+              int_value = 0.0d0
+              do j = 1, para%ng
+                 int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,n,l1)*eigen_vecs(j,m,l1)
+              end do 
+              inter_int(i,m,n,l1) = int_value
+ !            write(76,'(3I5,X,F20.10)') i, n, l, eigen_vecs(i,n,l)
             end do 
-            inter_int(i,m,n) = int_value
- !          write(76,'(3I5,X,F20.10)') i, n, l, eigen_vecs(i,n,l)
           end do 
-        flush(6)
         end do
       end do ! end loop over n_max
 
       ! The second step is done here, still it is inside the loop of l
       do m = 1, orb%n_max
         do n = 1, orb%n_max
-          do mp = 1, orb%n_max
-            do np = 1, orb%n_max
+          do l2 = 1, n_l
+            do mp = 1, orb%n_max
+              do np = 1, orb%n_max
+                do l1 = 1, n_l
 
-              int_value = 0.0d0
-              do i = 1, para%ng
-                int_value = int_value + eigen_vecs(i,mp,l)*eigen_vecs(i,np,l)*inter_int(i,m,n)
-              end do
-         
- !            write(76,*) m, n, l, int_value
-         
-              TwoERadOrbInts(mp, m, np, n,l) = int_value
-
+                  int_value = 0.0d0
+                  do i = 1, para%ng
+                    int_value = int_value + eigen_vecs(i,mp,l1)*eigen_vecs(i,np,l1)*inter_int(i,m,n,l2)
+                  end do
+          
+!                 write(78,'(7i4,f16.8)') mp, np, m, n, l1, l2, l, int_value
+          
+                  TwoERadOrbInts(mp, m, np, n, l1, l2, l) = int_value
+                end do
+              end do ! end loop over n_max
             end do ! end loop over n_max
-          end do ! end loop over n_max
+          end do
         end do ! end loop over n_max
       end do ! end loop over n_max
 
-   !  else 
+  !   else 
 
-   !  do m = 1, orb%n_max
-   !  do n = 1, orb%n_max
-   !    int_value = 0.0d0
-   !    do i = 1, para%ng
-   !    do j = 1, para%ng
-   !      int_value = int_value + (eigen_vecs(i,m,l)**2)*two_e_rad_int(i,j,l)*(eigen_vecs(j,n,l)**2)
-!  !       write(80,'(4i4, 4f16.8)') m, n, i, j, eigen_vecs(i,m,l), eigen_vecs(j,n,l),two_e_rad_int(i,j,l), int_value
-   !    end do 
-   !    end do 
-   !    TwoERadOrbInts(m, n, l) = int_value
-!  !    write(82,'(2I4,ES25.17)') m, n, int_value
-   !  flush(6)
-   !  end do ! end loop over n_max
-   !  end do ! end loop over n_max
+  !     do m = 1, orb%n_max
+  !       do n = 1, orb%n_max
+  !         do mp = 1, orb%n_max
+  !           do np = 1, orb%n_max
+  !             int_value = 0.0d0
+  !             do i = 1, para%ng
+  !               do j = 1, para%ng
+  !                 int_value = int_value + (eigen_vecs(i,mp,l)*eigen_vecs(i,np,l))*two_e_rad_int(i,j,l)*(eigen_vecs(j,m,l)*eigen_vecs(j,n,l))
+! !        write(80,'(4i4, 4f16.8)') m, n, i, j, eigen_vecs(i,m,l), eigen_vecs(j,n,l),two_e_rad_int(i,j,l), int_value
+  !               end do 
+  !             end do 
+  !             TwoERadOrbInts(mp, m, np, n, l) = int_value
+  !           write(78,'(5i4,f16.8)') mp, np, m, n, l, int_value
+! !     write(82,'(2I4,ES25.17)') m, n, int_value
+  !           end do ! end loop over n_max
+  !         end do ! end loop over n_max
+  !       end do ! end loop over n_max
+  !     end do ! end loop over n_max
 
       end if
 
@@ -390,7 +401,7 @@ module OrbInts
 
     write(f_int,1001) norbs, nint(para%z), 0
 
-1001 format(' &FCI NORB=', i5, ',NELEC=', i3, ',MS2=', i3)
+1001 format(' &FCI NORB=', i5, ',NELEC=', i3, ',MS2=', i3,',')
 
     write(f_int,1002, advance='no') 
 
@@ -409,9 +420,10 @@ module OrbInts
     end do
     
 1003 format(',')
-1004 format(' ')
+1004 format(',')
 
-    write(f_int, *) ' $END'
+    write(f_int,*) ' ISYM=1,'
+    write(f_int, *) ' &END'
 
     do i = 1, norbs
       do j = 1, i
