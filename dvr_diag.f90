@@ -13,8 +13,8 @@ program dvr_diag
   integer                    :: i, j, l_val, ith, jth, a, b
   real(idp)                  :: dr, curr_r, curr_r_prime, integral_val,        &
   &                             integral_val_ana, integral_val_ana2, th_1,     &
-  &                             th_2, dth
-  real(idp),  allocatable    :: file_r(:), file_pot(:)
+  &                             th_2, dth, rad_hyd_ef_val_a
+  real(idp),  allocatable    :: file_r(:), file_pot(:), an(:)
   logical                    :: only_bound ! Only writes out bound states
   
   l_val=0
@@ -134,29 +134,25 @@ program dvr_diag
     close(11)
   end if
 
-  do a = 1, 3
-  do b = 1, 3
-
-
-
+  do a = 1, 15
+  do b = 1, 15
   dr = 0.1d0
-  write(*,*) 'Doing it for a, b: ', a, b
   integral_val_ana = zero
-  do i = 1, 501
+  do i = 1, 1001
+    !write(*,*) a, b, i
     curr_r = (i-1) * dr
-    do j = 1, 501
-!     if (a.ne.b) write(*,*) i, j
+    rad_hyd_ef_val_a = radial_hydrogen_ef(curr_r, l_val+a, l_val, an) 
+    do j = 1, 1001
       curr_r_prime = (j-1) * dr
       if (curr_r + curr_r_prime < 1d-16) cycle
       integral_val_ana = integral_val_ana +                                    &
-      &                  radial_hydrogen_ef(curr_r, l_val+a, l_val)**2 *       &
-      &                  radial_hydrogen_ef(curr_r_prime, l_val+b, l_val)**2 * &
-      &                  ( min(curr_r, curr_r_prime)**(l_val) /                &
-      &                    max(curr_r, curr_r_prime)**(l_val+1) ) * dr * dr *  &
-      &                  curr_r * curr_r * curr_r_prime * curr_r_prime
+      &              rad_hyd_ef_val_a**2 *                                     &
+      &              radial_hydrogen_ef(curr_r_prime, l_val+b, l_val, an)**2 * &
+      &              ( min(curr_r, curr_r_prime)**(l_val) /                    &
+      &                max(curr_r, curr_r_prime)**(l_val+1) ) * dr * dr *      &
+      &              curr_r * curr_r * curr_r_prime * curr_r_prime
     end do
   end do
-
   !do i = 1, 1001
   !  curr_r = (i-1) * dr
   !  do j = 1, 1001
@@ -181,20 +177,17 @@ program dvr_diag
       &              matrix(i,a) * matrix(i,a) * matrix(j,b) * matrix(j,b) *   &
       &              ( min(curr_r, curr_r_prime)**(l_val) /                    &
       &                max(curr_r, curr_r_prime)**(l_val+1) )
-!     write(80,'(4i4, 4f16.8)') a, b, i, j, matrix(i,a), matrix(j,b),( min(curr_r, curr_r_prime)**(l_val) /                    &
-!           &                max(curr_r, curr_r_prime)**(l_val+1)), integral_val
     end do
   end do
-! do i = 1, para%nr-2
-!   curr_r = grid%r(i)
-!   !write(*,*) two * exp(-curr_r), matrix(i,1)/(sqrt(grid%weights(i))*grid%r(i)), &
-!   !&          radial_hydrogen_ef(curr_r, 1, 0)
-!   !write(*,*) sqrt(two)**(-3) * (two - curr_r) * exp(-curr_r / two),          &
-!   !&          matrix(i,2)/(sqrt(grid%weights(i))*grid%r(i)),                  &
-!   !&          radial_hydrogen_ef(curr_r, 2, 0)
-! end do
-  write(78,'(2I4,2ES25.17)') a, b, integral_val, integral_val_ana
-! write(78,'(2I4,ES25.17)') a, b, integral_val
+  do i = 1, para%nr-2
+    curr_r = grid%r(i)
+    !write(*,*) two * exp(-curr_r), matrix(i,1)/(sqrt(grid%weights(i))*grid%r(i)), &
+    !&          radial_hydrogen_ef(curr_r, 1, 0)
+    !write(*,*) sqrt(two)**(-3) * (two - curr_r) * exp(-curr_r / two),          &
+    !&          matrix(i,2)/(sqrt(grid%weights(i))*grid%r(i)),                  &
+    !&          radial_hydrogen_ef(curr_r, 2, 0)
+  end do
+  write(*,'(2I4,2ES25.17)') a, b, integral_val, integral_val_ana
   end do
   end do
   

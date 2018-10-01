@@ -1673,7 +1673,7 @@ contains
     end do
 
     ku = grid%nl
-
+    
     if (present(two_index_variant)) then
       if (two_index_variant) then
         if (.not.(present(two_index_variant))) then
@@ -1681,12 +1681,18 @@ contains
           &          'the flag two_index_variant is set to .true.'
           stop
         end if
+        do i = 1,size(Tkin_cardinal(:,1))
+          do j = 1,size(Tkin_cardinal(1,:))
+            matrix(i,j) = two * para%mass * matrix(i,j)
+          end do
+        end do
         do ir = 1, size(pot)
-          matrix(ku + 1,ir) = para%mass * (two * matrix(ku+1,ir) + pot(ir))
+          matrix(ku + 1,ir) = matrix(ku+1,ir) + two * para%mass * pot(ir)
         end do
         return
       end if
     end if
+
     do ir = 1, size(pot)
       matrix(ku + 1,ir) = matrix(ku+1,ir) + pot(ir)
     end do
@@ -2054,31 +2060,31 @@ contains
   !! @param: r_val Value of radial coordinate 
   !! @param: n     Principal quantum number
   !! @param: l     Orbital angular momentum quantum number
-  real(idp) function radial_hydrogen_ef(r_val, n, l)
+  !! @param: an    Coefficient array (should be unallocated on first call) 
+  real(idp) function radial_hydrogen_ef(r_val, n, l, an)
   
     real(idp), intent(in) :: r_val
     integer, intent(in)   :: n
     integer, intent(in)   :: l
+    real(idp), allocatable :: an(:)
   
     integer :: i, k
-    real(idp), allocatable :: an(:)
     real(idp) :: val, dr, curr_r, drho, curr_rho
     
     integer, save :: prev_n = -1, prev_l = -1
     real(idp), save :: norm = - one
 
-    allocate(an(0:n-l-1))
-    an(0) = one
-
-    do k = 0, n-l-2
-      an(k+1) = an(k) * (real(k + l + 1 - n,kind=idp) /                        &
-      &                  real((k + 1) * (k + 2*l + 2),kind=idp))
-    end do
-
     if ((n .ne. prev_n) .or. (l .ne. prev_l)) then
       prev_n = n
       prev_l = l
       norm = zero
+      if (allocated(an)) deallocate(an)
+      allocate(an(0:n-l-1))
+      an(0) = one
+      do k = 0, n-l-2
+        an(k+1) = an(k) * (real(k + l + 1 - n,kind=idp) /                      &
+        &                  real((k + 1) * (k + 2*l + 2),kind=idp))
+      end do
       do i = 1, 10001
         val = zero
         dr = 0.01_idp
@@ -2099,8 +2105,6 @@ contains
       val = val + an(k) * curr_rho**k *exp(-curr_rho/two)
     end do
     val = curr_rho**l * val
-
-    deallocate(an)
 
     radial_hydrogen_ef = val / sqrt(norm)
   
