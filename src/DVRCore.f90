@@ -8,6 +8,7 @@ subroutine DVRCore()
   use DVRIntAng, only : GetAngularElements
   use OrbInts, only  : GetOrbInts
   use CombineInts, only : CombineIntegrals
+  use RadCheck
 
   implicit none
 
@@ -39,6 +40,10 @@ subroutine DVRCore()
   if (orbital_ints) then
     call GetOrbInts()
   end if
+
+! call radial_check()
+
+! call check_with_analytic()
 
   call DeallocMatrices()
 

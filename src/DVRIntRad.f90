@@ -4,7 +4,6 @@ module DVRIntRad
   use DVRData
   use radial_mod 
   use dvr_diag_mod
-  use RadCheck
 
   implicit none
 
@@ -338,8 +337,6 @@ module DVRIntRad
 
       end do
     end if ! End of if loop for writing the integral files
-
-!   call radial_check()
 
   end subroutine GetRadialElements
 
