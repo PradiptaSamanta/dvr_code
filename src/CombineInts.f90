@@ -137,62 +137,72 @@ module CombineInts
       n_m1 = 2*l1 - 1
       m1_init = -1*l1
 
-!     do l3 = 1, n_l
-!       lc = l3 - 1
-!       n_m3 = 2*l3 - 1
-!       m3_init = -1*l3
+      do l3 = 1, n_l
+        lc = l3 - 1
+        n_m3 = 2*l3 - 1
+        m3_init = -1*l3
 
         do l2 = 1, n_l
           lb = l2 - 1
           n_m2 = 2*l2 - 1
           m2_init = -1*l2
 
-!         do l4 = 1, n_l
-!           ld = l4 - 1
-!           n_m4 = 2*l4 - 1
-!           m4_init = -1*l4
+          do l4 = 1, n_l
+            ld = l4 - 1
+            n_m4 = 2*l4 - 1
+            m4_init = -1*l4
 
 
             do m1 = 1, n_m1
               ma = m1_init + m1
               lma = (l1-1)**2 + m1
               !lma = (l1-1)**2 + int(la) + int(ma) + 1
-              do m3 = 1, n_m1
+              do m3 = 1, n_m3
                 mc = m1_init + m3
-                lmc = (l1-1)**2 + m3
+                lmc = (l3-1)**2 + m3
                 !lmc = (l3-1)**2 + int(lc) + int(mc) + 1
 
                 do m2 = 1, n_m2
                   mb = m2_init + m2
                   lmb = (l2-1)**2 + m2
                   !lmb = (l2-1)**2 + int(lb) + int(mb) + 1
-                  do m4 = 1, n_m2
+                  do m4 = 1, n_m4
                     md = m2_init + m4
-                    lmd = (l2-1)**2 + m4
+                    lmd = (l4-1)**2 + m4
                     !lmd = (l4-1)**2 + int(ld) + int(md) + 1
 
                     do k1 = 1, orb%n_max - l1 + 1
-                      do k2 = 1, orb%n_max -l2 + 1  
-                        do k3 = 1, orb%n_max - l1 + 1
-                          do k4 = 1, orb%n_max -l2 + 1  
+                      do k2 = 1, orb%n_max - l2 + 1  
+                        do k3 = 1, orb%n_max - l3 + 1
+                          do k4 = 1, orb%n_max - l4 + 1  
                             indx = indx + 1
                             int_value_dr = 0.0d0
                             int_value_xc = 0.0d0
 
                             klm_1 = SpatialOrbInd(k1,l1,m1)
                             klm_2 = SpatialOrbInd(k2,l2,m2)
-                            klm_3 = SpatialOrbInd(k3,l1,m3)
-                            klm_4 = SpatialOrbInd(k4,l2,m4)
+                            klm_3 = SpatialOrbInd(k3,l3,m3)
+                            klm_4 = SpatialOrbInd(k4,l4,m4)
+
+                            if (klm_1.eq.0.or.klm_2.eq.0.or.klm_3.eq.0.or.klm_4.eq.0) cycle
 
                             do l = 1, 2*para%l + 1
+
                               int_value_dr = int_value_dr + (integrals_ang(l, lma, lmb, lmc, lmd)* &
-                              &  TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l1,l2,l))
+                              &  TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l3,l4,l))
 
- !                            write(87,'(7i3,3f13.8)') k1,k2,k3,k4,l1,l2,l,integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l1,l2,l), int_value_dr
+!                             if (l1.eq.l3.and.l2.eq.l4) then
+!                               write(85,'(7i3,3f13.8)') k1,k2,k3,k4,l1,l2,l,integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l1,l2,l), int_value_dr
+!                             end if
+                              if (lma.eq.lmd.and.lmb.eq.lmc.and.l1.ne.l2.and.m1.ne.m2) then
+!                             if (lma.eq.lmd.and.lmb.eq.lmc.and.l1.eq.1.and.l2.eq.2) then
+!                               write(87,'(11i3,3f13.8)') k1,k2,k4,k3,l1,l2,l, m1, m2, m4, m3, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l3,l4,l), int_value_dr
+!                               write(89,'(5i3,3f13.8)') klm_1, klm_2, klm_4, klm_3,l,integrals_ang(l,lma,lmb,lmc,lmd), TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l3,l4,l), int_value_dr
+                              end if
 
-                              if (l1.ne.l2.or.m1.ne.m2) &
-                              &  int_value_xc = int_value_xc + (integrals_ang(l, lma, lmb, lmd, lmc)* &
-                              &  TwoERadOrbInts(k1,k2,k4,k3,l1,l2,l2,l1,l))
+!                             if (l1.ne.l2.or.m1.ne.m2) &
+!                             &  int_value_xc = int_value_xc + (integrals_ang(l, lma, lmb, lmd, lmc)* &
+!                             &  TwoERadOrbInts(k1,k2,k4,k3,l1,l2,l2,l1,l))
 
  !                            if (klm_1.eq.1.and.klm_2.eq.1.and.klm_3.eq.1) then
  !                              write(77,'(7I4,X,2F15.10)') k1, k2, lma, lmb, lmc, lmd, klm_4, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l)
@@ -202,17 +212,22 @@ module CombineInts
  !                            write(83,'(6i5,f15.10)') k1,k2,k3,k4,l1,l2, int_value_dr
  !                            write(84,'(6i5,f15.10)') k1,k2,k3,k4,l1,l2, int_value_xc
 
+!                           if (lma.eq.lmd.and.lmb.eq.lmc.and.l1.ne.l2.and.m1.ne.m2) then
+!                           if (lma.eq.lmd.and.lmb.eq.lmc) then
+!                           TwoEInts(klm_1, klm_2, klm_4, klm_3) = int_value_dr
+!                           else 
                             TwoEInts(klm_1, klm_2, klm_3, klm_4) = int_value_dr
+!                           end if
 
  !                          write(78, '(4I5,X,f15.10)') klm_1, klm_2, klm_3, klm_4, TwoEInts(klm_1, klm_2, klm_3, klm_4)
 
-                            if (l1.ne.l2.or.m1.ne.m2) then 
-                              TwoEInts(klm_1, klm_2, klm_4, klm_3) = int_value_xc
-                              TwoEInts(klm_4, klm_2, klm_1, klm_3) = int_value_xc
-                              TwoEInts(klm_1, klm_3, klm_4, klm_2) = int_value_xc
-                              TwoEInts(klm_4, klm_3, klm_1, klm_2) = int_value_xc
-!                             write(79, '(4I5,X,f15.10)') klm_1, klm_2, klm_4, klm_3, TwoEInts(klm_1, klm_2, klm_4, klm_3)
-                            end if
+!                           if (l1.ne.l2.or.m1.ne.m2) then 
+!                             TwoEInts(klm_1, klm_2, klm_4, klm_3) = int_value_xc
+!                             TwoEInts(klm_4, klm_2, klm_1, klm_3) = int_value_xc
+!                             TwoEInts(klm_1, klm_3, klm_4, klm_2) = int_value_xc
+!                             TwoEInts(klm_4, klm_3, klm_1, klm_2) = int_value_xc
+!!                            write(79, '(4I5,X,f15.10)') klm_1, klm_2, klm_4, klm_3, TwoEInts(klm_1, klm_2, klm_4, klm_3)
+!                           end if
 
                           end do
                         end do
@@ -224,9 +239,9 @@ module CombineInts
               end do
             end do
 
-!         end do
+          end do
         end do
-!     end do  
+      end do  
     end do  
 
 !   write(iout, *) 'Index:', indx
@@ -317,6 +332,7 @@ module CombineInts
                       do k2 = 1, orb%n_max -l2 + 1  
                         do k3 = 1, orb%n_max - l1 + 1
                           do k4 = 1, orb%n_max -l2 + 1  
+
                             indx = indx + 1
                             int_value_dr = 0.0d0
                             int_value_xc = 0.0d0
@@ -327,17 +343,28 @@ module CombineInts
                             klm_4 = SpatialOrbInd(k4,l2,m4)
 
                             do l = 1, 2*para%l + 1
+
                               int_value_dr = int_value_dr + (integrals_ang(l, lma, lmb, lmc, lmd)* &
 !                             &  TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l1,l2,l))
                               &  TwoERadOrbInts_dr(k1,k2,k3,k4,l1,l2,l))
-!                             write(88,'(7i3,3f13.8)') k1,k2,k3,k4,l1,l2,l,integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts_dr(k1,k2,k3,k4,l1,l2,l), int_value_dr
+
+!                             write(86,'(7i3,3f13.8)') k1,k2,k3,k4,l1,l2,l,integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts_dr(k1,k2,k3,k4,l1,l2,l)!, int_value_dr
+
                               if (l1.ne.l2.or.m1.ne.m2) &
                               & int_value_xc = int_value_xc + (integrals_ang(l, lma, lmb, lmd, lmc)* &
 !                             &  TwoERadOrbInts(k1,k2,k4,k3,l1,l2,l2,l1,l))
                               &  TwoERadOrbInts_xc(k1,k2,k3,k4,l1,l2,l))
+
+!                             if (l1.ne.l2.or.m1.ne.m2) &
+!                             & write(88,'(11i3,3f13.8)') k1,k2,k3,k4,l1,l2,l, m1, m2, m3, m4, integrals_ang(l, lma, lmb, lmd, lmc), TwoERadOrbInts_xc(k1,k2,k3,k4,l1,l2,l), int_value_xc
+
+!                             if (l1.ne.l2.or.m1.ne.m2) &
+!                             & write(90,'(5i3,3f13.8)') klm_1, klm_2, klm_3, klm_4, l,integrals_ang(l, lma, lmb, lmd, lmc), TwoERadOrbInts_xc(k1,k2,k3,k4,l1,l2,l), int_value_xc
+
 !                             if (klm_1.eq.1.and.klm_2.eq.1.and.klm_3.eq.1) then
 !                               write(77,'(7I4,X,2F15.10)') k1, k2, lma, lmb, lmc, lmd, klm_4, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l)
 !                             end if
+
                             end do
 !                             write(85,'(6i5,f15.10)') k1,k2,k3,k4,l1,l2, int_value_dr
 !                             write(86,'(6i5,f15.10)') k1,k2,k3,k4,l1,l2, int_value_xc

@@ -13,3 +13,8 @@ rad_check
 transf_ints
 *.mod
 build*
+test_he/*
+test_be/*
+test/He/*
+fort*
+*copy
