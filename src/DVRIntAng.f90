@@ -33,10 +33,10 @@ module DVRIntAng
     write(iout, *) 'calculating the angular integrals'
     call calc_int_angular_main(integrals_ang, sph_harm)
 
-    if (debug.gt.5) then
+!   if (debug.gt.5) then
       write(iout, *) 'Writing down the angular integrals'
       call write_int_angular(integrals_ang, sph_harm, all_int)
-    end if
+!   end if
 
   end subroutine GetAngularElements
 
