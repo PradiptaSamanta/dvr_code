@@ -8,7 +8,7 @@ module InputData
   save 
 
   real(dp) :: r_min, r_max, mass, beta, e_max, nev_fac
-  integer  :: m, nl, nr, l_max, z, n_max
+  integer  :: m, nl, nr, l_max, z, n_max, two_e_int
   logical  :: mapped_grid, only_bound, dvr_diag, dvr_integrals, trans_integrals, orbital_ints
   character(255) :: maptype, read_envelop, pottype, pot_filename, read_envelope
 

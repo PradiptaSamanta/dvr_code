@@ -84,6 +84,7 @@ module ReadInput
     direct_2e = .false.
 
     n_max = 10
+    two_e_int = 1
 
   end subroutine SetDVRInpDefaults
 
@@ -174,6 +175,8 @@ module ReadInput
       ! Number of Finite Elements grids
       case("NUM-N-QN")
         call geti(n_max)
+      case("TWO-E-INT")
+        call geti(two_e_int)
       case("ENDORBITAL")
         exit
       case default
