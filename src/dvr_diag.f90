@@ -120,7 +120,8 @@ module DVRDiag
     call allocerror(error)
 
     !! Here start the loop over different values of the angular quantum number
-    do l = 1, 2*para%l+1
+!   do l = 1, 2*para%l+1
+    do l = 1, para%l+1
 
       l_val = l-1
       write(iout, *) 'Solving the radial Schroedinger equation for l = ', l_val

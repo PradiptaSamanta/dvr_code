@@ -2,9 +2,10 @@ module OrbInts
 
   use constants
   use util_mod, only : stop_all, allocerror
-  use ReadInput, only : n_max
+  use ReadInput, only : n_max, two_e_int
   use OrbData
   use CombineInts, only : CombineOrbInts, CombineOrbInts_old
+  use CombineInts_alt, only : CombineOrbInts_alt, Calc2eRadOrbInts_alt
 
   implicit none
 
@@ -65,7 +66,8 @@ module OrbInts
     real(dp) :: tol
     logical  :: all4
 
-    all4 = .true.
+    all4 = two_e_int.eq.1
+!   all4 = .true.
 !   all4 = .false.
 
     tol = 1e-12
@@ -76,12 +78,12 @@ module OrbInts
 
     if (all4) then
       call Calc2eRadOrbInts()
- 
+
       call CombineOrbInts()
     else 
-      call Calc2eRadOrbInts_old()
+      call Calc2eRadOrbInts_alt()
  
-      call CombineOrbInts_old()
+      call CombineOrbInts_alt()
     end if
   
     file_int = 'FCIDUMP'
@@ -398,7 +400,7 @@ module OrbInts
                         int_value_xc = int_value_xc + eigen_vecs(i,mp,l1)*inter_int(i,m,np,l2,l1)*eigen_vecs(i,n,l2)
                       end do
           
-!                     write(88,'(7i4,f16.8)') m, n, mp, np, l1, l2, l, int_value_xc
+                      write(81,'(7i4,f16.8)') m, n, mp, np, l1, l2, l, int_value_xc
           
                       !TwoERadOrbInts(mp, m, np, n, l1, l2, l3, l4, l) = int_value
                       TwoERadOrbInts_dr(mp, m, np, n, l1, l2, l) = int_value
