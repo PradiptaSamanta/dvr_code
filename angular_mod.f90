@@ -147,6 +147,25 @@ contains
     integrals = 0.0d0
 
   end subroutine allocate_int_ang
+  
+  subroutine allocate_int_ang_cmplx(integrals, sph_harm)
+
+    type(sph_harm_t),  intent(in)              :: sph_harm
+    complex(idp), allocatable,  intent(inout)  :: integrals(:,:,:,:,:)
+ 
+    integer    :: n_l, n_mp, error, dim_l
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+
+    allocate(integrals(n_mp, dim_l, dim_l, dim_l, dim_l), stat=error)
+    call allocerror(error)
+
+    integrals = czero
+
+  end subroutine allocate_int_ang_cmplx
 
   subroutine calc_int_angular(integrals, sph_harm)      
       
@@ -322,7 +341,7 @@ contains
                 mq = dfloat(q_init + q)
 
                 lmk = (lk-1)**2 + q
-                m_abq = int(ma + mb + mq)
+                m_abq = int(ma + mc + mq)
                 m_sign = (-1)**m_abq
 !           write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
 
@@ -366,7 +385,7 @@ contains
                 mq = dfloat(q_init + q) 
                 lmk = (lk-1)**2 + q
 
-                m_abq = int(ma + mb + mq)
+                m_abq = int(mb + md + mq)
                 m_sign = (-1)**m_abq
 !           write(*,*) 'k, lk, q, mq, m_abq:',  k, int(lk), q, int(mq), m_sign
 
@@ -434,6 +453,318 @@ contains
     end do  ! end loop for k 
 
   end subroutine calc_int_angular_main
+  
+  subroutine calc_int_angular_compact_realbasis(new_integrals, old_integrals,  &
+  &                                             sph_harm)
+
+    complex(idp),     intent(inout)       :: new_integrals(:,:,:,:,:)
+    real(idp),        intent(in)          :: old_integrals(:,:,:,:,:)
+    type(sph_harm_t), intent(in)          :: sph_harm
+    
+    integer    :: i, n_l, n_mp, error, dim_l, k
+    integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
+    integer    :: n_m1, n_m2, n_m3, n_m4
+    
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+        
+    do k = 1, n_mp
+      do l1 = 1, n_l 
+        n_m1 = 2*l1 - 1
+        do m1 = 1, n_m1
+          lm1 = (l1-1)**2 + m1
+          do l2 = 1, n_l 
+            n_m2 = 2*l2 - 1
+            do m2 = 1, n_m2
+              lm2 = (l2-1)**2 + m2
+              do l3 = 1, n_l 
+                n_m3 = 2*l3 - 1
+                do m3 = 1, n_m3
+                  lm3 = (l3-1)**2 + m3
+                  do l4 = 1, n_l 
+                    n_m4 = 2*l4 - 1
+                    do m4 = 1, n_m4
+                      lm4 = (l4-1)**2 + m4
+                      new_integrals(k, lm1, lm2, lm3, lm4) = zero
+                      do i = 0, 15
+                        new_integrals(k, lm1, lm2, lm3, lm4) =                 &
+                        & new_integrals(k, lm1, lm2, lm3, lm4) +               &
+                        & angular_compact_summand(k, m1, m2, m3, m4, l1, l2,   &
+                        &                         l3, l4, lm1, lm2, lm3, lm4,  &
+                        &                         old_integrals, i)
+                      end do
+                    end do
+                  end do
+                end do
+              end do
+            end do
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine calc_int_angular_compact_realbasis
+
+  complex(idp) function angular_compact_summand(k, m1, m2, m3, m4, l1, l2, l3, &
+  &                                             l4, lm1, lm2, lm3, lm4,        &
+  &                                             old_integrals, summand_index)
+
+    integer          :: k
+    integer          :: m1, m2, m3, m4
+    integer          :: l1, l2, l3, l4
+    integer          :: lm1, lm2, lm3, lm4
+    real(idp)        :: old_integrals(:,:,:,:,:)
+    integer          :: summand_index
+
+    complex(idp)     :: prefac
+    integer          :: lmp1, lmp2, lmp3, lmp4, lmm1, lmm2, lmm3, lmm4
+    integer          :: lmold1, lmold2, lmold3, lmold4
+    integer :: summand_index_1, summand_index_2, summand_index_3,              &
+    &          summand_index_4
+
+    ! We encode the sixteen possible different terms one can obtain in the 
+    ! product of four basis functions phi_+- = prefac * (phi_plus +- phi_minus)
+    ! in a string xxxx where x = p represents that the left summand of the
+    ! basis function enters this summand and x = m represents that the right
+    ! summand enters. We decode this from the summand_index from 0 to 15 by
+    ! looking at the bits, i.e.
+    !
+    ! mmmm = 0000 = 0
+    ! mmmp = 0001 = 1
+    ! mmpm = 0010 = 2
+    ! ...
+    ! pppm = 1110 = 14
+    ! pppp = 1111 = 15
+
+    if (btest(summand_index, 0)) then
+      summand_index_1 = 1 !pxxx
+    else
+      summand_index_1 = 0 !mxxx
+    end if
+    if (btest(summand_index, 1)) then
+      summand_index_2 = 1 !xpxx
+    else
+      summand_index_2 = 0 !xmxx
+    end if
+    if (btest(summand_index, 2)) then
+      summand_index_3 = 1 !xxpx
+    else
+      summand_index_3 = 0 !xxmx
+    end if
+    if (btest(summand_index, 3)) then
+      summand_index_4 = 1 !xxxp
+    else
+      summand_index_4 = 0 !xxxm
+    end if
+
+    ! To prevent double counting and computational overhead we take care of the
+    ! matrix elements for m=0 (or m==l in internal storage) only if the summand
+    ! index is "p"==1 (since in this case we do not have two contributions
+    ! but only one to the total angular element since the basis function
+    ! is identical to the spherical primitive). Otherwise we return zero and 
+    ! immediately exit.
+
+    ! If m=0, then one of the summands (the 'm' summand) is set to zero
+    if ((m1 == l1) .and. (summand_index_1 == 0)) then
+      angular_compact_summand = czero
+      return
+    end if
+    if ((m2 == l2) .and. (summand_index_2 == 0)) then
+      angular_compact_summand = czero
+      return
+    end if
+    if ((m3 == l3) .and. (summand_index_3 == 0)) then
+      angular_compact_summand = czero
+      return
+    end if
+    if ((m4 == l4) .and. (summand_index_4 == 0)) then
+      angular_compact_summand = czero
+      return
+    end if
+
+    ! We calculate the prefactor which is 1/sqrt(2) for each of the four basis
+    ! functions, unless the basis function corresponds to m = 0, then it is
+    ! one. Since we prevented double counting already above, we have no further
+    ! things to take care of here. However, for the sine-type basis functions
+    ! (which we place at the m < l indices, i.e. they come first) we get an
+    ! additional 1/ci and in addition, if for this case the summand index is
+    ! "m"==0, then we obtain a minus sign. The product of the four prefactors
+    ! for the individual basis functions yields the total prefactor.
+
+    prefac = cone
+    if (m1 == l1) then
+      !We know this is the 'p' summand since 'm' returned already above
+      prefac = prefac * cone
+    else
+      if (m1 < l1) then
+        !m1 < l1 corresponds to sine-type basis functions
+        prefac = prefac * (one / (ci * sqrt(two)))
+        if (summand_index_1 == 0) then
+          ! any 'm' leads to a minus sign for the sine-type functions
+          prefac = - prefac
+        end if
+      else
+        !m1 > l1 corresponds to cosine-type basis functions
+         prefac = prefac * (cone / sqrt(two))
+      end if
+    end if
+    if (m2 == l2) then
+      !We know this is the 'p' summand since 'm' returned already above
+      prefac = prefac * cone
+    else
+      if (m2 < l2) then
+        !m2 < l2 corresponds to sine-type basis functions
+        prefac = prefac * (cone / (ci * sqrt(two)))
+        if (summand_index_2 == 0) then
+          ! any 'm' leads to a minus sign for the sine-type functions
+          prefac = - prefac
+        end if
+      else
+        !m2 > l2 corresponds to cosine-type basis functions
+         prefac = prefac * (cone / sqrt(two))
+      end if
+    end if
+    if (m3 == l3) then
+      !We know this is the 'p' summand since 'm' returned already above
+      prefac = prefac * cone
+    else
+      if (m3 < l3) then
+        !m3 < l3 corresponds to sine-type basis functions
+        prefac = prefac * (cone / (ci * sqrt(two)))
+        if (summand_index_3 == 0) then
+          ! any 'm' leads to a minus sign for the sine-type functions
+          prefac = - prefac
+        end if
+      else
+        !m3 > l3 corresponds to cosine-type basis functions
+         prefac = prefac * (cone / sqrt(two))
+      end if
+    end if
+    if (m4 == l4) then
+      !We know this is the 'p' summand since 'm' returned already above
+      prefac = prefac * cone
+    else
+      if (m4 < l4) then
+        !m4 < l4 corresponds to sine-type basis functions
+        prefac = prefac * (cone / (ci * sqrt(two)))
+        if (summand_index_4 == 0) then
+          ! any 'm' leads to a minus sign for the sine-type functions
+          prefac = - prefac
+        end if
+      else
+        !m4 > l4 corresponds to cosine-type basis functions
+         prefac = prefac * (cone / sqrt(two))
+      end if
+    end if
+
+    ! Since the real valued basis functions are superpositions of "+m" and "-m"
+    ! we prepare to read out the corresponding old matrix elements with
+    ! "+m" (== lmp) and "-m" (== lmm), for m = 0 we simply have lmm = lmp = lm
+    ! but this case will be caught below anyway.
+    
+    if (m1 < l1) then
+      !m1 is negative, this means lmm1 = lm1 and lmp1 needs to be obtained by a
+      !shift 
+      lmp1 = (l1-1)**2 + m1 + l1
+      lmm1 = (l1-1)**2 + m1
+    else
+      !m1 is positive, this means lmp1 = lm1 and lmm1 needs to be obtained by a
+      !shift
+      lmp1 = (l1-1)**2 + m1
+      lmm1 = (l1-1)**2 + m1 - l1
+    end if
+    if (m2 < l2) then
+      !m2 is negative, this means lmm2 = lm2 and lmp2 needs to be obtained by a
+      !shift 
+      lmp2 = (l2-1)**2 + m2 + l2
+      lmm2 = (l2-1)**2 + m2
+    else
+      !m2 is positive, this means lmp2 = lm2 and lmm2 needs to be obtained by a
+      !shift
+      lmp2 = (l2-1)**2 + m2
+      lmm2 = (l2-1)**2 + m2 - l2
+    end if
+    if (m3 < l3) then
+      !m3 is negative, this means lmm3 = lm3 and lmp3 needs to be obtained by a
+      !shift 
+      lmp3 = (l3-1)**2 + m3 + l3
+      lmm3 = (l3-1)**2 + m3
+    else
+      !m3 is positive, this means lmp3 = lm3 and lmm3 needs to be obtained by a
+      !shift
+      lmp3 = (l3-1)**2 + m3
+      lmm3 = (l3-1)**2 + m3 - l3
+    end if
+    if (m4 < l4) then
+      !m4 is negative, this means lmm4 = lm4 and lmp4 needs to be obtained by a
+      !shift 
+      lmp4 = (l4-1)**2 + m4 + l4
+      lmm4 = (l4-1)**2 + m4
+    else
+      !m4 is positive, this means lmp4 = lm4 and lmm4 needs to be obtained by a
+      !shift
+      lmp4 = (l4-1)**2 + m4
+      lmm4 = (l4-1)**2 + m4 - l4
+    end if
+
+    ! Depending on the summand_index we either choose the matrix element with
+    ! "-m" (if the summand index is "m"==0) or with "+m" (if the summand index
+    ! is "p"==1).
+
+    if (summand_index_1 == 0) then
+      !'m' summand
+      lmold1 = lmm1
+    else
+      !'p' summand
+      lmold1 = lmp1
+      if (m1 == l1) then
+        !special case, m = 0
+        lmold1 = lm1
+      end if
+    end if
+    if (summand_index_2 == 0) then
+      !'m' summand
+      lmold2 = lmm2
+    else
+      !'p' summand
+      lmold2 = lmp2
+      if (m2 == l2) then
+        !special case, m = 0
+        lmold2 = lm2
+      end if
+    end if
+    if (summand_index_3 == 0) then
+      !'m' summand
+      lmold3 = lmm3
+    else
+      !'p' summand
+      lmold3 = lmp3
+      if (m3 == l3) then
+        !special case, m = 0
+        lmold3 = lm3
+      end if
+    end if
+    if (summand_index_4 == 0) then
+      !'m' summand
+      lmold4 = lmm4
+    else
+      !'p' summand
+      lmold4 = lmp4
+      if (m4 == l4) then
+        !special case, m = 0
+        lmold4 = lm4
+      end if
+    end if
+
+    ! Finally we compute the contribution from the proper old integral
+    ! element and the prefactor.
+
+    angular_compact_summand = prefac * old_integrals(k, lmold1, lmold2,        &
+    &                                                lmold3, lmold4)
+
+  end function angular_compact_summand
 
   subroutine write_int_angular(integrals, sph_harm, all_int)
       
@@ -517,6 +848,91 @@ contains
 
 
   end subroutine write_int_angular
+
+  subroutine write_int_angular_realbasis(integrals, sph_harm, all_int)
+      
+    type(sph_harm_t),  intent(in)           :: sph_harm
+    complex(idp),      intent(in)           :: integrals(:,:,:,:,:)
+    logical,           intent(in)           :: all_int
+
+    integer    :: n_l, n_mp, error, dim_l, k
+    integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
+    integer    :: n_m1, n_m2, n_m3, n_m4
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+
+    do k = 1, n_mp
+      open(11, file="ang_element_realbasis_l"//trim(int2str(k-1))//".dat",                          &
+  &    form="formatted", action="write")
+      
+      if (all_int) then
+        do l1 = 1, n_l 
+          n_m1 = 2*l1 - 1
+          do m1 = 1, n_m1
+            lm1 = (l1-1)**2 + m1
+            do l2 = 1, n_l 
+              n_m2 = 2*l2 - 1
+              do m2 = 1, n_m2
+                lm2 = (l2-1)**2 + m2
+                do l3 = 1, n_l 
+                  n_m3 = 2*l3 - 1
+                  do m3 = 1, n_m3
+                    lm3 = (l3-1)**2 + m3
+                    do l4 = 1, n_l 
+                      n_m4 = 2*l4 - 1
+                      do m4 = 1, n_m4
+                        lm4 = (l4-1)**2 + m4
+                        if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
+                        &   write(11,'(4I3, 2ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &   real(integrals(k, lm1, lm2, lm3, lm4)),            &
+                        &   aimag(integrals(k, lm1, lm2, lm3, lm4))
+                      end do
+                    end do
+                  end do
+                end do
+              end do
+            end do
+          end do
+        end do
+      else
+        do l1 = 1, n_l 
+          n_m1 = 2*l1 - 1
+          do m1 = 1, n_m1
+            lm1 = (l1-1)**2 + m1
+            do l2 = 1, n_l 
+              n_m2 = 2*l2 - 1
+              do m2 = 1, n_m2
+                lm2 = (l2-1)**2 + m2
+                do l3 = 1, n_l 
+                  n_m3 = 2*l3 - 1
+                  do m3 = 1, n_m3
+                    lm3 = (l3-1)**2 + m3
+                    do l4 = 1, n_l 
+                      n_m4 = 2*l4 - 1
+                      m4 = (-l1 -l2 +l3 +l4) + (m1 +m2 -m3)  ! following the condition m1-m3 = m4-m2 transformed into the index we are using here for m
+                      if (0.lt.m4.and.m4.le.n_m4) then
+                        lm4 = (l4-1)**2 + m4
+                         if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
+                        &  write(11,'(4I3, 2ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &   real(integrals(k, lm1, lm2, lm3, lm4)),            &
+                        &   aimag(integrals(k, lm1, lm2, lm3, lm4))
+                      end if
+                    end do
+                  end do
+                end do
+              end do
+            end do
+          end do
+        end do
+      endif
+      close(11)
+    end do
+
+
+  end subroutine write_int_angular_realbasis
 
   character(len=converted_l) function int2str(i, format)                         
                                                                                  
