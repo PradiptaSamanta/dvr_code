@@ -3,6 +3,7 @@ module DVRIntAng
 ! use dvr_spline_mod
   use DVRData
   use dvr_diag_mod, only : allocerror
+  use constants
   
   implicit none
 
@@ -11,6 +12,9 @@ module DVRIntAng
   subroutine GetAngularElements()
 
     logical   :: all_int
+    real(dp), allocatable  :: integrals_ang_prim(:,:,:,:,:)
+
+    character(len=32)  :: file_name_syntx
 
     sph_harm%n_l   = para%l + 1
     sph_harm%n_mp  = 2*para%l + 1
@@ -27,15 +31,25 @@ module DVRIntAng
 !   all_int = .true.
     all_int = .false.
 
+    call allocate_int_ang(integrals_ang_prim, sph_harm)
     call allocate_int_ang(integrals_ang, sph_harm)
 
 !   call calc_int_angular(integrals_ang, sph_harm)
     write(iout, *) 'calculating the angular integrals'
-    call calc_int_angular_main(integrals_ang, sph_harm)
+    call calc_int_angular_primitive(integrals_ang_prim, sph_harm)
 
 !   if (debug.gt.5) then
+      file_name_syntx = 'ang_element_prim'
       write(iout, *) 'Writing down the angular integrals'
-      call write_int_angular(integrals_ang, sph_harm, all_int)
+      call write_int_angular(integrals_ang_prim, sph_harm, all_int, file_name_syntx)
+!   end if
+
+    call calc_int_angular_combined(integrals_ang, integrals_ang_prim, sph_harm)
+
+!   if (debug.gt.5) then
+      file_name_syntx = 'ang_element_final'
+      write(iout, *) 'Writing down the angular integrals'
+      call write_int_angular(integrals_ang, sph_harm, all_int, file_name_syntx)
 !   end if
 
   end subroutine GetAngularElements
@@ -265,7 +279,7 @@ module DVRIntAng
 
   end subroutine calc_int_angular
 
-  subroutine calc_int_angular_main(integrals, sph_harm)      
+  subroutine calc_int_angular_primitive(integrals, sph_harm)      
       
     type(sph_harm_t),  intent(in)           :: sph_harm
     real(idp),         intent(inout)        :: integrals(:,:,:,:,:)
@@ -442,13 +456,338 @@ module DVRIntAng
 !               write(*,*) q, int_value, w_symb_ac_q, w_symb_bd_q
     end do  ! end loop for k 
 
-  end subroutine calc_int_angular_main
+  end subroutine calc_int_angular_primitive
 
-  subroutine write_int_angular(integrals, sph_harm, all_int)
+  subroutine calc_int_angular_combined(integrals, integrals_prim, sph_harm)
+
+    real(idp),         intent(inout)        :: integrals(:,:,:,:,:)
+    real(idp),         intent(in)           :: integrals_prim(:,:,:,:,:)
+    type(sph_harm_t),  intent(in)           :: sph_harm
+
+    integer :: n_l, n_mp, dim_l, dim_mp
+    integer :: k, l1, l2, l3, l4, m1, m2, m3, m4
+    integer :: lm1, lm2, lm3, lm4, lm1_p, lm2_p, lm3_p, lm4_p
+    integer :: n_m1, n_m2, n_m3, n_m4
+    real(idp) :: int_1, int_2, int_3, int_4, int_5, int_6, int_7, int_8
+    real(idp) :: int_9, int_10, int_11, int_12, int_13, int_14, int_15, int_16
+    real(idp) :: fact_1, fact_2
+
+    n_l  = sph_harm%n_l
+    n_mp = sph_harm%n_mp
+
+    dim_l = n_l**2
+    dim_mp = n_mp**2
+
+    do k = 1, n_mp
+      do l1 = 1, n_l
+        n_m1 = l1
+        do l3 = 1, n_l
+          n_m3 = l3
+          do l2 = 1, n_l
+            n_m2 = l2
+            do l4 = 1, n_l
+              n_m4 = l4
+              do m1 = 1, n_m1
+                lm1 = (l1-1)**2 + m1
+                if (m1.eq.l1) then
+ 
+                  do m3 = 1, n_m3
+                    lm3 = (l3-1)**2 + m3
+                    if (m3.eq.l3) then
+                      do m2 = 1, n_m2
+                        lm2 = (l2-1)**2 + m2
+                        if (m2.eq.l2) then
+                          do m4 = 1, n_m4
+                 
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                 
+                            if (m4.eq.l4) then
+                              integrals(k, lm1, lm2, lm3, lm4) = int_1
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_2 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              integrals(k, lm1, lm2, lm3, lm4) = sqrt_half * (int_1 - int_2)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = sqrt_half * (int_1 + int_2)
+                            end if
+                          end do
+                        else
+                          lm2_p =  (l2-1)**2 + m2+l2
+                          do m4 = 1, n_m4
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1, lm2_p, lm3, lm4)
+                            if (m4.eq.l4) then
+                              integrals(k, lm1, lm2, lm3, lm4) = sqrt_half * (int_1 - int_2)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = sqrt_half * (int_1 + int_2)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_3 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_4 = integrals_prim(k, lm1, lm2_p, lm3, lm4_p)
+                              fact_1 = -1.0d0*half
+                              fact_2 = 1.0d0*half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * ( int_1 - int_2 + int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * ( int_1 + int_2 + int_3 + int_4)
+                            end if
+                          end do
+                        end if
+                      end do
+                    else
+                      lm3_p = (l3-1)**2 + m3+l3
+                      do m2 = 1, n_m2
+                        lm2 = (l2-1)**2 + m2
+                        if (m2.eq.l2) then
+                          do m4 = 1, n_m4
+                 
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1, lm2, lm3_p, lm4)
+                 
+                            if (m4.eq.l4) then
+                              integrals(k, lm1, lm2, lm3, lm4) = sqrt_half * (int_1 - int_2)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = sqrt_half * (int_1 + int_2)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_3 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_4 = integrals_prim(k, lm1, lm2, lm3_p, lm4_p)
+                              fact_1 = -1.0d0*half
+                              fact_2 = 1.0d0*half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4)
+                            end if
+                          end do
+                        else
+                          lm2_p =  (l2-1)**2 + m2+l2
+                          do m4 = 1, n_m4
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1, lm2_p, lm3, lm4)
+                            int_3 = integrals_prim(k, lm1, lm2, lm3_p, lm4)
+                            int_4 = integrals_prim(k, lm1, lm2_p, lm3_p, lm4)
+                            fact_1 = -1.0d0*half
+                            fact_2 = 1.0d0*half
+                            if (m4.eq.l4) then
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_5 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_6 = integrals_prim(k, lm1, lm2_p, lm3, lm4_p)
+                              int_7 = integrals_prim(k, lm1, lm2, lm3_p, lm4_p)
+                              int_8 = integrals_prim(k, lm1, lm2_p, lm3_p, lm4_p)
+                              fact_1 = -1.0d0*half*sqrt_half
+                              fact_2 = 1.0d0*half*sqrt_half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
+                            end if
+                          end do
+                        end if
+                      end do
+                    end if
+                  end do
+                else
+                  lm1_p = (l1-1)**2 + m1+l1
+                  do m3 = 1, n_m3
+                    lm3 = (l3-1)**2 + m3
+                    if (m3.eq.l3) then
+                      do m2 = 1, n_m2
+                        lm2 = (l2-1)**2 + m2
+                        if (m2.eq.l2) then
+                          do m4 = 1, n_m4
+                  
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1_p, lm2, lm3, lm4)
+                  
+                            if (m4.eq.l4) then
+                              integrals(k, lm1, lm2, lm3, lm4) = sqrt_half*(int_1 - int_2)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = sqrt_half*(int_1 - int_2)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_3 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_4 = integrals_prim(k, lm1_p, lm2, lm3, lm4_p)
+                              fact_1 = -1.0d0*half
+                              fact_2 = 1.0d0*half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4)
+                            end if
+                          end do
+                        else
+                          lm2_p =  (l2-1)**2 + m2+l2
+                          do m4 = 1, n_m4
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1_p, lm2, lm3, lm4)
+                            int_3 = integrals_prim(k, lm1, lm2_p, lm3, lm4)
+                            int_4 = integrals_prim(k, lm1_p, lm2_p, lm3, lm4)
+                            fact_1 = -1.0d0*half
+                            fact_2 = 1.0d0*half
+                            if (m4.eq.l4) then
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * ( int_1 - int_2 + int_3 - int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * ( int_1 + int_2 + int_3 + int_4)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_5 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_6 = integrals_prim(k, lm1_p, lm2, lm3, lm4_p)
+                              int_7 = integrals_prim(k, lm1, lm2_p, lm3, lm4_p)
+                              int_8 = integrals_prim(k, lm1_p, lm2_p, lm3, lm4_p)
+                              fact_1 = -1.0d0*half*sqrt_half
+                              fact_2 = 1.0d0*half*sqrt_half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
+                            end if
+                          end do
+                        end if
+                      end do
+                    else
+                      lm3_p = (l3-1)**2 + m3+l3
+                      do m2 = 1, n_m2
+                        lm2 = (l2-1)**2 + m2
+                        if (m2.eq.l2) then
+                          do m4 = 1, n_m4
+                  
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1_p, lm2, lm3, lm4)
+                            int_3 = integrals_prim(k, lm1, lm2, lm3_p, lm4)
+                            int_4 = integrals_prim(k, lm1_p, lm2, lm3_p, lm4)
+                  
+                            if (m4.eq.l4) then
+                              fact_1 = -1.0d0*half
+                              fact_2 = 1.0d0*half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_5 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_6 = integrals_prim(k, lm1_p, lm2, lm3, lm4_p)
+                              int_7 = integrals_prim(k, lm1, lm2, lm3_p, lm4_p)
+                              int_8 = integrals_prim(k, lm1_p, lm2, lm3_p, lm4_p)
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
+                            end if
+                          end do
+                        else
+                          lm2_p =  (l2-1)**2 + m2+l2
+                          do m4 = 1, n_m4
+                            lm4 = (l4-1)**2 + m4
+                            int_1 = integrals_prim(k, lm1, lm2, lm3, lm4)
+                            int_2 = integrals_prim(k, lm1_p, lm2, lm3, lm4)
+                            int_3 = integrals_prim(k, lm1, lm2_p, lm3, lm4)
+                            int_4 = integrals_prim(k, lm1_p, lm2_p, lm3, lm4)
+                            int_5 = integrals_prim(k, lm1, lm2, lm3_p, lm4)
+                            int_6 = integrals_prim(k, lm1_p, lm2, lm3_p, lm4)
+                            int_7 = integrals_prim(k, lm1, lm2_p, lm3_p, lm4)
+                            int_8 = integrals_prim(k, lm1_p, lm2_p, lm3_p, lm4)
+                            if (m4.eq.l4) then
+                              fact_1 = -1.0d0*half*sqrt_half
+                              fact_2 = 1.0d0*half*sqrt_half
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1_p, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
+                            else
+                              lm4_p = (l4-1)**2 + m4+l4
+                              int_9 = integrals_prim(k, lm1, lm2, lm3, lm4_p)
+                              int_10 = integrals_prim(k, lm1_p, lm2, lm3, lm4_p)
+                              int_11 = integrals_prim(k, lm1, lm2_p, lm3, lm4_p)
+                              int_12 = integrals_prim(k, lm1_p, lm2_p, lm3, lm4_p)
+                              int_13 = integrals_prim(k, lm1, lm2, lm3_p, lm4_p)
+                              int_14 = integrals_prim(k, lm1_p, lm2, lm3_p, lm4_p)
+                              int_15 = integrals_prim(k, lm1, lm2_p, lm3_p, lm4_p)
+                              int_16 = integrals_prim(k, lm1_p, lm2_p, lm3_p, lm4_p)
+                              fact_1 = -1.0d0/4.0d0
+                              fact_2 = 1.0d0/4.0d0
+
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8 &
+                              &                             - int_9 + int_10 + int_11 - int_12 + int_13 - int_14 - int_15 + int_16)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8 &
+                              &                             - int_9 + int_10 - int_11 + int_12 + int_13 - int_14 + int_15 - int_16)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8 &
+                              &                             - int_9 - int_10 + int_11 + int_12 + int_13 + int_14 - int_15 - int_16)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8 &
+                              &                             - int_9 - int_10 - int_11 - int_12 + int_13 + int_14 + int_15 + int_16)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8 &
+                              &                             - int_9 + int_10 + int_11 - int_12 - int_13 + int_14 + int_15 - int_16)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8 &
+                              &                             - int_9 + int_10 - int_11 + int_12 - int_13 + int_14 - int_15 + int_16)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8 &
+                              &                             - int_9 - int_10 + int_11 + int_12 - int_13 - int_14 + int_15 + int_16)
+                              integrals(k, lm1_p, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8 &
+                              &                             - int_9 - int_10 - int_11 - int_12 - int_13 - int_14 - int_15 - int_16)
+
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8 &
+                              &                             + int_9 - int_10 - int_11 + int_12 - int_13 + int_14 + int_15 - int_16)
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8 &
+                              &                             + int_9 - int_10 + int_11 - int_12 - int_13 + int_14 - int_15 + int_16)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8 &
+                              &                             + int_9 + int_10 - int_11 - int_12 - int_13 - int_14 + int_15 + int_16)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8 &
+                              &                             + int_9 + int_10 + int_11 + int_12 - int_13 - int_14 - int_15 - int_16)
+                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8 &
+                              &                             + int_9 - int_10 - int_11 + int_12 + int_13 - int_14 - int_15 + int_16)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8 &
+                              &                             + int_9 - int_10 + int_11 - int_12 + int_13 - int_14 + int_15 - int_16)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8 &
+                              &                             + int_9 + int_10 - int_11 - int_12 + int_13 + int_14 - int_15 - int_16)
+                              integrals(k, lm1_p, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8 &
+                              &                             + int_9 + int_10 + int_11 + int_12 + int_13 + int_14 + int_15 + int_16)
+                            end if
+                          end do
+                        end if
+                      end do
+                    end if
+                  end do
+ 
+                end if
+              end do
+            end do
+          end do
+        end do
+      end do
+    end do
+  end subroutine calc_int_angular_combined
+
+  subroutine write_int_angular(integrals, sph_harm, all_int, file_name_syntx)
       
     type(sph_harm_t),  intent(in)           :: sph_harm
     real(idp),         intent(in)           :: integrals(:,:,:,:,:)
     logical,           intent(in)           :: all_int
+    character(len=32), intent(in)           :: file_name_syntx
 
     integer    :: n_l, n_mp, error, dim_l, k
     integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
@@ -460,7 +799,7 @@ module DVRIntAng
     dim_l = n_l**2
 
     do k = 1, n_mp
-      open(11, file="ang_element_l"//trim(int2str(k-1))//".dat",                          &
+      open(11, file=trim(file_name_syntx)//"_l"//trim(int2str(k-1))//".dat",                          &
   &    form="formatted", action="write")
       
       if (all_int) then
