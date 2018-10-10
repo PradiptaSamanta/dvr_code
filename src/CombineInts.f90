@@ -347,15 +347,14 @@ module CombineInts
                             do l = 1, 2*para%l + 1
 
                               int_value_dr = int_value_dr + (integrals_ang(l, lma, lmb, lmc, lmd)* &
-!                             &  TwoERadOrbInts(k1,k2,k3,k4,l1,l2,l1,l2,l))
                               &  TwoERadOrbInts_dr(k1,k2,k3,k4,l1,l2,l))
 
+                              if ((integrals_ang(l, lma, lmb, lmd, lmc)+0.33).lt.0.0034) write(*,'(a,5i4)') 'found the matrix element:', l, lma, lmb, lmc, lmd
 !                             write(86,'(7i3,3f13.8)') k1,k2,k3,k4,l1,l2,l,integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts_dr(k1,k2,k3,k4,l1,l2,l)!, int_value_dr
                               write(86,'(5i3,3f13.8)') klm_1, klm_2, klm_3, klm_4, l, integrals_ang(l, lma, lmb, lmc, lmd), TwoERadOrbInts_dr(k1,k2,k3,k4,l1,l2,l)!, int_value_dr
 
                               if (l1.ne.l2.or.m1.ne.m2) &
                               & int_value_xc = int_value_xc + (integrals_ang(l, lma, lmb, lmd, lmc)* &
-!                             &  TwoERadOrbInts(k1,k2,k4,k3,l1,l2,l2,l1,l))
                               &  TwoERadOrbInts_xc(k1,k2,k3,k4,l1,l2,l))
 
                               if (l1.ne.l2.or.m1.ne.m2) &

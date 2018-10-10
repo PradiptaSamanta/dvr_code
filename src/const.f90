@@ -25,6 +25,7 @@ module constants
   real(idp), parameter :: three = 3.0_idp, four = 4.0_idp
   real(idp), parameter :: Pihalf = 1.5707963267948965600_idp
   real(idp), parameter :: FourPi = 4.0_idp * Pi
+  real(idp), parameter :: sqrt_half = 1.0d0/Root2
 
   ! named complex numbers
   complex(idp), parameter :: czero = (0.0_idp, 0.0_idp)
