@@ -28,8 +28,8 @@ module DVRIntAng
     write(iout, *) '***********' 
 
 
-!   all_int = .true.
-    all_int = .false.
+    all_int = .true.
+!   all_int = .false.
 
     call allocate_int_ang(integrals_ang_prim, sph_harm)
     call allocate_int_ang(integrals_ang, sph_harm)
@@ -527,8 +527,8 @@ module DVRIntAng
                               fact_1 = -1.0d0*half
                               fact_2 = 1.0d0*half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * ( int_1 - int_2 + int_3 - int_4)
-                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * ( int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * ( int_1 + int_2 + int_3 + int_4)
                             end if
                           end do
@@ -555,8 +555,8 @@ module DVRIntAng
                               fact_1 = -1.0d0*half
                               fact_2 = 1.0d0*half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
-                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
-                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4)
                             end if
                           end do
@@ -572,8 +572,8 @@ module DVRIntAng
                             fact_2 = 1.0d0*half
                             if (m4.eq.l4) then
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
-                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4)
                             else
                               lm4_p = (l4-1)**2 + m4+l4
@@ -584,12 +584,12 @@ module DVRIntAng
                               fact_1 = -1.0d0*half*sqrt_half
                               fact_2 = 1.0d0*half*sqrt_half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
-                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
                               integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
                               integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
-                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
-                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 *(int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
                               integrals(k, lm1, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                             end if
                           end do
@@ -621,8 +621,8 @@ module DVRIntAng
                               fact_1 = -1.0d0*half
                               fact_2 = 1.0d0*half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
-                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4)
                             end if
                           end do
@@ -638,8 +638,8 @@ module DVRIntAng
                             fact_2 = 1.0d0*half
                             if (m4.eq.l4) then
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * ( int_1 - int_2 + int_3 - int_4)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_2 * ( int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * ( int_1 + int_2 + int_3 + int_4)
                             else
                               lm4_p = (l4-1)**2 + m4+l4
@@ -650,12 +650,12 @@ module DVRIntAng
                               fact_1 = -1.0d0*half*sqrt_half
                               fact_2 = 1.0d0*half*sqrt_half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8) 
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
                               integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
                               integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
-                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
-                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
                               integrals(k, lm1_p, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                             end if
                           end do
@@ -678,8 +678,8 @@ module DVRIntAng
                               fact_1 = -1.0d0*half
                               fact_2 = 1.0d0*half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
-                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4) 
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4)
                             else
                               lm4_p = (l4-1)**2 + m4+l4
@@ -687,13 +687,15 @@ module DVRIntAng
                               int_6 = integrals_prim(k, lm1_p, lm2, lm3, lm4_p)
                               int_7 = integrals_prim(k, lm1, lm2, lm3_p, lm4_p)
                               int_8 = integrals_prim(k, lm1_p, lm2, lm3_p, lm4_p)
+                              fact_1 = -1.0d0*half*sqrt_half
+                              fact_2 = 1.0d0*half*sqrt_half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
-                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
                               integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
                               integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
-                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
-                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
                               integrals(k, lm1_p, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                             end if
                           end do
@@ -713,12 +715,12 @@ module DVRIntAng
                               fact_1 = -1.0d0*half*sqrt_half
                               fact_2 = 1.0d0*half*sqrt_half
                               integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8) 
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
                               integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
                               integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
-                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
-                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
                               integrals(k, lm1_p, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                             else
                               lm4_p = (l4-1)**2 + m4+l4
@@ -733,37 +735,37 @@ module DVRIntAng
                               fact_1 = -1.0d0/4.0d0
                               fact_2 = 1.0d0/4.0d0
 
-                              integrals(k, lm1, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8 &
+                              integrals(k, lm1, lm2, lm3, lm4) = fact_2 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8 &
                               &                             - int_9 + int_10 + int_11 - int_12 + int_13 - int_14 - int_15 + int_16)
-                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8 &
-                              &                             - int_9 + int_10 - int_11 + int_12 + int_13 - int_14 + int_15 - int_16)
-                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8 &
+                              integrals(k, lm1_p, lm2, lm3, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8 &
                               &                             - int_9 - int_10 + int_11 + int_12 + int_13 + int_14 - int_15 - int_16)
-                              integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8 &
+                              integrals(k, lm1, lm2_p, lm3, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8 &
+                              &                             - int_9 + int_10 - int_11 + int_12 + int_13 - int_14 + int_15 - int_16)
+                              integrals(k, lm1_p, lm2_p, lm3, lm4) = fact_1 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8 &
                               &                             - int_9 - int_10 - int_11 - int_12 + int_13 + int_14 + int_15 + int_16)
                               integrals(k, lm1, lm2, lm3_p, lm4) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8 &
                               &                             - int_9 + int_10 + int_11 - int_12 - int_13 + int_14 + int_15 - int_16)
-                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8 &
-                              &                             - int_9 + int_10 - int_11 + int_12 - int_13 + int_14 - int_15 + int_16)
-                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8 &
+                              integrals(k, lm1_p, lm2, lm3_p, lm4) = fact_1 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8 &
                               &                             - int_9 - int_10 + int_11 + int_12 - int_13 - int_14 + int_15 + int_16)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4) = fact_1 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8 &
+                              &                             - int_9 + int_10 - int_11 + int_12 - int_13 + int_14 - int_15 + int_16)
                               integrals(k, lm1_p, lm2_p, lm3_p, lm4) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8 &
                               &                             - int_9 - int_10 - int_11 - int_12 - int_13 - int_14 - int_15 - int_16)
 
                               integrals(k, lm1, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8 &
                               &                             + int_9 - int_10 - int_11 + int_12 - int_13 + int_14 + int_15 - int_16)
-                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8 &
-                              &                             + int_9 - int_10 + int_11 - int_12 - int_13 + int_14 - int_15 + int_16)
-                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8 &
+                              integrals(k, lm1_p, lm2, lm3, lm4_p) = fact_1 * (int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8 &
                               &                             + int_9 + int_10 - int_11 - int_12 - int_13 - int_14 + int_15 + int_16)
+                              integrals(k, lm1, lm2_p, lm3, lm4_p) = fact_1 * (int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8 &
+                              &                             + int_9 - int_10 + int_11 - int_12 - int_13 + int_14 - int_15 + int_16)
                               integrals(k, lm1_p, lm2_p, lm3, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8 &
                               &                             + int_9 + int_10 + int_11 + int_12 - int_13 - int_14 - int_15 - int_16)
                               integrals(k, lm1, lm2, lm3_p, lm4_p) = fact_1 * (int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8 &
                               &                             + int_9 - int_10 - int_11 + int_12 + int_13 - int_14 - int_15 + int_16)
-                              integrals(k, lm1_p, lm2, lm3_p, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8 &
-                              &                             + int_9 - int_10 + int_11 - int_12 + int_13 - int_14 + int_15 - int_16)
-                              integrals(k, lm1, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8 &
+                              integrals(k, lm1_p, lm2, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8 &
                               &                             + int_9 + int_10 - int_11 - int_12 + int_13 + int_14 - int_15 - int_16)
+                              integrals(k, lm1, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8 &
+                              &                             + int_9 - int_10 + int_11 - int_12 + int_13 - int_14 + int_15 - int_16)
                               integrals(k, lm1_p, lm2_p, lm3_p, lm4_p) = fact_2 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8 &
                               &                             + int_9 + int_10 + int_11 + int_12 + int_13 + int_14 + int_15 + int_16)
                             end if
@@ -780,6 +782,7 @@ module DVRIntAng
         end do
       end do
     end do
+    
   end subroutine calc_int_angular_combined
 
   subroutine write_int_angular(integrals, sph_harm, all_int, file_name_syntx)
@@ -820,7 +823,7 @@ module DVRIntAng
                       do m4 = 1, n_m4
                         lm4 = (l4-1)**2 + m4
                         if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                        &   write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &   write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   integrals(k, lm1, lm2, lm3, lm4)
                       end do
                     end do
@@ -849,7 +852,7 @@ module DVRIntAng
                       if (0.lt.m4.and.m4.le.n_m4) then
                         lm4 = (l4-1)**2 + m4
                          if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                        &  write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &  write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   integrals(k, lm1, lm2, lm3, lm4)
                       end if
                     end do
