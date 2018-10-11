@@ -803,7 +803,7 @@ contains
                       do m4 = 1, n_m4
                         lm4 = (l4-1)**2 + m4
                         if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                        &   write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &   write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   integrals(k, lm1, lm2, lm3, lm4)
                       end do
                     end do
@@ -832,7 +832,7 @@ contains
                       if (0.lt.m4.and.m4.le.n_m4) then
                         lm4 = (l4-1)**2 + m4
                          if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                        &  write(11,'(4I3, ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &  write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   integrals(k, lm1, lm2, lm3, lm4)
                       end if
                     end do
@@ -886,7 +886,7 @@ contains
                       do m4 = 1, n_m4
                         lm4 = (l4-1)**2 + m4
                         if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                        &   write(11,'(4I3, 2ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &   write(11,'(4I3, 2ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   real(integrals(k, lm1, lm2, lm3, lm4)),            &
                         &   aimag(integrals(k, lm1, lm2, lm3, lm4))
                       end do
@@ -916,7 +916,7 @@ contains
                       if (0.lt.m4.and.m4.le.n_m4) then
                         lm4 = (l4-1)**2 + m4
                          if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
-                        &  write(11,'(4I3, 2ES25.17)') lm1, lm2, lm3, lm4,       &
+                        &  write(11,'(4I3, 2ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   real(integrals(k, lm1, lm2, lm3, lm4)),            &
                         &   aimag(integrals(k, lm1, lm2, lm3, lm4))
                       end if
