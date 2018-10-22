@@ -511,6 +511,20 @@ module OrbInts
       end do
     end do
 
+!   ij  = 0
+!   ijkl = 0
+!   do i = 1, norbs
+!     do j = 1, norbs
+!       kl = 0
+!       do k = 1, norbs
+!         do l = 1, norbs
+!             if (abs(TwoEInts(i,k,j,l)).gt.tol) &
+!             & write(f_int, 1005) TwoEInts(i,k,j,l), i, j, k, l
+!         end do
+!       end do
+!     end do
+!   end do
+
     do i = 1, norbs
       do j = 1, i
         if (abs(OneEInts(i,j)).gt.tol) &
