@@ -100,7 +100,8 @@ module DVRDiag
 
     real                       :: start, finish
 
-    only_bound         = .true.
+!   only_bound         = .true.
+    only_bound         = .false.
         
     ! Write potential 
     open(11, file="input_pot.out", form="formatted", &
@@ -187,17 +188,17 @@ module DVRDiag
             do j = 1, size(matrix(i,:))
               if (eigen_vals(j,l) > zero) cycle
               write(11,'(ES25.17, 1x)', advance = 'No')                              &
-              & eigen_vecs(i,j,l)
+              & eigen_vecs(i,j,l)/ (sqrt(grid%weights(i)) * grid%r(i))
             end do
             write(11,*) ' '
             write(76,'(i5,f15.8)') i, grid%r(i)
           end do
           close(11)
         else
-          open(11, file="eigenvectors_GLL.dat", form="formatted",&
+          open(11, file="eigenvectors_GLL"//trim(int2str(l_val))//".dat", form="formatted",&
           &    action="write", recl=100000)
           do i = 1, size(matrix(:,1))
-            write(11,*) grid%r(i), (eigen_vecs(i,j,l),           &
+            write(11,*) grid%r(i), (eigen_vecs(i,j,l)/(sqrt(grid%weights(i)) * grid%r(i)), &
             & j = 1, size(matrix(i,:)))
           end do
           close(11)
