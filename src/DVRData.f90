@@ -117,7 +117,7 @@ module DVRData
   real(dp), target, allocatable     :: eigen_vals(:,:), eigen_vecs(:,:,:)
 
   ! The angular part of two electron integrals are defined in the spherical harmonics basis
-  real(dp), allocatable  :: integrals_ang(:,:,:,:,:)
+  complex(idp), allocatable  :: integrals_ang(:,:,:,:,:)
 
   ! The radial part of the one and two electron integrals are defined for the primitive DVR basis
   real(dp), target, allocatable :: one_e_rad_int(:,:,:)
