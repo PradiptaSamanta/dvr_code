@@ -11,7 +11,7 @@ module DVRDiag
 
   subroutine SetDVR()
 
-    integer  :: i, l, l_val
+    integer  :: i, l, l_val, error
     real(dp),  allocatable    :: file_r(:)     ! Temporary arrays to store the distances
     real(dp), target, allocatable    :: file_pot(:,:) ! Temporary arrays to store the potential
     real(dp),  pointer :: pot_new(:), pot_old(:)
@@ -88,11 +88,19 @@ module DVRDiag
 
     deallocate(file_r, file_pot)
 
+    !! Allocate the arrays for eigenvalues and eigenvectors
+
+    allocate(eigen_vals(para%nev, para%l+1),stat=error)
+    call allocerror(error)
+
+    allocate(eigen_vecs(size(grid%r), para%nev, para%l+1),stat=error)
+    call allocerror(error)
+
   end subroutine SetDVR
 
   subroutine DVRDiagonalization()
 
-    integer                    :: i, j, l, l_val, error
+    integer                    :: i, j, l, l_val
     real(dp), allocatable      :: matrix(:,:)
     logical                    :: only_bound ! Only writes out bound states
     real(dp), pointer          :: pot_1(:)
@@ -112,14 +120,6 @@ module DVRDiag
     end do
     close(11)
  
-    !! Allocate the arrays for eigenvalues and eigenvectors
-
-    allocate(eigen_vals(para%nev, 2*para%l+1),stat=error)
-    call allocerror(error)
-
-    allocate(eigen_vecs(size(grid%r), para%nev, 2*para%l+1),stat=error)
-    call allocerror(error)
-
     !! Here start the loop over different values of the angular quantum number
 !   do l = 1, 2*para%l+1
     do l = 1, para%l+1
@@ -156,7 +156,7 @@ module DVRDiag
       end do
       
 
-      if ( debug.gt.5) then
+      if ( debug.gt.4) then
         write(iout,'(X,90a)') 'Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...'
         ! Write eigenvalues.
         open(11, file="eigenvalues_GLL"//trim(int2str(l_val))//".dat", form="formatted", &
@@ -206,34 +206,99 @@ module DVRDiag
         
         ! Write transformation matrix. This is the same as the eigenvectors except
         ! without the grid as the first column 
-        if (only_bound) then
+!       if (only_bound) then
+!         open(11, file="transformation_matrix_l"//trim(int2str(l_val))//".dat",    &
+!         &    form="formatted", action="write")
+!         do i = 1, size(matrix(:,1))
+!           do j = 1, size(matrix(i,:))
+!             if (eigen_vals(j,l) > zero) cycle
+!             write(11,'(ES25.17, 1x)', advance = 'No')                              &
+!             & eigen_vecs(i,j,l)
+!           end do
+!           write(11,*) ' '
+!         end do
+!         close(11)
+!       else
           open(11, file="transformation_matrix_l"//trim(int2str(l_val))//".dat",    &
-          &    form="formatted", action="write")
+          &    form="unformatted", action="write")
           do i = 1, size(matrix(:,1))
-            do j = 1, size(matrix(i,:))
-              if (eigen_vals(j,l) > zero) cycle
-              write(11,'(ES25.17, 1x)', advance = 'No')                              &
-              & eigen_vecs(i,j,l)
-            end do
-            write(11,*) ' '
-          end do
-          close(11)
-        else
-          open(11, file="transformation_matrix_l"//trim(int2str(l_val))//".dat",    &
-          &    form="formatted", action="write")
-          do i = 1, size(matrix(:,1))
-            write(11,*)                               &
+            write(11)                               &
             & (eigen_vecs(i,j,l),                    &
             & j = 1, size(matrix(i,:)))
           end do
           close(11)
         end if
 
-      end if  ! if files are written out
+!     end if  ! if files are written out
 
     end do
 
     deallocate(matrix)
   end subroutine DVRDiagonalization
+
+  subroutine ReadEigValVec()
+
+    integer :: l, l_val, i, j, k
+    character(len=64) :: filename
+    logical :: file_exists
+
+    write(iout,*) 'Restarting the calculation reading all the necessary data from files'
+
+    do l = 1, para%l+1
+
+      l_val = l-1
+
+      write(iout,*) 'Reading the eigenvalues and eigenvectors for l: ', l_val
+
+      filename = "eigenvalues_GLL"//trim(int2str(l_val))//".dat"
+      inquire(file=trim(filename), exist=file_exists)
+
+      if (file_exists) then
+        open(12, file=trim(filename), form="formatted",&
+        &    action="read", recl=100000)
+      else
+        call stop_all('ReadEigValVec', 'File for eigenvalue not present for reading')
+      end if
+
+      read(12, *)
+      read(12, *)
+      read(12, *)
+      read(12, *)
+      read(12, *)
+
+      do i = 1, size(eigen_vals(:,l))
+        read(12,'(I8,ES25.17)') k, eigen_vals(i,l)
+      end do
+
+!     do i = 1, size(eigen_vals(:,l))
+!     write(77,'(I8,3ES25.17)') i-1, eigen_vals(i,l)
+!     end do
+
+      filename = "transformation_matrix_l"//trim(int2str(l_val))//".dat"
+      if (file_exists) then
+        open(11, file=trim(filename),    &
+        &   form="unformatted", action="read")
+      else 
+        call stop_all('ReadEigValVec', 'File for eigenvalue not present for reading')
+      end if
+
+      do i = 1, size(eigen_vecs(:,1,l))
+        read(11)                               &
+        & (eigen_vecs(i,j,l),                    &
+        & j = 1, size(eigen_vecs(i,:,l)))
+      end do
+
+!     do i = 1, size(eigen_vecs(:,1,l))
+!       write(78,*)                               &
+!       & (eigen_vecs(i,j,l),                    &
+!       & j = 1, size(eigen_vecs(i,:,l)))
+!     end do
+
+      close(12)
+      close(11)
+
+    end do
+
+  end subroutine ReadEigValVec
 
 end module DVRDiag
