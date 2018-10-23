@@ -72,7 +72,7 @@ module DVRIntAng
         call stop_all('GetAngIntegral','Not an available option to calculate angular part of the 2e integrals')
       end if
  
-      if (debug.gt.4) then
+      if (debug.gt.5) then
         file_name_syntx = 'ang_element_final'
         write(iout, *) 'Writing down the angular integrals'
         call write_int_angular_imaginary(integrals_ang, sph_harm, all_int, file_name_syntx)

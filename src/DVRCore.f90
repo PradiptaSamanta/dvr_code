@@ -3,7 +3,7 @@ subroutine DVRCore()
   use constants
   use ReadInput, only : ReadInputMain
   use InputData, only : dvr_diag, dvr_integrals, orbital_ints
-  use DVRDiag, only : SetDVR, DVRDiagonalization
+  use DVRDiag, only : SetDVR, DVRDiagonalization,ReadEigValVec
   use DVRIntRad, only : GetRadialElements
   use DVRIntAng, only : GetAngularElements
   use OrbInts, only  : GetOrbInts
@@ -29,7 +29,11 @@ subroutine DVRCore()
   ! Initializing the FE-DVR basis
   call SetDVR()
 
-  if (dvr_diag) call DVRDiagonalization()
+  if (dvr_diag) then
+    call DVRDiagonalization()
+  else 
+    call ReadEigValVec()
+  end if
 
   if (dvr_integrals) then
     call GetRadialElements()
