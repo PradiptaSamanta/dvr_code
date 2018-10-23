@@ -44,7 +44,7 @@ module CombineInts_alt
           lb = l2 - 1
           n_m2 = 2*l2 - 1
 
-           do l4 = 1, n_l
+          do l4 = 1, n_l
             ld = l4 - 1
             n_m4 = 2*l4 - 1
 
@@ -115,6 +115,132 @@ module CombineInts_alt
 
     integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
     real(dp) :: int_value, start, finish, int_value_xc, int_value_dr
+    real(dp) :: time_1, time_2, time_3
+    integer  :: count_i, count_j, count_l
+    logical  :: split
+
+    real(dp), allocatable :: inter_int_1(:,:), inter_int_2(:), inter_int_3(:)
+    real(dp), allocatable :: vec_1(:)
+
+    call cpu_time(start)
+
+    n_l = para%l+1
+
+    allocate(TwoERadOrbInts(orb%n_max,orb%n_max, orb%n_max, orb%n_max, n_l, n_l, n_l, n_l, 2*para%l+1), stat=error)
+    call allocerror(error)
+    allocate(inter_int_1(para%ng,para%ng), stat=error)
+    call allocerror(error)
+    allocate(inter_int_2(para%ng), stat=error)
+    call allocerror(error)
+    allocate(inter_int_3(para%ng), stat=error)
+    call allocerror(error)
+    allocate(vec_1(para%ng), stat=error)
+    call allocerror(error)
+
+    inter_int_1 = zero
+    inter_int_2 = zero
+    inter_int_3 = zero
+    TwoERadOrbInts = zero
+
+    ! The transformation of 1e integrals is done in two steps
+    ! i and j are basis indices, while m and n are orbital indices
+    ! h_{ij} -> h_{mn} using transformation matrix b_{in}
+    ! First step: h_{in} = \sum_j h_{ij} b_{in} 
+    ! Second step: h_{mn} = \sum_i b^*_{im} h_{in} 
+
+    ! The calculation is done over a loop of l
+
+    do l = 1, 2*para%l + 1
+      l_val = l - 1
+
+      call cpu_time(time_1)
+
+      ! The first step is done here
+
+      do l2 = 1, n_l
+        do m = 1, orb%n_max
+          vec_1(:) = eigen_vecs(:,m,l2) 
+          do j = 1, para%ng
+            do i = 1, para%ng
+               inter_int_1(i,j) = two_e_rad_int(i,j,l)*vec_1(i)
+            end do 
+          end do
+
+          do l4 = 1, n_l
+            do n = 1, orb%n_max
+              vec_1(:) = eigen_vecs(:,n,l4) 
+              do j = 1, para%ng
+      
+                int_value = 0.0d0
+                do i = 1, para%ng
+                  int_value = int_value + inter_int_1(i,j)*vec_1(i)
+                end do 
+                inter_int_2(j) = int_value
+              end do
+
+      ! The second step is done here, still it is inside the loop of l
+
+              do l1 = 1, n_l
+                do mp = 1, orb%n_max
+                  vec_1(:) = eigen_vecs(:,mp,l1)
+
+                  do i = 1, para%ng
+                    inter_int_3(i) = vec_1(i)*inter_int_2(i)
+                  end do
+
+                  do l3 = 1, n_l
+                    do np = 1, orb%n_max
+                      vec_1(:) = eigen_vecs(:,np,l3)
+                      int_value = 0.0d0
+
+                      do i = 1, para%ng
+                        int_value = int_value + vec_1(i)*inter_int_3(i)
+                      end do
+
+                      TwoERadOrbInts(mp, m, np, n, l1, l2, l3, l4, l) = int_value
+
+                    end do
+                  end do
+                end do
+              end do ! end loop over n_max
+            end do ! end loop over n_max
+          end do
+        end do ! end loop over n_max
+      end do ! end loop over n_max
+
+      call cpu_time(time_3)
+
+      write(iout,*) 'Time taken in the first step = ', time_3 - time_1, 'seconds.'
+
+
+    end do ! end loop over para%l
+
+!     do m = 1, orb%n_max
+!       do l1 = 1, n_l
+!         do i = 1, para%ng
+!     
+!           int_value = 0.0d0
+!           do j = 1, para%ng
+!              int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,m,l1)
+!           end do 
+!           inter_int_1(i,j,m,l1) = int_value
+!         end do
+!       end do 
+!     end do ! end loop over n_max
+
+    call cpu_time(finish)
+    write(iout,'(X,a,f10.5,X,a)') 'Time taken for 2e transformation = ', finish-start, 'seconds.'
+
+  end subroutine Calc2eRadOrbInts_alt
+
+  subroutine Calc2eRadOrbInts_alt_1()
+
+    use DVRData, only : two_e_rad_int, para, grid, eigen_vecs
+    use OrbData, only : orb, TwoERadOrbInts
+
+    integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
+    real(dp) :: int_value, start, finish, int_value_xc, int_value_dr, val
+    real(dp) :: time_1, time_2, time_3
     integer  :: count_i, count_j, count_l
     logical  :: split
 
@@ -150,6 +276,8 @@ module CombineInts_alt
 
       if (split) then
 
+      call cpu_time(time_1)
+
       ! The first step is done here
       do m = 1, orb%n_max
         do n = 1, orb%n_max
@@ -159,7 +287,9 @@ module CombineInts_alt
        
                 int_value = 0.0d0
                 do j = 1, para%ng
-                   int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,n,l2)*eigen_vecs(j,m,l1)
+                  val = eigen_vecs(j,n,l2)*eigen_vecs(j,m,l1)  
+!                 int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,n,l2)*eigen_vecs(j,m,l1)
+                  int_value = int_value + two_e_rad_int(i,j,l)*val
                 end do 
                 inter_int(i,m,n,l1,l2) = int_value
               end do
@@ -167,6 +297,10 @@ module CombineInts_alt
           end do 
         end do
       end do ! end loop over n_max
+
+      call cpu_time(time_2)
+
+      write(iout,*) 'Time taken in the first step = ', time_2 - time_1, 'seconds.'
 
       ! The second step is done here, still it is inside the loop of l
 
@@ -183,7 +317,7 @@ module CombineInts_alt
                       int_value_xc = 0.0d0
                       do i = 1, para%ng
                         int_value = int_value + eigen_vecs(i,mp,l1)*eigen_vecs(i,np,l3)*inter_int(i,m,n,l2,l4)
-                        int_value_xc = int_value_xc + eigen_vecs(i,mp,l1)*eigen_vecs(i,n,l4)*inter_int(i,m,np,l2,l3)
+!                       int_value_xc = int_value_xc + eigen_vecs(i,mp,l1)*eigen_vecs(i,n,l4)*inter_int(i,m,np,l2,l3)
                       end do
           
                       TwoERadOrbInts(mp, m, np, n, l1, l2, l3, l4, l) = int_value
@@ -196,6 +330,9 @@ module CombineInts_alt
         end do ! end loop over n_max
       end do ! end loop over n_max
 
+      call cpu_time(time_3)
+
+      write(iout,*) 'Time taken in the second step = ', time_3-time_2, 'seconds.'
   !   else 
 
   !     do m = 1, orb%n_max
@@ -224,7 +361,6 @@ module CombineInts_alt
     call cpu_time(finish)
     write(iout,'(X,a,f10.5,X,a)') 'Time taken for 2e transformation = ', finish-start, 'seconds.'
 
-
-  end subroutine Calc2eRadOrbInts_alt
+  end subroutine Calc2eRadOrbInts_alt_1
 
 end module CombineInts_alt
