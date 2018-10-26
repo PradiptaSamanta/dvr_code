@@ -52,7 +52,7 @@ module DVRIntAng
 !     call calc_int_angular_primitive(integrals_ang_prim, sph_harm)
       call calc_int_angular_main(integrals_ang_prim, sph_harm)
  
-      if (debug.gt.4) then
+      if (debug.gt.5) then
         file_name_syntx = 'ang_element_prim'
         write(iout, *) 'Writing down the angular integrals'
         call write_int_angular_real(integrals_ang_prim, sph_harm, all_int, file_name_syntx)
@@ -508,6 +508,7 @@ module DVRIntAng
                   lmb = (l2-1)**2 + m2
                   do m3 = 1, n_m3
                     lmc = (l3-1)**2 + m3
+!                   do m4 = 1, n_m4
                     m4 = (-l1 -l2 +l3 +l4) + (m1 +m2 -m3)  ! following the condition m1-m3 = m4-m2 transformed into the index we are using here for m
                     if (0.lt.m4.and.m4.le.n_m4) then
                       lmd = (l4-1)**2 + m4
@@ -520,12 +521,17 @@ module DVRIntAng
    
                         m_abq = int(ma + mb + mq)
                         m_sign = (-1)**m_abq
+!                       if (lma.eq.1.and.lmb.eq.2.and.lmc.eq.1.and.lmd.eq.2) &
+!                       &   write(79,'(3i4)') int(mq), m_abq, m_sign
                         w_symb_abcd_q = w_symb_ac_q(lmk, lma, lmc)        &
                         &              *w_symb_bd_q(lmk, lmb, lmd)
                         int_value = int_value +                                &
                   &     m_sign * pre_fact_prod  * w_symb_abcd * w_symb_abcd_q
                         integrals(k, lma, lmb, lmc, lmd) = int_value
+!                       if (lma.eq.1.and.lmb.eq.2.and.lmc.eq.1.and.lmd.eq.2) &
+!                       &   write(80,'(i4,4f15.8)') m_sign, pre_fact_prod, w_symb_abcd, w_symb_abcd_q, real(int_value)
                       end do
+!                     end do
                     end if
                   end do
                 end do
@@ -561,7 +567,8 @@ module DVRIntAng
     dim_l = n_l**2
     dim_mp = n_mp**2
 
-    fact_1 = (0.0d0, val_1)
+    !fact_1 = (0.0d0, val_1)
+    fact_1 = (val_1,0.0d0)
     fact_2 = (val_1, 0.0d0)
 
     do k = 1, n_mp
