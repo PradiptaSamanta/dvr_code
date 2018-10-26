@@ -17,7 +17,7 @@ module OrbData
 
   ! Define matrices to store one and two electron 
 
-  integer                :: nSpatialOrbs
+  integer                :: nSpatialOrbs, nFrozen
 
   integer, allocatable   :: SpatialOrbInd(:,:,:)
   real(dp), allocatable  :: OneEInts(:,:) 

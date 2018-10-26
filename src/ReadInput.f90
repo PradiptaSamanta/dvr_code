@@ -85,6 +85,7 @@ module ReadInput
 
     n_max = 10
     two_e_int = 1
+    nfrz = 0
 
   end subroutine SetDVRInpDefaults
 
@@ -177,6 +178,8 @@ module ReadInput
         call geti(n_max)
       case("TWO-E-INT")
         call geti(two_e_int)
+      case("FROZEN")
+        call geti(nfrz)
       case("ENDORBITAL")
         exit
       case default
