@@ -2,7 +2,7 @@ module OrbInts
 
   use constants
   use util_mod, only : stop_all, allocerror
-  use ReadInput, only : n_max, two_e_int
+  use ReadInput, only : n_max, two_e_int, nfrz
   use OrbData
   use CombineInts, only : CombineOrbInts, CombineOrbInts_old
   use CombineInts_alt, only : CombineOrbInts_alt, Calc2eRadOrbInts_alt
@@ -40,6 +40,7 @@ module OrbInts
       
     orb%nSpatialOrbs = indx
 
+    nFrozen = nfrz
 
     write(iout, *) '**********'
     write(iout, *) 'Setting up these parameters for the orbitals:'
@@ -458,14 +459,17 @@ module OrbInts
     use DVRData, only : para
 
     real(dp), intent(in) :: tol
-    integer :: i, j, k, l, f_int, norbs, ij, kl, ijkl
+    integer :: i, j, k, l, f_int, norbs, ij, kl, ijkl, i_n, j_n, k_n, l_n, nelec
+    real(dp) :: h_core, int_value
 
     f_int = 15
     open(f_int, file=file_int, status='unknown', form="formatted")
 
-    norbs = orb%nSpatialOrbs
+    norbs = orb%nSpatialOrbs - nFrozen
 
-    write(f_int,1001) norbs, nint(para%z), 0
+    nelec = nint(para%z) - 2*nFrozen
+
+    write(f_int,1001) norbs, nelec, 0
 
 1001 format(' &FCI NORB=', i5, ',NELEC=', i3, ',MS2=', i3,',')
 
@@ -494,14 +498,18 @@ module OrbInts
     ij  = 0
     ijkl = 0
     do i = 1, norbs
+      i_n = i + nFrozen
       do j = 1, i
+        j_n = j + nFrozen
         kl = 0
 !       do k = 1, norbs
         do k = 1, i
+          k_n = k + nFrozen
           do l = 1, k
+            l_n = l + nFrozen
             if (ij.ge.kl) then
-              if (abs(TwoEInts(i,k,j,l)).gt.tol) &
-              & write(f_int, 1005) TwoEInts(i,k,j,l), i, j, k, l
+              if (abs(TwoEInts(i_n,k_n,j_n,l_n)).gt.tol) &
+              & write(f_int, 1005) TwoEInts(i_n,k_n,j_n,l_n), i, j, k, l
               ijkl = ijkl + 1
             end if
             kl = kl + 1
@@ -526,14 +534,32 @@ module OrbInts
 !   end do
 
     do i = 1, norbs
+      i_n = i + nFrozen
       do j = 1, i
-        if (abs(OneEInts(i,j)).gt.tol) &
+        j_n = j + nFrozen
+        int_value = OneEInts(i_n,j_n)
+!       if (nFrozen.gt.0.and.i.eq.j) then
+        if (nFrozen.gt.0) then
+          do k = 1, nfrozen
+            int_value = int_value + 2.0d0*TwoEInts(i_n,k,j_n,k) - TwoEInts(i_n,k,k,j_n) 
+          end do
+        end if
+        if (abs(int_value).gt.tol) &
 !       if (i.eq.j) &
-        & write(f_int, 1005) OneEInts(i,j), i, j, 0, 0
+        & write(f_int, 1005) int_value, i, j, 0, 0
       end do 
     end do
 
-    write(f_int, 1005) 0.0_dp, 0, 0, 0, 0
+    h_core = 0.0_dp
+    if (nFrozen.gt.0) then
+      do i = 1, nFrozen
+        h_core = h_core + 2.0d0*OneEInts(i,i)
+        do j = 1, nFrozen
+          h_core = h_core + 2.0d0*TwoEInts(i,j,i,j) - TwoEInts(i,j,j,i)
+        end do
+      end do  
+    end if
+    write(f_int, 1005) h_core, 0, 0, 0, 0
 
 1005 format(f20.16,x,5i4)
 
