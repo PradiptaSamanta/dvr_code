@@ -228,7 +228,8 @@ module DVRIntAng
         end do  ! end loop for l4
       end do  ! end loop for l2
 
-      fact_1 = (0.0d0, val_1)
+      !fact_1 = (0.0d0, val_1)
+      fact_1 = (val_1, 0.0d0)
       fact_2 = (val_1, 0.0d0)
 
       do l1 = 1, n_l 
@@ -254,7 +255,7 @@ module DVRIntAng
                     do m4 = 1, n_m4
                       lmd = (l4-1)**2 + m4
                       int_value = 0.0d0
-!                     do q = 1, 2*k-1
+!!                    do q = 1, 2*k-1
 
                       do q1 = 1, k
                         mq1 = dfloat(q_init + q1)
@@ -264,7 +265,7 @@ module DVRIntAng
                         if (q1.eq.k) then
 
                           do q2 = 1, k
-                            if (q2.ne.q1) cycle
+                            !if (q2.ne.q1) cycle
                             mq2 = dfloat(q_init + q2) 
                             lmk2 = (k-1)**2 + q2
                             int_1 = w_symb_ac_q(lmk1, lma, lmc)
@@ -289,8 +290,8 @@ module DVRIntAng
 
                               w_symb_abcd_q_1 = fact_1*int_1*(int_3 - int_4)
                               w_symb_abcd_q_2 = fact_2*int_1*(int_3 + int_4)
-                           !  int_value = int_value +  m_sign * (w_symb_abcd_q_1 & 
-                           !                                   + w_symb_abcd_q_2)
+                              int_value = int_value +  m_sign * (w_symb_abcd_q_1 & 
+                                                               + w_symb_abcd_q_2)
  
                             end if
                           end do
@@ -316,7 +317,7 @@ module DVRIntAng
                               m_sign = (-1)**m_abq
                               w_symb_abcd_q_2 = m_sign*fact_2*(int_1+int_2)*int_3
  
-                           !  int_value = int_value +  w_symb_abcd_q_1 + w_symb_abcd_q_2
+                              int_value = int_value +  w_symb_abcd_q_1 + w_symb_abcd_q_2
  
                             else 
  
@@ -345,6 +346,23 @@ module DVRIntAng
 
                         end if
                       end do
+
+!                     do q1 = 1, 2*k-1
+!                       mq1 = dfloat(q_init + q1)
+!                       lmk1 = (k-1)**2 + q1
+!                       do q2 = 1, 2*k-1
+!                         mq2 = dfloat(q_init + q1)
+!                         lmk2 = (k-1)**2 + q2
+!
+!                         m_abq = int(ma + mb + mq1)
+!                         m_sign = (-1)**m_abq
+
+!                         int_1 = w_symb_ac_q(lmk1, lma, lmc)
+!                         int_2 = w_symb_bd_q(lmk2, lmb, lmd)
+!                         int_value = int_value +  m_sign*int_1*int_2
+!
+!                       end do
+!                     end do
                       int_value = pre_fact_prod  * w_symb_abcd * int_value
                       integrals(k, lma, lmb, lmc, lmd) = int_value
                     end do
