@@ -9,6 +9,7 @@ subroutine DVRCore()
   use OrbInts, only  : GetOrbInts
   use CombineInts, only : CombineIntegrals
   use RadCheck
+  use FieldIntegrals
 
   implicit none
 
@@ -44,6 +45,10 @@ subroutine DVRCore()
   if (orbital_ints) then
     call GetOrbInts()
   end if
+
+  if (with_field) then
+    call CalcFieldInts()
+  end if 
 
 ! call radial_check()
 
