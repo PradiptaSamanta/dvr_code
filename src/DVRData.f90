@@ -129,8 +129,10 @@ module DVRData
 
   real(dp), allocatable  :: combined_two_e_int(:)
   integer                :: debug
+  integer                :: nFields
   logical                :: direct_2e
-
+  logical                :: with_field
+  character(len=32), allocatable     :: FieldComp(:)
 
 
 end module DVRData

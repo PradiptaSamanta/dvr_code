@@ -4,7 +4,7 @@ module ReadInput
   use util_mod, only : get_free_unit, stop_all
   use input_mod
   use InputData
-  use DVRData, only: debug, direct_2e
+  use DVRData, only: debug, direct_2e, with_field, nFields, FieldComp
 
   implicit none
 
@@ -86,6 +86,8 @@ module ReadInput
     n_max = 10
     two_e_int = 1
     nfrz = 0
+    with_field = .false.
+    nFields = 0
 
   end subroutine SetDVRInpDefaults
 
@@ -95,6 +97,7 @@ module ReadInput
     integer             :: check
     logical :: eof
     character (len=100)  :: w
+    character(len=32) :: Comp(3)
 
     check = 0
     do
@@ -142,6 +145,22 @@ module ReadInput
       case("MAPPED-GRID")
         mapped_grid = .true.
         call getf(beta)
+      case("FIELD")
+        with_field = .true.
+        if (nitems==1) then
+          call stop_all('DVRInput', 'Please specify a component for the field')
+        end if
+        do while (item.lt.nitems)
+          nFields = nFields + 1
+          if (nFields.gt.3) then
+            call stop_all('DVRInput','More than three fields are not allowed')
+          end if
+          call readu(Comp(nFields))
+        end do
+        allocate(FieldComp(nFields))
+        FieldComp(1:nFields) = Comp(1:nFields)
+        write(iout, '(a,i4)') 'Total number of Fields:', nFields
+        write(iout, '(a,2x,3a)') 'Fields:', FieldComp(:)
       case("")
         check = check + 1
         if (check.gt.50) call report('many empty lines in the input')
