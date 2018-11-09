@@ -159,8 +159,6 @@ module ReadInput
         end do
         allocate(FieldComp(nFields))
         FieldComp(1:nFields) = Comp(1:nFields)
-        write(iout, '(a,i4)') 'Total number of Fields:', nFields
-        write(iout, '(a,2x,3a)') 'Fields:', FieldComp(:)
       case("")
         check = check + 1
         if (check.gt.50) call report('many empty lines in the input')
