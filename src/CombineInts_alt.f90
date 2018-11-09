@@ -210,7 +210,7 @@ module CombineInts_alt
 
       call cpu_time(time_3)
 
-      write(iout,*) 'Time taken in the first step = ', time_3 - time_1, 'seconds.'
+!     write(iout,*) 'Time taken in the first step = ', time_3 - time_1, 'seconds.'
 
 
     end do ! end loop over para%l
@@ -300,7 +300,7 @@ module CombineInts_alt
 
       call cpu_time(time_2)
 
-      write(iout,*) 'Time taken in the first step = ', time_2 - time_1, 'seconds.'
+!     write(iout,*) 'Time taken in the first step = ', time_2 - time_1, 'seconds.'
 
       ! The second step is done here, still it is inside the loop of l
 

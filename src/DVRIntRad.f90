@@ -69,8 +69,6 @@ module DVRIntRad
         &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
       end do
 
-      write(iout, *) 'DEBUGING', real(para%Z, idp)
-        
       pot_1 => pot(:,l)
 
       ! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
