@@ -12,27 +12,42 @@ module FieldIntegrals
 
   contains
 
+  ! Here is the main subroutine to calculate the integrals for any dipole field
+  ! applied externally
   subroutine  CalcFieldInts()
 
     integer :: iField 
-    real(idp) :: tol
+    real(idp) :: tol, start, finish
+
+    call cpu_time(start)
 
     tol = 1e-12
-
+    
+    write(iout,*) '***********'
+    write(iout, '(a)') ' Calculating field integrals...'
+    write(iout, '(a,i4)') ' Total number of Fields:', nFields
+    write(iout, '(a,2x,3a4)') ' Fields:', FieldComp(:)
+    ! allocating all the arrays and setting up other parameters related to the 
+    ! integrals corresponding to the field
     call SetupFieldInts()
 
+    ! Integrals are calculated first in the primitive FE-DVR basis which required both 
+    ! the radial and angular contributions
     call DVRFieldInts()
 
+    ! Integrals are then calculated in the basis of eigenvectors obtained from 
+    ! solving Schroedinger equation
     do iField = 1, nFields
       call CombineFieldInts(iField)
       call WriteFieldInts(iField, tol)
     end do
 
+    call cpu_time(finish)
+
+    write(iout,'(X,a,f10.5,X,a)') 'Time taken for calculating field integrals = ', finish-start, 'seconds.'
+    write(iout,*) '***********'
 
   end subroutine CalcFieldInts
-
-
-! allocating all the arrays and setting up other parameters related to the integrals corresponding to the field
 
   subroutine SetupFieldInts()
 
@@ -41,9 +56,11 @@ module FieldIntegrals
     n_l = para%l + 1
     dim_lm = n_l**2
 
+    ! allocate the field integrals calculated in the primitive FE-DVR basis
     allocate(PrimFieldInts(dim_lm,dim_lm,para%ng,nFields), stat=error)
     call allocerror(error)
 
+    ! allocate the field integrals calculated in the eigenbasis
     allocate(FieldInts(orb%nSpatialOrbs,orb%nSpatialOrbs,nFields), stat=error)
     call allocerror(error)
 
@@ -55,10 +72,11 @@ module FieldIntegrals
 
     integer :: n_l, dim_lm, i, error
 
-    ! Allocate the pure angular part required to calculate the 
-    ! field integrals. This angular parts are nothing but the 
-    ! spherical harmonics where one of the components are coming 
-    ! from the external field which has l=1 and m_l=-1,0,+1
+    ! The pure angular part is required to calculate the 
+    ! field integrals. This angular parts are nothing but integrals involving
+    ! three spherical harmonics where one of the components are coming 
+    ! from the external field which has l=1 and m_l=-1,0,+1. The other two 
+    ! components of these spherical harmonics are coming from the orbitals
 
     n_l = para%l + 1
     dim_lm = n_l**2
@@ -67,7 +85,7 @@ module FieldIntegrals
     call allocerror(error)
 
     ! Calculate the pure angular part of the field integrals. 
-    ! This angular part will be combined and then multiplied 
+    ! A combination of these angular parts will be multiplied 
     ! with the radial contribution to give the field integrals
     call GetAngParts(AngPart)
 
@@ -82,14 +100,30 @@ module FieldIntegrals
     complex(idp), allocatable, intent(inout) :: AngPart(:,:,:)
 
     integer :: la, lb, lk, ma, mb, mk, lmk, lma, lmb, n_ma, n_mb, n_l
-    integer :: ma_init, mb_init
+    integer :: ma_init, mb_init, la_p, lb_p, lk_p
     real(idp) :: mk_flt, ma_flt, mb_flt, lk_flt, la_flt, lb_flt
+    real(idp), allocatable ::  pre_fact(:,:)
 
-    
     n_l = para%l + 1
+
+    allocate(pre_fact(n_l,n_l))
 
     lk = 1
     lk_flt = float(lk)
+    lk_p = 2*lk - 1
+
+    do lb = 1, n_l
+      lb_flt = float(lb-1)
+      lb_p = 2*lb - 1
+      do la = 1, n_l
+        la_flt = float(la-1)
+        la_p = 2*la - 1
+
+        pre_fact(la,lb) = wigner3j(la_flt, lb_flt, lk_flt, zero, zero, zero)*sqrt(lk_p*la_p*lb_p/FourPi)
+
+      end do
+    end do
+
     do mk = 1, 3
       lmk = mk
       mk_flt = -2.0d0 + float(mk)
@@ -109,9 +143,9 @@ module FieldIntegrals
               lma = (la-1)**2 + ma
 
 !             AngPart(lma,lmb, lmk) = wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, mk_flt, mb_flt)
-              AngPart(lma,lmb, lmk) = wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)
+              AngPart(lma,lmb, lmk) = wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)*pre_fact(la,lb)
 
-!             write(78,'(3i4,2f15.8)') lma, lmb, lmk, AngPart(lma,lmb,lmk)
+!             if (abs(AngPart(lma,lmb,lmk)).gt.1e-12) write(78,'(3i4,2f15.8)') lma, lmb, lmk, AngPart(lma,lmb,lmk)
 !             write(79,'(6i4,f15.8)') la, lb, lk, int(-1.0d0*ma_flt), int(mb_flt), int(mk_flt), wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, mk_flt, mb_flt)
      
             end do 
@@ -130,7 +164,13 @@ module FieldIntegrals
     complex(idp), pointer :: IntPoint(:,:,:)
     integer :: i, n_l, la, lb, lma, lmb, ma, mb, lmk, lmk_p, lma_p, lmb_p
     real(idp) :: RadPart, pre_fact
+    real(idp), parameter :: val_1 = (1.0d0*sqrt_half)
+    real(idp), parameter :: val_2 = (-1.0d0*sqrt_half)
     complex(idp) :: int_1, int_2, int_3, int_4, int_5, int_6, int_7, int_8
+    complex(idp) :: fact_1, fact_2, fact_3, fact_4, fact_5
+
+    fact_1 = (val_1,0.0d0)
+    fact_2 = (val_1, 0.0d0)
 
     IntPoint =>  PrimFieldInts(:,:,:,iField)
 
@@ -156,8 +196,8 @@ module FieldIntegrals
                   else
                     lmb_p = lb**2 - mb + 1
                     int_2 = AngPart(lma,lmb_p,lmk)
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2)
-                    IntPoint(lma,lmb_p,i) = RadPart*(int_1 + int_2)
+                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2)
+                    IntPoint(lma,lmb_p,i) = fact_2*RadPart*(int_1 + int_2)
                   end if
                 end do
               else
@@ -167,16 +207,20 @@ module FieldIntegrals
                   int_1 = AngPart(lma,lmb,lmk)
                   int_2 = AngPart(lma_p,lmb,lmk)
                   if (mb.eq.lb) then
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2)
-                    IntPoint(lma_p,lmb,i) = RadPart*(int_1 + int_2)
+                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2)
+                    IntPoint(lma_p,lmb,i) = fact_2*RadPart*(int_1 + int_2)
                   else
+                    fact_3 = fact_1*fact_1
+                    fact_4 = fact_2*fact_1
+                    fact_5 = fact_2*fact_2
                     lmb_p = lb**2 - mb + 1
                     int_3 = AngPart(lma,lmb_p,lmk)
                     int_4 = AngPart(lma_p,lmb_p,lmk)
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2 - int_3 + int_4)
-                    IntPoint(lma_p,lmb,i) = RadPart*(int_1 + int_2 - int_3 - int_4)
-                    IntPoint(lma,lmb_p,i) = RadPart*(int_1 - int_2 + int_3 + int_4)
-                    IntPoint(lma_p,lmb_p,i) = RadPart*(int_1 + int_2 + int_3 + int_4)
+                    IntPoint(lma,lmb,i) = fact_3*RadPart*(int_1 - int_2 - int_3 + int_4)
+                    IntPoint(lma_p,lmb,i) = fact_4*RadPart*(int_1 + int_2 - int_3 - int_4)
+                    IntPoint(lma,lmb_p,i) = fact_4*RadPart*(int_1 - int_2 + int_3 - int_4)
+                    IntPoint(lma_p,lmb_p,i) = fact_5*RadPart*(int_1 + int_2 + int_3 + int_4)
+!                   write(81, '(2i4, 6f15.8)') lma, lmb, real(int_1), real(int_2), real(int_3), real(int_4), real(IntPoint(lma_p,lmb,i)), real(IntPoint(lma,lmb_p,i))
                   end if
                 end do
               end if
@@ -185,11 +229,11 @@ module FieldIntegrals
         end do
       end do
 
-    case('Y')
+    case('X')
 
       lmk = 1
       lmk_p = 3
-      pre_fact = sqrt(2*pi/3)
+      pre_fact = fact_2*sqrt(4*pi/3)
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
@@ -207,8 +251,8 @@ module FieldIntegrals
                     lmb_p = lb**2 - mb + 1
                     int_3 = AngPart(lma,lmb_p,lmk)
                     int_4 = AngPart(lma,lmb_p,lmk_p)
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 + int_2 - int_3 - int_4)
-                    IntPoint(lma,lmb_p,i) = RadPart*(int_1 + int_2 + int_3 + int_4)
+                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 + int_2 - int_3 - int_4)
+                    IntPoint(lma,lmb_p,i) = fact_2*RadPart*(int_1 + int_2 + int_3 + int_4)
                   end if
                 end do
               else
@@ -220,19 +264,22 @@ module FieldIntegrals
                   int_3 = AngPart(lma,lmb,lmk_p)
                   int_4 = AngPart(lma_p,lmb,lmk_p)
                   if (mb.eq.lb) then
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2 + int_3 - int_4)
-                    IntPoint(lma_p,lmb,i) = RadPart*(int_1 + int_2 + int_3 + int_4)
+                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2 + int_3 - int_4)
+                    IntPoint(lma_p,lmb,i) = fact_2*RadPart*(int_1 + int_2 + int_3 + int_4)
                   else
                     lmb_p = lb**2 - mb + 1
                     int_5 = AngPart(lma,lmb_p,lmk)
                     int_6 = AngPart(lma_p,lmb_p,lmk)
                     int_7 = AngPart(lma,lmb_p,lmk_p)
                     int_8 = AngPart(lma_p,lmb_p,lmk_p)
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
-                    IntPoint(lma_p,lmb,i) = RadPart*(int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
+                    fact_3 = fact_1*fact_1
+                    fact_4 = fact_2*fact_1
+                    fact_5 = fact_2*fact_2
+                    IntPoint(lma,lmb,i) = fact_3*RadPart*(int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
+                    IntPoint(lma_p,lmb,i) = fact_4*RadPart*(int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
                      
-                    IntPoint(lma,lmb_p,i) = RadPart*(int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
-                    IntPoint(lma_p,lmb_p,i) = RadPart*(int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
+                    IntPoint(lma,lmb_p,i) = fact_4*RadPart*(int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
+                    IntPoint(lma_p,lmb_p,i) = fact_5*RadPart*(int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                   end if
                 end do
               end if
@@ -241,11 +288,11 @@ module FieldIntegrals
         end do
       end do
 
-    case('X')
+    case('Y')
 
       lmk = 1
       lmk_p = 3
-      pre_fact = sqrt(2*pi/3)
+      pre_fact = fact_1*sqrt(4*pi/3)
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
@@ -263,8 +310,8 @@ module FieldIntegrals
                     lmb_p = lb**2 - mb + 1
                     int_3 = AngPart(lma,lmb_p,lmk)
                     int_4 = AngPart(lma,lmb_p,lmk_p)
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2 - int_3 + int_4)
-                    IntPoint(lma,lmb_p,i) = RadPart*(int_1 - int_2 + int_3 - int_4)
+                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2 - int_3 + int_4)
+                    IntPoint(lma,lmb_p,i) = fact_2*RadPart*(int_1 - int_2 + int_3 - int_4)
                   end if
                 end do
               else
@@ -276,19 +323,23 @@ module FieldIntegrals
                   int_3 = AngPart(lma,lmb,lmk_p)
                   int_4 = AngPart(lma_p,lmb,lmk_p)
                   if (mb.eq.lb) then
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2 - int_3 + int_4)
-                    IntPoint(lma_p,lmb,i) = RadPart*(int_1 + int_2 - int_3 - int_4)
+                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2 - int_3 + int_4)
+                    IntPoint(lma_p,lmb,i) = fact_2*RadPart*(int_1 + int_2 - int_3 - int_4)
                   else
                     lmb_p = lb**2 - mb + 1
                     int_5 = AngPart(lma,lmb_p,lmk)
                     int_6 = AngPart(lma_p,lmb_p,lmk)
                     int_7 = AngPart(lma,lmb_p,lmk_p)
                     int_8 = AngPart(lma_p,lmb_p,lmk_p)
-                    IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
-                    IntPoint(lma_p,lmb,i) = RadPart*(int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                    fact_3 = fact_1*fact_1
+                    fact_4 = fact_2*fact_1
+                    fact_5 = fact_2*fact_2
+
+                    IntPoint(lma,lmb,i) = fact_3*RadPart*(int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
+                    IntPoint(lma_p,lmb,i) = fact_4*RadPart*(int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
                      
-                    IntPoint(lma,lmb_p,i) = RadPart*(int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
-                    IntPoint(lma_p,lmb_p,i) = RadPart*(int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                    IntPoint(lma,lmb_p,i) = fact_4*RadPart*(int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
+                    IntPoint(lma_p,lmb_p,i) = fact_5*RadPart*(int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
                   end if
                 end do
               end if
@@ -335,7 +386,7 @@ module FieldIntegrals
             do lb=1,n_l
               do mb = 1, 2*lb-1
                 lmb = (lb-1)**2 + mb
-                write(78,'(5i4,f15.8)') la, ma, lb, mb, i, real(PrimFieldInts(lma,lmb,i,iField))
+!               write(78,'(5i4,f15.8)') la, ma, lb, mb, i, real(PrimFieldInts(lma,lmb,i,iField))
               end do
             end do
           end do
@@ -350,18 +401,19 @@ module FieldIntegrals
           do mb = 1, 2*lb-1
             lmb = (lb-1)**2 + mb
             do na = 1, orb%n_max - (la-1)
-            !do na = 1, orb%n_max 
               do i = 1, para%ng
                 inter_int(i) = eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)
-!               if(abs(PrimPointInts(lma,lmb,i)).gt.1e-12) then
-                if(abs(PrimFieldInts(lma,lmb,i,iField)).gt.1e-12) then
-                    write(77,'(5i4, 3f15.8)') la, ma, lb, mb, i, eigen_vecs(i,na,la), real(PrimPointInts(lma,lmb,i)), inter_int(i)
+                if(abs(PrimPointInts(lma,lmb,i)).gt.1e-12) then
+!                   write(77,'(5i4, 3f15.8)') la, ma, lb, mb, i, eigen_vecs(i,na,la), real(PrimPointInts(lma,lmb,i)), inter_int(i)
                 end if
               end do
               do nb = 1, orb%n_max - (lb-1) 
                 int_val = 0.0d0
                 do i = 1, para%ng
-                  int_val = inter_int(i)*eigen_vecs(i,nb,lb)
+                  int_val = int_val + inter_int(i)*eigen_vecs(i,nb,lb)
+                  if (abs(inter_int(i).gt.1e-12)) then
+!                   write(78,'(7i4, 3f15.8)') na, la, ma, nb, lb, mb, i, inter_int(i), eigen_vecs(i, nb, lb), int_val
+                  end if
                 end do
                 ind_1 = SpatialOrbInd(na, la, ma) 
                 ind_2 = SpatialOrbInd(nb, lb, mb)
@@ -428,10 +480,11 @@ module FieldIntegrals
     do i = 1, norbs
       i_n = i + nFrozen
       do j = 1, i
+!     do j = 1, norbs
         j_n = j + nFrozen
         int_value = PointInts(i_n,j_n)
         if (abs(int_value).gt.tol) &
-        & write(f_int, 1005) int_value, i, j, 0, 0
+        & write(f_int, 1005) real(int_value), i, j, 0, 0
       end do 
     end do
 

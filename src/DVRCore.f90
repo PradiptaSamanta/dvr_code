@@ -30,22 +30,34 @@ subroutine DVRCore()
   ! Initializing the FE-DVR basis
   call SetDVR()
 
+  ! Doing the Diagonalization, i.e. solving the radial Schroedinger equation
+  ! If the option 'dvr_diag' is not true, then it reads the eigenvalues and 
+  ! eigenvectors from the dat files
   if (dvr_diag) then
     call DVRDiagonalization()
   else 
     call ReadEigValVec()
   end if
 
+  ! Now the integrals are calculated in the primitive DVR basis. 
+  ! The radial and angular part of this integrals are calculate separately. 
+  ! Radial parts corresponding to both one and two electron integral are calculated.
+  !The angular only correspond to  the two electron integrals 
   if (dvr_integrals) then
     call GetRadialElements()
     call GetAngularElements()
 !   call CombineIntegrals()
   endif
 
+  ! Combine the 1-e and 2-e, radial and angular parts of integrals, calculated in the
+  ! primitive basis to get the integrals in the eigenbasis as obtained from solving 
+  ! the radial Schroedinger equation.
   if (orbital_ints) then
     call GetOrbInts()
   end if
 
+  ! If any external field is applied, corresponding integrals will be requiered and 
+  ! these integrals are calculated here
   if (with_field) then
     call CalcFieldInts()
   end if 
