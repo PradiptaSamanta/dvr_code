@@ -19,7 +19,7 @@ module constants
   real(dp), parameter :: INFINITY = huge(1.0_dp)
 
   ! named real numbers
-  real(idp), parameter :: zero  = 0.0_idp, one = 1.0_idp, two = 2.0_idp
+  real(idp), parameter :: zero  = 0.0_idp, one = 1.0_idp, two = 2.0_idp, m_one = -1.0_idp
   real(idp), parameter :: eight = 8.0_idp
   real(idp), parameter :: half  = 0.5_idp, quart = 0.25_idp
   real(idp), parameter :: three = 3.0_idp, four = 4.0_idp
