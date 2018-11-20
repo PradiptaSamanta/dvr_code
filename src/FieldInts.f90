@@ -112,8 +112,8 @@ module FieldIntegrals
     !fact_2 = (val_1, 0.0d0)
     fact_2 = ( 0.0d0, val_1)
 
-    real_func = .true.
-!   real_func = .false.
+!   real_func = .true.
+    real_func = .false.
 
     n_l = para%l + 1
 
@@ -161,8 +161,8 @@ module FieldIntegrals
                   lmk_p = 3
                   part_1 = wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)
                   part_2 = wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, -1.0d0*mk_flt)
-                  AngPart(lma,lmb, lmk) = pre_fact(la,lb)*fact_2*(part_1 - part_2)
-                  AngPart(lma,lmb, lmk_p) = pre_fact(la,lb)*fact_1*(part_1 + part_2)
+                  AngPart(lma,lmb, lmk) = pre_fact(la,lb)*fact_2*(part_1 + part_2)
+                  AngPart(lma,lmb, lmk_p) = pre_fact(la,lb)*fact_1*(part_1 - part_2)
                 end if
               end do
             end do
@@ -186,11 +186,11 @@ module FieldIntegrals
               la_flt = float(la-1)
               n_ma = 2*la-1
               ma_init = -1*la
-              do ma = 1, n_ma 
+              do ma = 1, n_ma
                 ma_flt = dfloat(ma_init + ma)
                 lma = (la-1)**2 + ma
      
-                AngPart(lma,lmb, lmk) = wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, mk_flt, mb_flt)*pre_fact(la,lb)
+                AngPart(lma,lmb, lmk) = m_one**ma_flt * wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, mk_flt, mb_flt)*pre_fact(la,lb)
 !               AngPart(lma,lmb, lmk) = wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)*pre_fact(la,lb)
      
 !               if (abs(AngPart(lma,lmb,lmk)).gt.1e-12) write(78,'(3i4,2f15.8)') lma, lmb, lmk, AngPart(lma,lmb,lmk)
@@ -212,16 +212,16 @@ module FieldIntegrals
     integer, intent(in)  :: iField
 
     complex(idp), pointer :: IntPoint(:,:,:)
-    integer :: i, n_l, la, lb, lma, lmb, ma, mb, lmk, lmk_p, lma_p, lmb_p
+    integer :: i, n_l, la, lb, lma, lmb, ma, mb, m1, m2, lmk, lmk_p, lma_p, lmb_p
     complex(idp) :: RadPart, pre_fact
     real(idp), parameter :: val_1 = (1.0d0*sqrt_half)
     real(idp), parameter :: val_2 = (1.0d0*sqrt_half)
     complex(idp) :: int_1, int_2, int_3, int_4, int_5, int_6, int_7, int_8
-    complex(idp) :: fact_1, fact_2, fact_3, fact_4, fact_5
+    complex(idp) :: prim_fac_1, prim_fac_2, fac_1, fac_2, fac_3, fac_4
+    real(idp) :: msign_1, msign_2, msign_3
 
-    fact_1 = (val_1,0.0d0)
-    !fact_2 = (val_1, 0.0d0)
-    fact_2 = ( 0.0d0, val_1)
+    prim_fac_1= dcmplx(0.0d0, val_1)
+    prim_fac_2= dcmplx(val_1, 0.0d0)
 
     IntPoint =>  PrimFieldInts(:,:,:,iField)
 
@@ -246,31 +246,43 @@ module FieldIntegrals
                     IntPoint(lma,lmb,i) = RadPart*int_1
                   else
                     lmb_p = lb**2 - mb + 1
-                    int_2 = AngPart(lma,lmb_p,lmk)
-                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2)
-                    IntPoint(lma,lmb_p,i) = fact_2*RadPart*(int_1 + int_2)
+                    m2 = -1*lb + mb
+                    msign_1 = m_one**m2
+                    int_2 = msign_1 * AngPart(lma,lmb_p,lmk)
+                    fac_1 = prim_fac_1
+                    fac_2 = prim_fac_2
+                    IntPoint(lma,lmb  ,i) = fac_1*RadPart*(int_1 - int_2)
+                    IntPoint(lma,lmb_p,i) = fac_2*RadPart*(int_1 + int_2)
                   end if
                 end do
               else
                 lma_p = la**2 - ma + 1
+                m1 = -1*la + ma
+                msign_1 = m_one**m1
                 do mb = 1, lb
                   lmb = (lb-1)**2 + mb
-                  int_1 = AngPart(lma,lmb,lmk)
-                  int_2 = AngPart(lma_p,lmb,lmk)
+                  int_1 =           AngPart(lma,lmb,lmk)
+                  int_2 = msign_1 * AngPart(lma_p,lmb,lmk)
                   if (mb.eq.lb) then
-                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2)
-                    IntPoint(lma_p,lmb,i) = fact_2*RadPart*(int_1 + int_2)
+                    fac_1 = dconjg(prim_fac_1)
+                    fac_2 = dconjg(prim_fac_2)
+                    IntPoint(lma  ,lmb,i) = fac_1*RadPart*(int_1 - int_2)
+                    IntPoint(lma_p,lmb,i) = fac_2*RadPart*(int_1 + int_2)
                   else
-                    fact_3 = fact_1*fact_1
-                    fact_4 = fact_2*fact_1
-                    fact_5 = fact_2*fact_2
                     lmb_p = lb**2 - mb + 1
-                    int_3 = AngPart(lma,lmb_p,lmk)
-                    int_4 = AngPart(lma_p,lmb_p,lmk)
-                    IntPoint(lma,lmb,i) = fact_3*RadPart*(int_1 - int_2 - int_3 + int_4)
-                    IntPoint(lma_p,lmb,i) = fact_4*RadPart*(int_1 + int_2 - int_3 - int_4)
-                    IntPoint(lma,lmb_p,i) = fact_4*RadPart*(int_1 - int_2 + int_3 - int_4)
-                    IntPoint(lma_p,lmb_p,i) = fact_5*RadPart*(int_1 + int_2 + int_3 + int_4)
+                    m2 = -1*lb + mb
+                    msign_2 = m_one**(      m2 )
+                    msign_3 = m_one**( m1 + m2 )
+                    fac_1 = dconjg(prim_fac_1)*prim_fac_1
+                    fac_2 = dconjg(prim_fac_2)*prim_fac_1
+                    fac_3 = dconjg(prim_fac_1)*prim_fac_2
+                    fac_4 = dconjg(prim_fac_2)*prim_fac_2
+                    int_3 = msign_2 * AngPart(lma  ,lmb_p,lmk)
+                    int_4 = msign_3 * AngPart(lma_p,lmb_p,lmk)
+                    IntPoint(lma  ,lmb  ,i) = fac_1*RadPart*(int_1 - int_2 - int_3 + int_4)
+                    IntPoint(lma_p,lmb  ,i) = fac_2*RadPart*(int_1 + int_2 - int_3 - int_4)
+                    IntPoint(lma  ,lmb_p,i) = fac_3*RadPart*(int_1 - int_2 + int_3 - int_4)
+                    IntPoint(lma_p,lmb_p,i) = fac_4*RadPart*(int_1 + int_2 + int_3 + int_4)
 !                   write(81, '(2i4, 6f15.8)') lma, lmb, real(int_1), real(int_2), real(int_3), real(int_4), real(IntPoint(lma_p,lmb,i)), real(IntPoint(lma,lmb_p,i))
                   end if
                 end do
@@ -280,12 +292,11 @@ module FieldIntegrals
         end do
       end do
 
-    case('X')
+    case('Y')
 
       lmk = 1
       lmk_p = 3
-      pre_fact = fact_2*sqrt(4*pi/3)
-      write(*,*) real(pre_fact), aimag(pre_fact)
+      pre_fact = prim_fac_1*sqrt(4*pi/3)
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
@@ -301,37 +312,48 @@ module FieldIntegrals
                     IntPoint(lma,lmb,i) = RadPart*(int_1 + int_2)
                   else
                     lmb_p = lb**2 - mb + 1
-                    int_3 = AngPart(lma,lmb_p,lmk)
-                    int_4 = AngPart(lma,lmb_p,lmk_p)
-                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 + int_2 - int_3 - int_4)
-                    IntPoint(lma,lmb_p,i) = fact_2*RadPart*(int_1 + int_2 + int_3 + int_4)
+                    m2 = -1*lb + mb
+                    msign_1 = m_one**m2
+                    fac_1 = prim_fac_1
+                    fac_2 = prim_fac_2
+                    int_3 = msign_1 * AngPart(lma,lmb_p,lmk  )
+                    int_4 = msign_1 * AngPart(lma,lmb_p,lmk_p)
+                    IntPoint(lma,lmb  ,i) = fac_1*RadPart*(int_1 + int_2 - int_3 - int_4)
+                    IntPoint(lma,lmb_p,i) = fac_2*RadPart*(int_1 + int_2 + int_3 + int_4)
                   end if
                 end do
               else
                 lma_p = la**2 - ma + 1
+                m1 = -1*la + ma
+                msign_1 = m_one**m1
                 do mb = 1, lb
                   lmb = (lb-1)**2 + mb
-                  int_1 = AngPart(lma,lmb,lmk)
-                  int_2 = AngPart(lma_p,lmb,lmk)
-                  int_3 = AngPart(lma,lmb,lmk_p)
-                  int_4 = AngPart(lma_p,lmb,lmk_p)
+                  int_1 =           AngPart(lma  ,lmb,lmk  )
+                  int_2 = msign_1 * AngPart(lma_p,lmb,lmk  )
+                  int_3 =           AngPart(lma  ,lmb,lmk_p)
+                  int_4 = msign_1 * AngPart(lma_p,lmb,lmk_p)
                   if (mb.eq.lb) then
-                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2 + int_3 - int_4)
-                    IntPoint(lma_p,lmb,i) = fact_2*RadPart*(int_1 + int_2 + int_3 + int_4)
+                    fac_1 = dconjg(prim_fac_1)
+                    fac_2 = dconjg(prim_fac_2)
+                    IntPoint(lma  ,lmb,i) = fac_1*RadPart*(int_1 - int_2 + int_3 - int_4)
+                    IntPoint(lma_p,lmb,i) = fac_2*RadPart*(int_1 + int_2 + int_3 + int_4)
                   else
                     lmb_p = lb**2 - mb + 1
-                    int_5 = AngPart(lma,lmb_p,lmk)
-                    int_6 = AngPart(lma_p,lmb_p,lmk)
-                    int_7 = AngPart(lma,lmb_p,lmk_p)
-                    int_8 = AngPart(lma_p,lmb_p,lmk_p)
-                    fact_3 = fact_1*fact_1
-                    fact_4 = fact_2*fact_1
-                    fact_5 = fact_2*fact_2
-                    IntPoint(lma,lmb,i) = fact_3*RadPart*(int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
-                    IntPoint(lma_p,lmb,i) = fact_4*RadPart*(int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
-                     
-                    IntPoint(lma,lmb_p,i) = fact_4*RadPart*(int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
-                    IntPoint(lma_p,lmb_p,i) = fact_5*RadPart*(int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
+                    m2 = -1*lb + mb
+                    msign_2 = m_one**(      m2 )
+                    msign_3 = m_one**( m1 + m2 )
+                    int_5 = msign_2 * AngPart(lma  ,lmb_p,lmk  )
+                    int_6 = msign_3 * AngPart(lma_p,lmb_p,lmk  )
+                    int_7 = msign_2 * AngPart(lma  ,lmb_p,lmk_p)
+                    int_8 = msign_3 * AngPart(lma_p,lmb_p,lmk_p)
+                    fac_1 = dconjg(prim_fac_1)*prim_fac_1
+                    fac_2 = dconjg(prim_fac_2)*prim_fac_1
+                    fac_3 = dconjg(prim_fac_1)*prim_fac_2
+                    fac_4 = dconjg(prim_fac_2)*prim_fac_2
+                    IntPoint(lma  ,lmb  ,i) = fac_1*RadPart*(int_1 - int_2 + int_3 - int_4 - int_5 + int_6 - int_7 + int_8)
+                    IntPoint(lma_p,lmb  ,i) = fac_2*RadPart*(int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
+                    IntPoint(lma  ,lmb_p,i) = fac_3*RadPart*(int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
+                    IntPoint(lma_p,lmb_p,i) = fac_4*RadPart*(int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                     if (abs(IntPoint(lma_p,lmb_p,i)).gt.0.0d0) write(iout, '(a,2i5,f15.8)') ' WARNING: complex integrals for DIPX', lma_p, lmb_p, aimag(IntPoint(lma_p,lmb_p,i))
                     if (abs(IntPoint(lma_p,lmb_p,i)).gt.0.0d0) then
                         write(95,'(8f15.8)') real(int_1), real(int_2), real(int_3), real(int_4), real(int_5), real(int_6), real(int_7), real(int_8)
@@ -344,11 +366,11 @@ module FieldIntegrals
         end do
       end do
 
-    case('Y')
+    case('X')
 
       lmk = 1
       lmk_p = 3
-      pre_fact = fact_1*sqrt(4*pi/3)
+      pre_fact = prim_fac_2*sqrt(4*pi/3)
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
@@ -364,42 +386,53 @@ module FieldIntegrals
                     IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2)
                   else
                     lmb_p = lb**2 - mb + 1
-                    int_3 = AngPart(lma,lmb_p,lmk)
-                    int_4 = AngPart(lma,lmb_p,lmk_p)
-                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2 - int_3 + int_4)
-                    IntPoint(lma,lmb_p,i) = fact_2*RadPart*(int_1 - int_2 + int_3 - int_4)
+                    m2 = -1*lb + mb
+                    msign_1 = m_one**m2
+                    fac_1 = prim_fac_1
+                    fac_2 = prim_fac_2
+                    int_3 = msign_1 * AngPart(lma,lmb_p,lmk)
+                    int_4 = msign_1 * AngPart(lma,lmb_p,lmk_p)
+                    IntPoint(lma,lmb  ,i) = fac_1*RadPart*(int_1 - int_2 - int_3 + int_4)
+                    IntPoint(lma,lmb_p,i) = fac_2*RadPart*(int_1 - int_2 + int_3 - int_4)
                     if (abs(IntPoint(lma,lmb_p,i)).gt.0.0d0) write(iout, '(a,2i5,f15.8)') 'WARNING: complex integrals for DIPY', lma,lmb_p,aimag(IntPoint(lma,lmb_p,i))
                   end if
                 end do
               else
                 lma_p = la**2 - ma + 1
+                m1 = -1*la + ma
+                msign_1 = m_one**m1
                 do mb = 1, lb
                   lmb = (lb-1)**2 + mb
-                  int_1 = AngPart(lma,lmb,lmk)
-                  int_2 = AngPart(lma_p,lmb,lmk)
-                  int_3 = AngPart(lma,lmb,lmk_p)
-                  int_4 = AngPart(lma_p,lmb,lmk_p)
+                  int_1 =           AngPart(lma  ,lmb,lmk  )
+                  int_2 = msign_1 * AngPart(lma_p,lmb,lmk  )
+                  int_3 =           AngPart(lma  ,lmb,lmk_p)
+                  int_4 = msign_1 * AngPart(lma_p,lmb,lmk_p)
                   if (mb.eq.lb) then
-                    IntPoint(lma,lmb,i) = fact_1*RadPart*(int_1 - int_2 - int_3 + int_4)
-                    IntPoint(lma_p,lmb,i) = fact_2*RadPart*(int_1 + int_2 - int_3 - int_4)
+                    fac_1 = dconjg(prim_fac_1)
+                    fac_2 = dconjg(prim_fac_2)
+                    IntPoint(lma  ,lmb,i) = fac_1*RadPart*(int_1 - int_2 - int_3 + int_4)
+                    IntPoint(lma_p,lmb,i) = fac_2*RadPart*(int_1 + int_2 - int_3 - int_4)
                     if (abs(IntPoint(lma_p,lmb,i)).gt.0.0d0) write(iout, '(a,2i5,f15.8)') 'WARNING: complex integrals for DIPY', lma_p,lmb,aimag(IntPoint(lma_p,lmb,i))
                   else
                     lmb_p = lb**2 - mb + 1
-                    int_5 = AngPart(lma,lmb_p,lmk)
-                    int_6 = AngPart(lma_p,lmb_p,lmk)
-                    int_7 = AngPart(lma,lmb_p,lmk_p)
-                    int_8 = AngPart(lma_p,lmb_p,lmk_p)
-                    fact_3 = fact_1*fact_1
-                    fact_4 = fact_2*fact_1
-                    fact_5 = fact_2*fact_2
+                    m2 = -1*lb + mb
+                    msign_2 = m_one**(      m2 )
+                    msign_3 = m_one**( m1 + m2 )
+                    int_5 = msign_2 * AngPart(lma  ,lmb_p,lmk  )
+                    int_6 = msign_3 * AngPart(lma_p,lmb_p,lmk  )
+                    int_7 = msign_2 * AngPart(lma  ,lmb_p,lmk_p)
+                    int_8 = msign_3 * AngPart(lma_p,lmb_p,lmk_p)
 
-                    IntPoint(lma,lmb,i) = fact_3*RadPart*(int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
-                    IntPoint(lma_p,lmb,i) = fact_4*RadPart*(int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
-                     
-                    IntPoint(lma,lmb_p,i) = fact_4*RadPart*(int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
+                    fac_1 = dconjg(prim_fac_1)*prim_fac_1
+                    fac_2 = dconjg(prim_fac_2)*prim_fac_1
+                    fac_3 = dconjg(prim_fac_1)*prim_fac_2
+                    fac_4 = dconjg(prim_fac_2)*prim_fac_2
+                    IntPoint(lma  ,lmb  ,i) = fac_1*RadPart*(int_1 - int_2 - int_3 + int_4 - int_5 + int_6 + int_7 - int_8)
+                    IntPoint(lma_p,lmb  ,i) = fac_2*RadPart*(int_1 + int_2 - int_3 - int_4 - int_5 - int_6 + int_7 + int_8)
+                    IntPoint(lma  ,lmb_p,i) = fac_3*RadPart*(int_1 - int_2 - int_3 + int_4 + int_5 - int_6 - int_7 + int_8)
                     if (abs(IntPoint(lma,lmb_p,i)).gt.0.0d0) write(iout, '(a,2i5,f15.8)') 'WARNING: complex integrals for DIPY', lma,lmb_p,aimag(IntPoint(lma,lmb_p,i))
                     if (abs(IntPoint(lma_p,lmb,i)).gt.0.0d0) write(iout, '(a,2i5,f15.8)') 'WARNING: complex integrals for DIPY', lma_p,lmb,aimag(IntPoint(lma_p,lmb,i))
-                    IntPoint(lma_p,lmb_p,i) = fact_5*RadPart*(int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
+                    IntPoint(lma_p,lmb_p,i) = fac_4*RadPart*(int_1 + int_2 - int_3 - int_4 + int_5 + int_6 - int_7 - int_8)
                   end if
                 end do
               end if
@@ -543,10 +576,10 @@ module FieldIntegrals
 !     do j = 1, norbs
         j_n = j + nFrozen
         int_value = PointInts(i_n,j_n)
-!       if (abs(int_value).gt.tol) &
-!       & write(f_int, 1005) real(int_value), i, j, 0, 0
         if (abs(int_value).gt.tol) &
-        write(f_int, 1006) i, j, real(int_value), aimag(int_value)
+        & write(f_int, 1005) real(int_value), i, j, 0, 0
+!       if (abs(int_value).gt.tol) &
+!       write(f_int, 1006) i, j, real(int_value), aimag(int_value)
       end do 
     end do
 

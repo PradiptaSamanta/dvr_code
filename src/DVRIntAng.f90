@@ -284,8 +284,8 @@ module DVRIntAng
                         int_value = int_value +                                &
                   &     m_sign * pre_fact_prod  * w_symb_abcd * w_symb_abcd_q
                         integrals(k, lma, lmb, lmc, lmd) = int_value
-                        if (lma.eq.1.and.lmb.eq.4.and.lmc.eq.1.and.lmd.eq.4) &
-                        &   write(80,'(i4,4f15.8)') m_sign, pre_fact_prod, w_symb_abcd, w_symb_abcd_q, real(int_value)
+!                       if (lma.eq.1.and.lmb.eq.4.and.lmc.eq.1.and.lmd.eq.4) &
+!                       &   write(80,'(i4,4f15.8)') m_sign, pre_fact_prod, w_symb_abcd, w_symb_abcd_q, real(int_value)
                       end do
 !                     end do
                     end if
@@ -327,8 +327,8 @@ module DVRIntAng
     dim_l = n_l**2
     dim_mp = n_mp**2
 
-    prim_fac_2 = (0.0d0, val_1)
-    prim_fac_1 = (val_1,0.0d0)
+    prim_fac_1 = (0.0d0, val_1)
+    prim_fac_2 = (val_1,0.0d0)
     !prim_fac_2 = (val_1, 0.0d0)
 
     do k = 1, n_mp
@@ -359,7 +359,7 @@ module DVRIntAng
                               integrals(k, lm1, lm2, lm3, lm4) = int_1
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_1 = m_one**md
                               int_2 = msign_1 * integrals_prim(k, lm1, lm2, lm3, lm4_p)
                               fac_1 = prim_fac_1
@@ -371,7 +371,7 @@ module DVRIntAng
                         else
 !                         lm2_p =  (l2-1)**2 + m2+l2
                           lm2_p = l2**2 - m2 + 1
-                          mb = -1*l2 + m2 - 1
+                          mb = -1*l2 + m2
                           msign_1 = m_one**mb
                           do m4 = 1, n_m4
                             lm4 = (l4-1)**2 + m4
@@ -384,8 +384,8 @@ module DVRIntAng
                               integrals(k, lm1, lm2_p, lm3, lm4) = fac_2 * (int_1 + int_2)
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
-                              msign_2 = m_one**md
+                              md = -1*l4 + m4
+                              msign_2 = m_one**(      md )
                               msign_3 = m_one**( mb + md )
                               int_3 = msign_2 * integrals_prim(k, lm1, lm2  , lm3, lm4_p)
                               int_4 = msign_3 * integrals_prim(k, lm1, lm2_p, lm3, lm4_p)
@@ -393,8 +393,6 @@ module DVRIntAng
                               fac_2 = dconjg(prim_fac_2)*prim_fac_1
                               fac_3 = dconjg(prim_fac_1)*prim_fac_2
                               fac_4 = dconjg(prim_fac_2)*prim_fac_2
-                              mb = -1*l2 + m2 - 1
-                              md = -1*l4 + m4 - 1
                               integrals(k, lm1, lm2  , lm3, lm4  ) = fac_1 * (int_1 - int_2 - int_3 + int_4)
                               integrals(k, lm1, lm2_p, lm3, lm4  ) = fac_2 * (int_1 + int_2 - int_3 - int_4)
                               integrals(k, lm1, lm2  , lm3, lm4_p) = fac_3 * (int_1 - int_2 + int_3 - int_4)
@@ -405,7 +403,7 @@ module DVRIntAng
                       end do
                     else
                       lm3_p = l3**2 - m3 + 1
-                      mc = -1*l3 + m3 - 1
+                      mc = -1*l3 + m3
                       msign_1 = m_one**mc
                       do m2 = 1, n_m2
                         lm2 = (l2-1)**2 + m2
@@ -423,7 +421,7 @@ module DVRIntAng
                               integrals(k, lm1, lm2, lm3_p, lm4) = fac_2 * (int_1 + int_2)
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_2 = m_one**(      md )
                               msign_3 = m_one**( mc + md )
                               int_3 = msign_2 * integrals_prim(k, lm1, lm2, lm3  , lm4_p)
@@ -435,12 +433,12 @@ module DVRIntAng
                               integrals(k, lm1, lm2, lm3_p, lm4  ) = fac_2 * (int_1 + int_2 - int_3 - int_4)
                               integrals(k, lm1, lm2, lm3  , lm4_p) = fac_2 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1, lm2, lm3_p, lm4_p) = fac_3 * (int_1 + int_2 + int_3 + int_4)
-                              write(91,'(4i4,3x,5f15.8)') lm1, lm2, lm3_p, lm4_p, real(int_1), real(int_2), real(int_3), real(int_4), real(integrals(k, lm1, lm2, lm3_p, lm4_p))
+!                             write(91,'(4i4,3x,5f15.8)') lm1, lm2, lm3_p, lm4_p, real(int_1), real(int_2), real(int_3), real(int_4), real(integrals(k, lm1, lm2, lm3_p, lm4_p))
                             end if
                           end do
                         else
                           lm2_p = l2**2 - m2 + 1
-                          mb = -1*l2 + m2 - 1
+                          mb = -1*l2 + m2
                           msign_2 = m_one**( mb      )
                           msign_3 = m_one**( mb + mc )
                           do m4 = 1, n_m4
@@ -460,7 +458,7 @@ module DVRIntAng
                               integrals(k, lm1, lm2_p, lm3_p, lm4) = fac_4*(int_1 + int_2 + int_3 + int_4)
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_4 = m_one**( md           )
                               msign_5 = m_one**( mb + md      )
                               msign_6 = m_one**( mc + md      )
@@ -493,7 +491,7 @@ module DVRIntAng
                   end do
                 else
                   lm1_p = l1**2 - m1 + 1
-                  ma = -1*l1 + m1 - 1
+                  ma = -1*l1 + m1
                   msign_1 = m_one**ma
                   do m3 = 1, n_m3
                     lm3 = (l3-1)**2 + m3
@@ -514,7 +512,7 @@ module DVRIntAng
                               integrals(k, lm1_p, lm2, lm3, lm4) = fac_2 * (int_1 + int_2)
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_2 = m_one**( md      )
                               msign_3 = m_one**( ma + md )
                               int_3 = msign_2 * integrals_prim(k, lm1  , lm2, lm3, lm4_p)
@@ -531,7 +529,7 @@ module DVRIntAng
                           end do
                         else
                           lm2_p = l2**2 - m2 + 1
-                          mb = -1*l2 + m2 - 1
+                          mb = -1*l2 + m2
                           msign_2 = m_one**(      mb )
                           msign_3 = m_one**( ma + mb )
                           do m4 = 1, n_m4
@@ -551,7 +549,7 @@ module DVRIntAng
                               integrals(k, lm1_p, lm2_p, lm3, lm4) = fac_4 * (int_1 + int_2 + int_3 + int_4)
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_4 = m_one**(           md )
                               msign_5 = m_one**( ma      + md )
                               msign_6 = m_one**(      mb + md )
@@ -582,7 +580,7 @@ module DVRIntAng
                       end do
                     else
                       lm3_p = l3**2 - m3 + 1
-                      mc = -1*l3 + m3 - 1
+                      mc = -1*l3 + m3
                       msign_2 = m_one**(      mc )
                       msign_3 = m_one**( ma + mc )
                       do m2 = 1, n_m2
@@ -605,11 +603,11 @@ module DVRIntAng
                               integrals(k, lm1_p, lm2, lm3  , lm4) = fac_2 * (int_1 + int_2 - int_3 - int_4) 
                               integrals(k, lm1  , lm2, lm3_p, lm4) = fac_3 * (int_1 - int_2 + int_3 - int_4)
                               integrals(k, lm1_p, lm2, lm3_p, lm4) = fac_4 * (int_1 + int_2 + int_3 + int_4)
-                              write(92,'(4i4,3x,5f15.8)') lm1_p, lm2, lm3_p, lm4, real(int_1), real(int_2), real(int_3), real(int_4), real(integrals(k, lm1_p, lm2, lm3_p, lm4))
-                              write(93,'(4i4,3x,5f15.8)') lm1, lm2, lm3, lm4, real(int_1), real(int_2), real(int_3), real(int_4), real(integrals(k, lm1, lm2, lm3, lm4))
+!                             write(92,'(4i4,3x,5f15.8)') lm1_p, lm2, lm3_p, lm4, real(int_1), real(int_2), real(int_3), real(int_4), real(integrals(k, lm1_p, lm2, lm3_p, lm4))
+!                             write(93,'(4i4,3x,5f15.8)') lm1, lm2, lm3, lm4, real(int_1), real(int_2), real(int_3), real(int_4), real(integrals(k, lm1, lm2, lm3, lm4))
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_4 = m_one**(           md )
                               msign_5 = m_one**( ma      + md )
                               msign_6 = m_one**(      mc + md )
@@ -638,7 +636,7 @@ module DVRIntAng
                           end do
                         else
                           lm2_p = l2**2 - m2 + 1
-                          mb = -1*l2 + m2 - 1
+                          mb = -1*l2 + m2
                           ! msign_2 = m_one**( mc    )  This is defined above
                           ! msign_3 = m_one**( ma + mc ) This is defined above
                           msign_4 = m_one**(      mb      )
@@ -674,7 +672,7 @@ module DVRIntAng
                               integrals(k, lm1_p, lm2_p, lm3_p, lm4) = fac_8 * (int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
                             else
                               lm4_p = l4**2 - m4 + 1
-                              md = -1*l4 + m4 - 1
+                              md = -1*l4 + m4
                               msign_8  = m_one**(                md )
                               msign_9  = m_one**( ma           + md )
                               msign_10 = m_one**(      mb      + md )
