@@ -953,6 +953,11 @@ module FieldIntegrals
     end do
 
     core = 0.0_dp
+    if (nFrozen.gt.0) then
+      do i = 1, nFrozen
+        core = core + 2.0d0*PointInts(i,i)
+      end do  
+    end if
     write(f_int, 1005) core, 0, 0, 0, 0
 
     1005 format(f20.16,x,5i4)
