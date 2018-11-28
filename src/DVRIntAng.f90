@@ -4,6 +4,7 @@ module DVRIntAng
   use DVRData
   use dvr_diag_mod, only : allocerror
   use angular_utils
+  use util_mod
   use constants
   
   implicit none
