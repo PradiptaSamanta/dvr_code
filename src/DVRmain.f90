@@ -16,7 +16,7 @@ program DVR
 ! write(*,*) myVec(1,1)
 ! write(*,*) myVec(100,4)
 
-  wtime = omp_get_wtime ( )
+!  wtime = omp_get_wtime ( )
 
 ! write ( *, '(a,i8)' ) &
 !   '  The number of processors available = ', omp_get_num_procs ( )
@@ -37,11 +37,11 @@ program DVR
 
 !  Finish up by measuring the elapsed time.
 !
-  wtime = omp_get_wtime ( ) - wtime
+!  wtime = omp_get_wtime ( ) - wtime
 
 !write ( *, '(a)' ) ' '
 !write ( *, '(a)' ) '  Back OUTSIDE the parallel region.'
 !write ( *, '(a)' ) ' '
- write ( *, '(a,g14.6)' ) '  Elapsed wall clock time = ', wtime
+! write ( *, '(a,g14.6)' ) '  Elapsed wall clock time = ', wtime
 
 end program DVR
