@@ -53,6 +53,127 @@ contains
 
   end subroutine get_real_surf_matrix_cardinal
   
+  !! @description: Convert banded storage matrix to full matrix, assuming the
+  !! layout indicated by the combination of `mode`, `kl`, and `ku`.
+  !!
+  !! * `mode='g'` (general matrix) or `mode='t'` (triangular matrix):
+  !!   convert directly, assuming `full(i,j)` is stored in
+  !!   `packed(ku+1+i-j,j)` for `max(1,j-ku) <= i <= min(m, j+kl)
+  !! * `mode='h'` (Hermitian matrix) or `mode='s'` (symmetric matrix):
+  !!   If `kl=0`, assume information in `packed` describes the upper triangle
+  !!   of the matrix. In this case `full(i,j)` is stored in
+  !!   `packed(kd+1+i-j,j)` for `max(1,j-ku) <= i <= j` and `full(j,i)` is
+  !!   either the complex conjugate of `full(i,j)` (`'h'`) or identical to
+  !!   `full(i,j)` (`'s'`).
+  !!   If `ku=0`, assume information in `packed` describes the lower triangle of
+  !!   the matrix. `full(i,j)` is stored in `packed(1+i-j,j)` for
+  !!   `j <= i <= min(n, j+kd)`. Again `full(j,i)` is again completed as
+  !!   Hermitian or symmetric
+  !!
+  !! @param: full              Storage for full matrix. If already allocated,
+  !!                           must be of size $n \times n$.
+  !! @param: banded            Banded data, for input.
+  !! @param: n                 Dimension of full matrix.
+  !! @param: kl                Number of sub-diagonals. Must be 0 for Hermitian
+  !!                           matrices
+  !! @param: ku                Number of super-diagonals
+  subroutine mat_banded_to_full(full, banded, n, kl, ku)
+
+    real(idp), allocatable,    intent(inout) :: full(:,:)
+    real(idp),                 intent(in)    :: banded(1+kl+ku,n)
+    integer,                   intent(in)    :: n
+    integer,                   intent(in)    :: kl
+    integer,                   intent(in)    :: ku
+
+    integer :: i, j, error, kd
+
+    if (allocated(full)) then
+      if ((lbound(full, 1) /= 1) .or.  (ubound(full, 1) /= n) .or.             &
+      &   (lbound(full, 2) /= 1) .or.  (ubound(full, 2) /= n)) then
+        write(*,*) 'ERROR: Full matrix is allocated to the wrong size.'
+      end if
+    else
+      allocate(full(n,n), stat=error)
+      call allocerror(error)
+    end if
+
+    full = czero
+
+    ! See formula in http://www.netlib.org/lapack/lug/node124.html
+    do j = 1, n
+      do i = max(1, j-ku), min(n, j+kl)
+        full(i,j) = full(i,j) + banded(ku+1+i-j,j)
+      end do
+    end do
+
+  end subroutine mat_banded_to_full
+  
+  
+  !! @description: Diagonalize the given real symmetric matrix via a call to the
+  !!               Lapack routine `dsyevd`. The calculated eigenvectors are
+  !!               saved in the columns of the matrix.
+  !! @param: eigen_vecs  Matrix that should be diagonalized, will be replaced
+  !!                     by matrix of eigenvectors
+  !! @param: eigen_vals  Array of eigenvalues of the matrix
+  subroutine diag_matrix(eigen_vecs, eigen_vals)
+
+    real(idp),              intent(inout) :: eigen_vecs(:,:)
+    real(idp), allocatable, intent(inout) :: eigen_vals(:)
+
+    integer :: nn, lwork, liwork, error
+    integer ,  allocatable :: iwork(:)
+    real(idp), allocatable :: work(:)
+
+    nn = size(eigen_vecs(:,1))
+
+    if (allocated(eigen_vals)) deallocate(eigen_vals)
+    allocate(eigen_vals(nn), stat=error)
+    call allocerror(error)
+    allocate (work(1), stat=error)
+    call allocerror(error)
+    allocate (iwork(1), stat=error)
+    call allocerror(error)
+
+    ! Perform workspace query: dsyevd only calculates the optimal sizes of the
+    ! WORK and IWORK arrays, returns these values as the first entries of the
+    ! WORK and IWORK arrays, cf. http://www.netlib.org/lapack/double/dsyevd.f
+    lwork = -1; liwork = -1 ! indicate workspace query should be done
+    call dsyevd('v', 'u', nn, eigen_vecs, nn, eigen_vals,                      &
+    &           work, lwork, iwork, liwork, error)
+    if (error /= 0) then
+      write(*,*) 'ERROR: ' //                                                  &
+      & "Could not calculate optimal sizes for WORK and IWORK arrays!"
+    end if
+
+    ! Now we can re-allocate WORK and IWORK with the optimal size, obtained from
+    ! the first call to dsyevd
+    lwork = work(1)
+    liwork = iwork(1)
+    deallocate(work, iwork)
+    allocate(work(lwork), stat=error)
+    call allocerror(error)
+    allocate(iwork(liwork), stat=error)
+    call allocerror(error)
+
+    ! The second call to dsyevd performs the actual diagonalization
+    call dsyevd('v', 'u', nn, eigen_vecs, nn, eigen_vals,                      &
+    &           work, lwork, iwork, liwork, error)
+
+    ! Check for erroneous exit status of DSYEVD
+    if (error .lt. 0) then
+      write(*,*) 'ERROR: ' //                                                  &
+      &'A variable passed to the DSYEVD routine had an                         &
+      &illegal entry!'
+    elseif (error .gt. 0) then
+      write(*,*) 'ERROR: '//                                                   &
+      &'Routine DSYEVD failed to compute an eigenvalue!'
+    end if
+
+    deallocate(work, iwork)
+
+  end subroutine diag_matrix
+
+  
   !! @description: This subroutine returns the converged approximations to
   !! to the problem $\hat{A}_{red}z = \lambda z$ via a call to the `Arpack`
   !! routines `dsaupd` and `dseupd`.

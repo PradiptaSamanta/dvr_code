@@ -28,7 +28,7 @@ module DVRDiag
     para%Z             = z
     para%mass          = mass
     if (nev_fac.eq.1.0d0) then
-      para%nev = para%nr - 2
+      para%nev = para%nr - 2 
     else
       para%nev           = nint(nev_fac*para%nr)
     end if
@@ -101,10 +101,11 @@ module DVRDiag
   subroutine DVRDiagonalization()
 
     integer                    :: i, j, l, l_val
-    real(dp), allocatable      :: matrix(:,:)
+    real(dp), allocatable      :: matrix(:,:), matrix_full(:,:)
     logical                    :: only_bound ! Only writes out bound states
     real(dp), pointer          :: pot_1(:)
     real(dp), pointer          :: eigenval_p(:)
+    real(dp), allocatable      :: eigen_vals_full(:)
 
     real                       :: start, finish
 
@@ -133,15 +134,39 @@ module DVRDiag
 
       !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
       call get_real_surf_matrix_cardinal(matrix, grid, pot_1, Tkin_cardinal)
+      
+  
+      !! Convert banded matrix to full matrix
+      !! Watch for the para%nr-2, because the end points are not included
+      call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0,               &
+      &                       para%nl)
   
       call cpu_time(start)
 
       !! Diagonalize Hamiltonian matrix which is stored in banded format.
       !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
       !! If needed, just add more
-      call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)), &
-      &                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
-      &                   rvec=.true.)
+      !call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)), &
+      !&                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
+      !&                   rvec=.true.)
+      
+      ! Since the arpack diagonalisation becomes wonky if nev=size(matrix(1,:))
+      ! we will instead perform a full BLAS diagonalisation of the symmetric
+      ! matrix, matrix_full
+      call diag_matrix(matrix_full, eigen_vals_full)
+  
+      ! Now we transfer the eigenvectors from matrix_full to matrix to keep
+      ! the rest of the code intact (since it operates on matrix instead of 
+      ! matrix_full). Note that we need to allocate matrix to have less columns
+      ! than matrix full if para%nev < size(grid%r)
+      deallocate(matrix)
+      allocate(matrix(size(matrix_full(1,:)),para%nev))
+      do i = 1, size(matrix_full(1,:))
+        do j = 1, para%nev
+          matrix(i,j) = matrix_full(i,j)
+          eigenval_p(j) = eigen_vals_full(j)
+        end do
+      end do
   
       call cpu_time(finish)
 
