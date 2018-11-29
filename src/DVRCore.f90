@@ -7,6 +7,7 @@ subroutine DVRCore()
   use DVRIntRad, only : GetRadialElements
   use DVRIntAng, only : GetAngularElements
   use OrbInts, only  : GetOrbInts
+  use PrimOrbInts, only  : GetPrimOrbInts
   use CombineInts, only : CombineIntegrals
   use RadCheck
   use FieldIntegrals
@@ -53,7 +54,11 @@ subroutine DVRCore()
   ! primitive basis to get the integrals in the eigenbasis as obtained from solving 
   ! the radial Schroedinger equation.
   if (orbital_ints) then
-    call GetOrbInts()
+    if (prim_integrals) then
+      call GetPrimOrbInts()
+    else
+      call GetOrbInts()
+    end if
   end if
 
   ! If any external field is applied, corresponding integrals will be requiered and 

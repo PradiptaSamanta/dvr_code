@@ -4,7 +4,7 @@ module ReadInput
   use util_mod, only : get_free_unit, stop_all
   use input_mod
   use InputData
-  use DVRData, only: debug, direct_2e, with_field, nFields, FieldComp
+  use DVRData, only: debug, direct_2e, with_field, nFields, FieldComp, prim_integrals
 
   implicit none
 
@@ -82,6 +82,7 @@ module ReadInput
     dvr_integrals = .false.
     trans_integrals = .false.
     direct_2e = .false.
+    prim_integrals = .false.
 
     n_max = 10
     two_e_int = 1
@@ -197,6 +198,8 @@ module ReadInput
         call geti(two_e_int)
       case("FROZEN")
         call geti(nfrz)
+      case("PRIMITIVES")
+        prim_integrals = .true.
       case("ENDORBITAL")
         exit
       case default
