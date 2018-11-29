@@ -132,6 +132,7 @@ module DVRData
   integer                :: nFields
   logical                :: direct_2e
   logical                :: with_field
+  logical                :: prim_integrals
   character(len=32), allocatable     :: FieldComp(:)
 
 

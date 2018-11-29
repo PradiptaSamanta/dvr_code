@@ -5,16 +5,6 @@ program DVR
 
   integer ( kind = 4 ) id
   real ( kind = 8 ) wtime
-! real, dimension(:,:), allocatable :: myVec
-
-! allocate(myVec(3,2))    
-
-! myVec=1.
-
-! myVec(100,3)=10.
-
-! write(*,*) myVec(1,1)
-! write(*,*) myVec(100,4)
 
 !  wtime = omp_get_wtime ( )
 
