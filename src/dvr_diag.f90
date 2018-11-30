@@ -34,7 +34,17 @@ module DVRDiag
     end if
  
     para%mapped_grid   = mapped_grid
-    para%maptype       = 'diff'
+    if (mapped_grid) then
+      para%maptype = 'diff'
+      if (maptype == 'inner_outer') then
+        para%maptype  = 'inner_outer'
+        para%diagtype = diagtype
+      end if
+    end if
+    para%r_max1        = 5.0
+    para%r_max2        = 30.0
+    para%m1            = 50 
+    para%m2            = 50
     para%read_envelope = ''
     para%beta          = beta
     para%E_max         = 1d-5
@@ -140,6 +150,32 @@ module DVRDiag
       !! Watch for the para%nr-2, because the end points are not included
       call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0,               &
       &                       para%nl)
+
+      if (para%maptype == 'inner_outer') then
+        if (para%diagtype == 'only_inner') then
+          do i = (para%m1 * para%nl) + 1, para%nr-2
+            do j = 1, para%nr-2
+              matrix_full(i,j) = zero
+            end do
+          end do
+          do i = 1, para%nr-2
+            do j = (para%m1 * para%nl) + 1, para%nr-2
+              matrix_full(i,j) = zero
+            end do
+          end do
+        elseif (para%diagtype == 'only_outer') then
+          do i = 1, (para%m1 * para%nl)
+            do j = 1, para%nr-2 
+              matrix_full(i,j) = zero
+            end do
+          end do
+          do i = 1, (para%m1 * para%nl)
+            do j = 1, para%nr-2 
+              matrix_full(i,j) = zero
+            end do
+          end do
+        end if
+      end if
   
       call cpu_time(start)
 

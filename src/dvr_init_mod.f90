@@ -27,18 +27,30 @@ contains
 
     real(idp), allocatable      :: r_env(:), V_env(:), weight(:), jac(:),  &
     &                              X_mapped(:), lobatto(:), weights(:)
-    real(idp)                   :: r_min, r_max, V_dr, min_dr, beta, E_max
-    integer                     :: error, nl, m, l, j, nr_env, th, nr
+    real(idp)                   :: r_min, r_max, V_dr, min_dr, beta, E_max, &
+    &                              r_max1, r_max2
+    integer                     :: error, nl, m, l, j, nr_env, th, nr, m1, m2
     character(len=datline_l)    :: header
     character(len=file_l)       :: read_envelope
     character(len=maptype_l)    :: maptype
     character(len=maptype_l)    :: basis_for_mapping
 
     nr    = para%nr
-    nl    = para%nl
-    m     = para%m
-    r_min = para%r_min
-    r_max = para%r_max
+    if (para%maptype == 'inner_outer') then
+      nl    = para%nl
+      m     = para%m1 + para%m2
+      m1    = para%m1
+      m2    = para%m2
+      r_min = para%r_min
+      r_max = para%r_max2
+      r_max1= para%r_max1
+      r_max2= para%r_max2
+    else
+      nl    = para%nl
+      m     = para%m
+      r_min = para%r_min
+      r_max = para%r_max
+    end if
 
     if (m * nl + 1 .ne. nr) then
       write(*,*) "ERROR: For the GLL grid, nr must equal m * nl + 1"
@@ -83,6 +95,17 @@ contains
         &                      'const')
         call envelope_pot_1d(V_env, r_env, para, 1)
       end if
+     
+      ! Calculate the global weights and GLL points
+      allocate(jac(m), stat = error)
+      call allocerror(error)
+      call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
+      &                       grid%D_primitive)
+      allocate(lobatto(0:nl),stat=error)
+      call allocerror(error)
+      allocate(weights(0:nl),stat=error)
+      call allocerror(error)
+
       ! Map the grid: calculate the coordinates r(:) and the jacobian J(:)
       select case (maptype)
         case('diff')
@@ -96,21 +119,37 @@ contains
           &               V_env, nr, beta, para%mass, E_max,         &
           &               basis_for_mapping)
           deallocate(grid%J)
+        
+        case('inner_outer')
+          allocate(X_mapped(nr), stat=error)
+          call allocerror(error)
+          !We do not need a Jacobian so we simply do not allocate it
+          do l = 1, m1, 1
+            do j = 0, nl-1, 1
+              X_mapped(j + nl * (l - 1) + 1) =                                 &
+              &   grid%gllp(j) * (r_max1 - r_min) / (real(2 * m1,idp))         &
+              &   + r_min + (real(l,idp)- half) * (r_max1 - r_min)             &
+              &                                                   / real(m1,idp)
+            end do
+          end do
+          do l = m1+1, m1+m2, 1
+            do j = 0, nl-1, 1
+              X_mapped(j + nl * (l - 1) + 1) =                                 &
+              &   grid%gllp(j) * (r_max2 - r_max1) / (real(2 * m2,idp))        &
+              &   + r_max1 + (real(l-m1,idp)- half) * (r_max2 - r_max1) /      &
+              &                                                     real(m2,idp)
+            end do
+          end do
+
+          X_mapped(nl * m + 1) =                                               &
+          &   grid%gllp(nl) * (r_max2 - r_max1) / (real(2 * m2,idp))           &
+          &   + r_max1 + (real(m2,idp)- half) * (r_max2 - r_max1) /            &
+          &                                                         real(m2,idp)
 
        case default
          write(*,*) "ERROR: Cannot initialize mapped GLL grid! Unknown maptype."
          stop
       end select
-     
-      ! Calculate the global weights and GLL points
-      allocate(jac(m), stat = error)
-      call allocerror(error)
-      call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
-      &                       grid%D_primitive)
-      allocate(lobatto(0:nl),stat=error)
-      call allocerror(error)
-      allocate(weights(0:nl),stat=error)
-      call allocerror(error)
 
       do j = 0, nl
         lobatto(j) = grid%gllp(j)

@@ -1,8 +1,8 @@
 FC = ifort
 MPIFORT = ifort
-#FFLAGS = -O0 -openmp -g -warn all -check all -debug all -traceback -fpe-all=0 -no-ipo -mkl=sequential
+FFLAGS = -O0 -openmp -g -warn all -check all -debug all -traceback -fpe-all=0 -no-ipo -mkl=sequential
 #FFLAGS = -O2 -openmp -vec-report-0 -par-report-0 -openmp-report-0 -mkl=sequential
-FFLAGS = -O2 -qopenmp -mkl=sequential
+#FFLAGS = -O2 -qopenmp -mkl=sequential
 LIBS = -larpack -lblas
 #PREFIX = /home/users/0001/uk006500/Programming/DVR_Standalone
 PREFIX = `pwd`

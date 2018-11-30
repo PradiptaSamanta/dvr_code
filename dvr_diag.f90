@@ -7,8 +7,8 @@ program dvr_diag
   real(idp), allocatable     :: pot(:)
   type(para_t)               :: para
   type(grid_t)               :: grid
-  real(idp), allocatable     :: eigen_vals(:)
-  real(idp), allocatable     :: matrix(:,:)
+  real(idp), allocatable     :: eigen_vals(:), eigen_vals_full(:)
+  real(idp), allocatable     :: matrix(:,:), matrix_full(:,:)
   real(idp), allocatable     :: Tkin_cardinal(:,:)
   integer                    :: i, j, l_val, ith, jth, a, b
   real(idp)                  :: dr, curr_r, curr_r_prime, integral_val,        &
@@ -30,13 +30,19 @@ program dvr_diag
   para%Z             = 1
   para%mass          = 1.0
 
-  para%mapped_grid   = .false.
-  para%maptype       = 'diff'
+  para%mapped_grid   = .true.
+  para%maptype       = 'inner_outer'
+  para%r_max1        = 5.0
+  para%r_max2        = 30.0
+  para%m1            = 50 
+  para%m2            = 50
   para%read_envelope = ''
   para%beta          = 0.015
   para%E_max         = 1d-5
 
-  only_bound         = .true.
+  para%diagtype      = 'only_outer'
+
+  only_bound         = .false.
         
   call init_grid_dim_GLL(grid, para) 
  
@@ -61,7 +67,7 @@ program dvr_diag
   else
     write(*,*) "ERROR: Invalid pottype"
   end if
-  
+
   call init_work_cardinalbase(Tkin_cardinal, grid, para%mass)
   call redefine_ops_cardinal(pot)
   call redefine_GLL_grid_1d(grid)
@@ -74,16 +80,88 @@ program dvr_diag
     write(11,*) grid%r(i), pot(i)
   end do
   close(11)
-
+      
   !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
   call get_real_surf_matrix_cardinal(matrix, grid, pot, Tkin_cardinal)
+
+  !! Convert banded matrix to full matrix
+  !! Watch for the para%nr-2, because the end points are not included
+  call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0,                   &
+  &                       para%nl)
+    
+  open(11, file="full_matrix_l"//trim(int2str(para%l))//".dat",                &
+  &    form="formatted", action="write")
+  do i = 1, size(matrix_full(:,1))
+    do j = 1, size(matrix_full(i,:))
+      write(11,'(ES14.6, 1x)', advance = 'No')                                &
+      & matrix_full(i,j)
+    end do
+    write(11,*) ''
+  end do
+  close(11)
+
+  if (para%maptype == 'inner_outer') then
+    if (para%diagtype == 'only_inner') then
+      do i = (para%m1 * para%nl) + 1, para%nr-2
+        do j = 1, para%nr-2
+          matrix_full(i,j) = zero
+        end do
+      end do
+      do i = 1, para%nr-2
+        do j = (para%m1 * para%nl) + 1, para%nr-2
+          matrix_full(i,j) = zero
+        end do
+      end do
+    elseif (para%diagtype == 'only_outer') then
+      do i = 1, (para%m1 * para%nl)
+        do j = 1, para%nr-2 
+          matrix_full(i,j) = zero
+        end do
+      end do
+      do i = 1, (para%m1 * para%nl)
+        do j = 1, para%nr-2 
+          matrix_full(i,j) = zero
+        end do
+      end do
+    end if
+  end if
+  
+  open(11, file="trunc_matrix_l"//trim(int2str(para%l))//".dat",               &
+  &    form="formatted", action="write")
+  do i = 1, size(matrix_full(:,1))
+    do j = 1, size(matrix_full(i,:))
+      write(11,'(ES14.6, 1x)', advance = 'No')                                &
+      & matrix_full(i,j)
+    end do
+    write(11,*) ''
+  end do
+  close(11)
 
   !! Diagonalize Hamiltonian matrix which is stored in banded format.
   !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
   !! If needed, just add more
-  call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)),&
-  &                   nev=nint(0.5*para%nr), which='SA', eigenvals=eigen_vals, &
-  &                   rvec=.true.)
+  !call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)), &
+  !&                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
+  !&                   rvec=.true.)
+  
+  ! Since the arpack diagonalisation becomes wonky if nev=size(matrix(1,:))
+  ! we will instead perform a full BLAS diagonalisation of the symmetric
+  ! matrix, matrix_full
+  call diag_matrix(matrix_full, eigen_vals_full)
+  
+  ! Now we transfer the eigenvectors from matrix_full to matrix to keep
+  ! the rest of the code intact (since it operates on matrix instead of 
+  ! matrix_full). Note that we need to allocate matrix to have less columns
+  ! than matrix full if para%nev < size(grid%r)
+  deallocate(matrix)
+  allocate(matrix(size(matrix_full(1,:)),size(matrix_full(1,:))))
+  allocate(eigen_vals(size(matrix_full(1,:))))
+  do i = 1, size(matrix_full(1,:))
+    do j = 1, size(matrix_full(1,:))
+      matrix(i,j) = matrix_full(i,j)
+      eigen_vals(j) = eigen_vals_full(j)
+    end do
+  end do
 
   ! Write eigenvalues.
   open(11, file="eigenvalues_GLL.dat", form="formatted", &
