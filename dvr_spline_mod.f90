@@ -7,7 +7,8 @@ module dvr_spline_mod
   integer, parameter :: idp = kind(1.0d0) !Value of internal double precision
   integer, parameter :: datline_l    = 255 ! Maximum length of a line in a file
   integer, parameter :: file_l       = 512 ! Maximum length of filenames/paths
-  integer, parameter :: maptype_l    = 4   ! length of a maptype
+  integer, parameter :: maptype_l    = 12  ! length of a maptype
+  integer, parameter :: diagtype_l   = 12  ! length of a diagtype
   integer, parameter :: pottype_l    = 10  ! length of a pottype
   integer, parameter :: converted_l  = 80  ! length of a converted string
   

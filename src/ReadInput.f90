@@ -95,6 +95,7 @@ module ReadInput
   subroutine DVRInput(ir)
 
     integer, intent(in) :: ir
+    integer :: int_dummy
     integer             :: check
     logical :: eof
     character (len=100)  :: w
@@ -116,10 +117,20 @@ module ReadInput
       case("RLIMITS")
         call getf(r_min,1.0d0)
         call getf(r_max,1.0d0)
-
+        r_max2 = r_max
+      ! Grid point which separates B1 from B2 region 
+      case("RMAX1")
+        call getf(r_max1,1.0d0)
       ! Number of Finite Elements grids
       case("N-GRIDS")
         call geti(m)
+      ! Number of Finite Elements in B1 region
+      case("N-GRIDS1")
+        call geti(m1)
+      ! Number of Finite Elements in B2 region
+      case("N-GRIDS2")
+        call geti(m2)
+        m = m1 + m2
       ! Number of point in the Gauss-Lobato quadrature
       case("N-GL")
         call geti(nl)
@@ -146,6 +157,18 @@ module ReadInput
       case("MAPPED-GRID")
         mapped_grid = .true.
         call getf(beta)
+      case("MAP_INNER_OUTER")
+        mapped_grid = .true.
+        maptype = 'inner_outer'
+      case("DIAGTYPE")
+        call geti(int_dummy)
+        if (int_dummy == 1) then
+          diagtype = 'only_inner'
+        elseif (int_dummy == 2) then
+          diagtype = 'only_outer'
+        else
+          call stop_all('DVRInput', 'Invalid Integer for diagtype')
+        end if
       case("FIELD")
         with_field = .true.
         if (nitems==1) then
@@ -166,6 +189,7 @@ module ReadInput
       case("ENDDVR")
         exit
       case default
+        stop
         call stop_all('DVRInput', 'Keyword not recognized')
       end select
 
