@@ -22,10 +22,14 @@ module DVRData
   !! @param: Z               Nuclear charge
   !! @param: r_min           Minimum $r$
   !! @param: r_max           Maximum $r$
+  !! @param: r_max1          Maximum $r$ for B1 region (for inner_outer mapping)
+  !! @param: r_max2          Maximum $r$ for B2 region (for inner_outer mapping)
   !! @param: pottype         Type of potential {'analytical'|'file'}
   !! @param: pot_filename    Name of file with potential data
   !! @param: mapped_grid     Decides whether mapping is employed for the grid 
   !! @param: maptype         Type of mapping {'diff'|'int'}
+  !! @param: diagtype        Region to diagonalise {'only_inner'|'only_outer'}
+  !!                         (only if maptype = 'inner_outer')
   !! @param: read_envelope   If set to something other than '', read the mapping
   !!                         envelope potential from the given filename.
   !! @param: beta            $\beta$ mapping factor
@@ -38,6 +42,10 @@ module DVRData
   !!                         grid points in each element
   !! @param: m               When using cardinal grid, $m$ is the number of
   !!                         elements
+  !! @param: m1              When using cardinal grid, $m$ is the number of
+  !!                         elements in the B1 region (for inner_outer mapping)
+  !! @param: m2              When using cardinal grid, $m$ is the number of
+  !!                         elements in the B2 region (for inner_outer mapping)
   !! @param: moveable        Whether or not the grid should move
   !! @param: coord_type      Label for coordinate system {'cartesian'|'gll'|
   !!                         'spherical'}
@@ -48,10 +56,13 @@ module DVRData
     real(dp)                   :: Z 
     real(dp)                   :: r_min
     real(dp)                   :: r_max
+    real(dp)                  :: r_max1
+    real(dp)                  :: r_max2
     character(len=pottype_l)   :: pottype
     character(len=file_l)      :: pot_filename 
     logical                    :: mapped_grid
     character(len=maptype_l)   :: maptype
+    character(len=diagtype_l)  :: diagtype
     character(len=file_l)      :: read_envelope
     real(dp)                   :: beta
     real(dp)                   :: E_max
@@ -60,6 +71,8 @@ module DVRData
     integer                    :: ng
     integer                    :: nl
     integer                    :: m
+    integer                    :: m1
+    integer                    :: m2
     integer                    :: l 
     integer                    :: nev
   end type para_t

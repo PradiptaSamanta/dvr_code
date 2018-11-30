@@ -11,10 +11,14 @@ module dvr_diag_mod
   !! @param: Z               Nuclear charge
   !! @param: r_min           Minimum $r$
   !! @param: r_max           Maximum $r$
+  !! @param: r_max1          Maximum $r$ for B1 region (for inner_outer mapping)
+  !! @param: r_max2          Maximum $r$ for B2 region (for inner_outer mapping)
   !! @param: pottype         Type of potential {'analytical'|'file'}
   !! @param: pot_filename    Name of file with potential data
   !! @param: mapped_grid     Decides whether mapping is employed for the grid 
   !! @param: maptype         Type of mapping {'diff'|'int'}
+  !! @param: diagtype        Region to diagonalise {'only_inner'|'only_outer'}
+  !!                         (only if maptype = 'inner_outer')
   !! @param: read_envelope   If set to something other than '', read the mapping
   !!                         envelope potential from the given filename.
   !! @param: beta            $\beta$ mapping factor
@@ -26,6 +30,10 @@ module dvr_diag_mod
   !!                         grid points in each element
   !! @param: m               When using cardinal grid, $m$ is the number of
   !!                         elements
+  !! @param: m1              When using cardinal grid, $m$ is the number of
+  !!                         elements in the B1 region (for inner_outer mapping)
+  !! @param: m2              When using cardinal grid, $m$ is the number of
+  !!                         elements in the B2 region (for inner_outer mapping)
   !! @param: moveable        Whether or not the grid should move
   !! @param: coord_type      Label for coordinate system {'cartesian'|'gll'|
   !!                         'spherical'}
@@ -36,10 +44,13 @@ module dvr_diag_mod
     real(idp)                   :: Z 
     real(idp)                   :: r_min
     real(idp)                   :: r_max
+    real(idp)                   :: r_max1
+    real(idp)                   :: r_max2
     character(len=pottype_l)    :: pottype
     character(len=file_l)       :: pot_filename 
     logical                     :: mapped_grid
     character(len=maptype_l)    :: maptype
+    character(len=diagtype_l)   :: diagtype
     character(len=file_l)       :: read_envelope
     real(idp)                   :: beta
     real(idp)                   :: E_max
@@ -47,6 +58,8 @@ module dvr_diag_mod
     integer                     :: nr
     integer                     :: nl
     integer                     :: m
+    integer                     :: m1
+    integer                     :: m2
     integer                     :: l 
   end type para_t
   
@@ -103,18 +116,30 @@ contains
 
     real(idp), allocatable      :: r_env(:), V_env(:), weight(:), jac(:),  &
     &                              X_mapped(:), lobatto(:), weights(:)
-    real(idp)                   :: r_min, r_max, V_dr, min_dr, beta, E_max
-    integer                     :: error, nl, m, l, j, nr_env, th, nr
+    real(idp)                   :: r_min, r_max, V_dr, min_dr, beta, E_max, &
+    &                              r_max1, r_max2
+    integer                     :: error, nl, m, l, j, nr_env, th, nr, m1, m2
     character(len=datline_l)    :: header
     character(len=file_l)       :: read_envelope
     character(len=maptype_l)    :: maptype
     character(len=maptype_l)    :: basis_for_mapping
 
     nr    = para%nr
-    nl    = para%nl
-    m     = para%m
-    r_min = para%r_min
-    r_max = para%r_max
+    if (para%maptype == 'inner_outer') then
+      nl    = para%nl
+      m     = para%m1 + para%m2
+      m1    = para%m1
+      m2    = para%m2
+      r_min = para%r_min
+      r_max = para%r_max2
+      r_max1= para%r_max1
+      r_max2= para%r_max2
+    else
+      nl    = para%nl
+      m     = para%m
+      r_min = para%r_min
+      r_max = para%r_max
+    end if
 
     if (m * nl + 1 .ne. nr) then
       write(*,*) "ERROR: For the GLL grid, nr must equal m * nl + 1"
@@ -157,6 +182,17 @@ contains
         &                      'const')
         call envelope_pot_1d(V_env, r_env, para, 1)
       end if
+     
+      ! Calculate the global weights and GLL points
+      allocate(jac(m), stat = error)
+      call allocerror(error)
+      call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
+      &                       grid%D_primitive)
+      allocate(lobatto(0:nl),stat=error)
+      call allocerror(error)
+      allocate(weights(0:nl),stat=error)
+      call allocerror(error)
+
       ! Map the grid: calculate the coordinates r(:) and the jacobian J(:)
       select case (maptype)
         case('diff')
@@ -170,21 +206,39 @@ contains
           &               V_env, nr, beta, para%mass, E_max,         &
           &               basis_for_mapping)
           deallocate(grid%J)
+        
+        case('inner_outer')
+          allocate(X_mapped(nr), stat=error)
+          call allocerror(error)
+          !We do not need a Jacobian so we simply do not allocate it
+          do l = 1, m1, 1
+            do j = 0, nl-1, 1
+              X_mapped(j + nl * (l - 1) + 1) =                                 &
+              &   grid%gllp(j) * (r_max1 - r_min) / (real(2 * m1,idp))         &
+              &   + r_min + (real(l,idp)- half) * (r_max1 - r_min)             &
+              &                                                   / real(m1,idp)
+            end do
+          end do
+          do l = m1+1, m1+m2, 1
+            do j = 0, nl-1, 1
+              X_mapped(j + nl * (l - 1) + 1) =                                 &
+              &   grid%gllp(j) * (r_max2 - r_max1) / (real(2 * m2,idp))        &
+              &   + r_max1 + (real(l-m1,idp)- half) * (r_max2 - r_max1) /      &
+              &                                                     real(m2,idp)
+            end do
+          end do
+
+          X_mapped(nl * m + 1) =                                               &
+          &   grid%gllp(nl) * (r_max2 - r_max1) / (real(2 * m2,idp))           &
+          &   + r_max1 + (real(m2,idp)- half) * (r_max2 - r_max1) /            &
+          &                                                         real(m2,idp)
+
+          write(*,*) X_mapped
 
        case default
          write(*,*) "ERROR: Cannot initialize mapped GLL grid! Unknown maptype."
          stop
       end select
-     
-      ! Calculate the global weights and GLL points
-      allocate(jac(m), stat = error)
-      call allocerror(error)
-      call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
-      &                       grid%D_primitive)
-      allocate(lobatto(0:nl),stat=error)
-      call allocerror(error)
-      allocate(weights(0:nl),stat=error)
-      call allocerror(error)
 
       do j = 0, nl
         lobatto(j) = grid%gllp(j)
@@ -1698,6 +1752,127 @@ contains
     end do
 
   end subroutine get_real_surf_matrix_cardinal
+  
+  !! @description: Convert banded storage matrix to full matrix, assuming the
+  !! layout indicated by the combination of `mode`, `kl`, and `ku`.
+  !!
+  !! * `mode='g'` (general matrix) or `mode='t'` (triangular matrix):
+  !!   convert directly, assuming `full(i,j)` is stored in
+  !!   `packed(ku+1+i-j,j)` for `max(1,j-ku) <= i <= min(m, j+kl)
+  !! * `mode='h'` (Hermitian matrix) or `mode='s'` (symmetric matrix):
+  !!   If `kl=0`, assume information in `packed` describes the upper triangle
+  !!   of the matrix. In this case `full(i,j)` is stored in
+  !!   `packed(kd+1+i-j,j)` for `max(1,j-ku) <= i <= j` and `full(j,i)` is
+  !!   either the complex conjugate of `full(i,j)` (`'h'`) or identical to
+  !!   `full(i,j)` (`'s'`).
+  !!   If `ku=0`, assume information in `packed` describes the lower triangle of
+  !!   the matrix. `full(i,j)` is stored in `packed(1+i-j,j)` for
+  !!   `j <= i <= min(n, j+kd)`. Again `full(j,i)` is again completed as
+  !!   Hermitian or symmetric
+  !!
+  !! @param: full              Storage for full matrix. If already allocated,
+  !!                           must be of size $n \times n$.
+  !! @param: banded            Banded data, for input.
+  !! @param: n                 Dimension of full matrix.
+  !! @param: kl                Number of sub-diagonals. Must be 0 for Hermitian
+  !!                           matrices
+  !! @param: ku                Number of super-diagonals
+  subroutine mat_banded_to_full(full, banded, n, kl, ku)
+
+    real(idp), allocatable,    intent(inout) :: full(:,:)
+    real(idp),                 intent(in)    :: banded(1+kl+ku,n)
+    integer,                   intent(in)    :: n
+    integer,                   intent(in)    :: kl
+    integer,                   intent(in)    :: ku
+
+    integer :: i, j, error, kd
+
+    if (allocated(full)) then
+      if ((lbound(full, 1) /= 1) .or.  (ubound(full, 1) /= n) .or.             &
+      &   (lbound(full, 2) /= 1) .or.  (ubound(full, 2) /= n)) then
+        write(*,*) 'ERROR: Full matrix is allocated to the wrong size.'
+      end if
+    else
+      allocate(full(n,n), stat=error)
+      call allocerror(error)
+    end if
+
+    full = czero
+
+    ! See formula in http://www.netlib.org/lapack/lug/node124.html
+    do j = 1, n
+      do i = max(1, j-ku), min(n, j+kl)
+        full(i,j) = full(i,j) + banded(ku+1+i-j,j)
+      end do
+    end do
+
+  end subroutine mat_banded_to_full
+  
+  
+  !! @description: Diagonalize the given real symmetric matrix via a call to the
+  !!               Lapack routine `dsyevd`. The calculated eigenvectors are
+  !!               saved in the columns of the matrix.
+  !! @param: eigen_vecs  Matrix that should be diagonalized, will be replaced
+  !!                     by matrix of eigenvectors
+  !! @param: eigen_vals  Array of eigenvalues of the matrix
+  subroutine diag_matrix(eigen_vecs, eigen_vals)
+
+    real(idp),              intent(inout) :: eigen_vecs(:,:)
+    real(idp), allocatable, intent(inout) :: eigen_vals(:)
+
+    integer :: nn, lwork, liwork, error
+    integer ,  allocatable :: iwork(:)
+    real(idp), allocatable :: work(:)
+
+    nn = size(eigen_vecs(:,1))
+
+    if (allocated(eigen_vals)) deallocate(eigen_vals)
+    allocate(eigen_vals(nn), stat=error)
+    call allocerror(error)
+    allocate (work(1), stat=error)
+    call allocerror(error)
+    allocate (iwork(1), stat=error)
+    call allocerror(error)
+
+    ! Perform workspace query: dsyevd only calculates the optimal sizes of the
+    ! WORK and IWORK arrays, returns these values as the first entries of the
+    ! WORK and IWORK arrays, cf. http://www.netlib.org/lapack/double/dsyevd.f
+    lwork = -1; liwork = -1 ! indicate workspace query should be done
+    call dsyevd('v', 'u', nn, eigen_vecs, nn, eigen_vals,                      &
+    &           work, lwork, iwork, liwork, error)
+    if (error /= 0) then
+      write(*,*) 'ERROR: ' //                                                  &
+      & "Could not calculate optimal sizes for WORK and IWORK arrays!"
+    end if
+
+    ! Now we can re-allocate WORK and IWORK with the optimal size, obtained from
+    ! the first call to dsyevd
+    lwork = work(1)
+    liwork = iwork(1)
+    deallocate(work, iwork)
+    allocate(work(lwork), stat=error)
+    call allocerror(error)
+    allocate(iwork(liwork), stat=error)
+    call allocerror(error)
+
+    ! The second call to dsyevd performs the actual diagonalization
+    call dsyevd('v', 'u', nn, eigen_vecs, nn, eigen_vals,                      &
+    &           work, lwork, iwork, liwork, error)
+
+    ! Check for erroneous exit status of DSYEVD
+    if (error .lt. 0) then
+      write(*,*) 'ERROR: ' //                                                  &
+      &'A variable passed to the DSYEVD routine had an                         &
+      &illegal entry!'
+    elseif (error .gt. 0) then
+      write(*,*) 'ERROR: '//                                                   &
+      &'Routine DSYEVD failed to compute an eigenvalue!'
+    end if
+
+    deallocate(work, iwork)
+
+  end subroutine diag_matrix
+
   
   !! @description: This subroutine returns the converged approximations to
   !! to the problem $\hat{A}_{red}z = \lambda z$ via a call to the `Arpack`

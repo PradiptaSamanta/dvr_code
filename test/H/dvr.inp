@@ -1,10 +1,13 @@
 dvr
-rlimits  0.0 50.0
-mapped-grid 0.005
-n-grids 200
+rlimits 0.0 30.0
+rmax1 5.0
+map_inner_outer
+diagtype 1
+n-grids1 50
+n-grids2 50
 n-gl 5
-rot-qn-max 3
-num-eig-value-fac 0.5
+rot-qn-max 2 
+num-eig-value-fac 1.0
 nuclear-charge 1
 mass 1.0
 dvr-diag
@@ -15,8 +18,7 @@ enddvr
 
 orbital
 two-e-int 2
-num-n-qn 4
-
+num-n-qn 4 
 endorbital
 
 end
