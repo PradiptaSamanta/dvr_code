@@ -19,8 +19,8 @@ module DVRrhf
     real(dp), allocatable :: Vred(:,:)
     integer, allocatable :: OrbInd(:,:,:)
     integer :: n_l, n_ml, n_nqn, error, indx, l_val, nTotOrbs
-    integer :: i, j, k 
-    real(dp) :: Energy
+    integer :: i, j, k, maxit, iter
+    real(dp) :: Energy, Del, start, finish
 
     write(iout,*) '***** Doing RHF Calculation using FE-DVR basis *****'
 
@@ -29,6 +29,8 @@ module DVRrhf
     n_ml = n_l**2
     ! Total number of n_quantum number, which equal to the total number of radial grids
     n_nqn = para%ng
+
+    maxit = 10
 
     !!!!!
     ! Here the total number product basis is calculated and linked to the 
@@ -89,8 +91,38 @@ module DVRrhf
     call GetFock(hcore, Vred, F, nTotOrbs)
 
     call CalcEnergy(Den, hcore, F, nTotOrbs, Energy)
+    
+    write(iout, *) 'Energy at the beginning: ', Energy
 
-    ! Now the iterations for 
+    ! Iterations to converge RHF energy
+
+    write(iout,*) 'iter      error          Energy     time'
+    do iter = 1, maxit
+
+      call cpu_time(start)
+
+      ! First diagonalise the Fock matrix
+      call DiagFock(F , MOCoeffs, nTotOrbs)
+
+      ! Calculate the new density from updated MOCoeffs
+      call GetDensity(Den, DenOld, MOCoeffs, nTotOrbs)
+
+      ! Check whether the density is converged or not
+      call CalcDelDen(Den, DenOld, nTotOrbs, Del)
+
+      ! Calculate the new Fock matrix
+      call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+      call GetFock(hcore, Vred, F, nTotOrbs)
+
+      ! Calculate the energy at this iteration
+      call CalcEnergy(Den, hcore, F, nTotOrbs, Energy)
+
+      call cpu_time(finish)
+
+      write(iout,'(i4,2f15.8,f10.5)') iter, Del, Energy, finish-start
+
+    end do
+
     write(iout,*) '***** RHF is done...'
 
     deallocate(Den, DenOld, F, hcore, Vred, OrbInd)
@@ -323,7 +355,7 @@ module DVRrhf
     deallocate(AngEls)
     call cpu_time(finish)
 
-    write(iout, *) 'The reduced V is calculated in ', (finish-start), 'seconds...'
+!   write(iout, *) 'The reduced V is calculated in ', (finish-start), 'seconds...'
 
   end subroutine CalcVred
 
@@ -334,22 +366,25 @@ module DVRrhf
     real(dp), allocatable, intent(inout) :: F(:,:)
     integer,               intent(in)    :: n_COs
 
-    integer :: i, j 
-    real    :: start, finish
+    integer  :: i, j 
+    real(dp) :: start, finish, val
 
     call cpu_time(start)
 
     F = zero
 
     do j = 1, n_COs
-      do i = 1, n_COs
-        F(i,j) = hcore(i,j) + V(i,j)
+      do i = 1, j
+        val = hcore(i,j) + V(i,j)
+        F(i,j) = val
+        F(j,i) = val
+!       write(79,*) i, j, F(i,j)
       end do
     end do
 
     call cpu_time(finish)
 
-    write(iout, *) 'Fock matrix is calculated in ', (finish-start), 'seconds...'
+!   write(iout, *) 'Fock matrix is calculated in ', (finish-start), 'seconds...'
 
   end subroutine GetFock
 
@@ -373,10 +408,61 @@ module DVRrhf
 
     call cpu_time(finish)
 
-    write(iout, *) 'Energy is calculated in ', (finish-start), 'seconds...'
-    
-    write(iout, *) 'Energy at this step: ', En
+!   write(iout, *) 'Energy is calculated in ', (finish-start), 'seconds...'
 
   end subroutine CalcEnergy
+
+  subroutine DiagFock(F, MOCoeff, n_COs)
+
+    use dvr_diag_mod, only : diag_matrix
+
+    real(dp), allocatable, intent(inout) :: F(:,:), MOCoeff(:,:)
+    integer, intent(in) :: n_COs
+
+    real(dp), allocatable :: evals(:) 
+    integer :: error, i, j
+
+    allocate(evals(n_COs), stat=error)
+
+    call diag_matrix(F, evals)
+    
+!   do i = 1, 20
+!     do j = 1, 20
+!       write(81, '(2i4, f15.8)') i, j, F(i,j)
+!     end do
+!   end do
+
+!   do i = 1, n_COs
+!     write(80,'(i4,19f15.8)') i, evals(i), (F(i,j),j=1,18)
+!   end do
+
+    MOCoeff = F
+
+!   do i = 1, 20
+!     do j = 1, 20
+!       write(82, '(2i4, f15.8)') i, j, MOCoeff(i,j)
+!     end do
+!   end do
+
+  end subroutine DiagFock
+
+  subroutine CalcDelDen(Den, DenOld, nTotOrbs, Del)
+    
+    real(dp), allocatable, intent(in)  :: Den(:,:), DenOld(:,:)
+    integer, intent(in) :: nTotOrbs
+    real(dp), intent(out) :: Del
+
+    integer :: i, j
+
+    Del = 0.0d0
+    do i = 1, nTotOrbs
+      do j = 1, nTotOrbs
+        Del = Del + (Den(i,j) - DenOld(i,j))**2
+      end do
+    end do
+
+    Del = sqrt(Del/4.0d0)
+
+  end subroutine CalcDelDen
 
 end module DVRrhf
