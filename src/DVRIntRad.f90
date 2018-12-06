@@ -64,7 +64,7 @@ module DVRIntRad
       write(iout, *) 'Calculating one-electron radial part of the integral for l = ', l_val
 
       do i = 1, size(pot(:,1))
-        pot(i, l) = - real(para%Z, idp) / grid%r(i)   +                                   &
+        pot(i, l) = - real(para%Z, idp) / grid%r(i)    +                                   &
         &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
       end do
 

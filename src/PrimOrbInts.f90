@@ -102,6 +102,7 @@ module PrimOrbInts
     write(iout,'(X,a,f10.5,X,a)') 'Time taken for 1e transformation = ', finish-start, 'seconds.'
 
   end subroutine Calc1ePrimOrbInts
+
   subroutine Calc2ePrimOrbInts()
 
     use DVRData, only : two_e_rad_int, para, grid, integrals_ang, sph_harm
