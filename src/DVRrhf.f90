@@ -18,10 +18,11 @@ module DVRrhf
     real(dp), allocatable :: hcore(:,:)
     real(dp), allocatable :: TwoEInts(:,:,:,:)
     real(dp), allocatable :: Vred(:,:)
-    real(dp), allocatable :: weight(:)
-    integer, allocatable :: OrbInd(:,:,:)
-    integer :: n_l, n_ml, n_nqn, error, indx, l_val, nTotOrbs
-    integer :: i, j, k, iter, l, m
+    real(dp), allocatable :: OrbEn(:)
+    integer, allocatable :: OrbIndNew(:,:,:)
+    integer, allocatable :: OrbIndOld(:,:,:)
+    integer :: n_l, n_ml, n_nqn, error, indx, l_val, nTotOrbsNew, nTotOrbsOld
+    integer :: i, j, k, iter, l, m, occ
     integer :: vopt
     real(dp) :: Energy, Del, start, finish, tol
 
@@ -39,52 +40,68 @@ module DVRrhf
     !!!!!
     ! Here the total number product basis is calculated and linked to the 
     ! individual sets of (n,l,m) quantum numbers
-    OrbInd = 0
-    nTotOrbs = 0
 
-    indx = 0
     l_val = para%l+1
 !   write(*,*) 'limit for l_val:', l_val
 
-    allocate(OrbInd(para%ng,para%l+1,2*para%l+1), stat=error)
+    allocate(OrbIndNew(para%ng,para%l+1,2*para%l+1), stat=error)
+    call allocerror(error)
+    allocate(OrbIndOld(para%ng,para%l+1,2*para%l+1), stat=error)
     call allocerror(error)
 
+    OrbIndNew = 0
+    OrbIndOld = 0
+    nTotOrbsOld = 0
+    nTotOrbsNew = 0
+
+    indx = 0
+    do i = 1, para%ng
+      do j = 1, min(l_val,i)
+        do k = 1, 2*j-1
+          indx = indx + 1
+          OrbIndNew(i,j,k) = indx
+        end do
+      end do
+    end do
+    nTotOrbsNew = indx
+      
+    indx = 0
     do i = 1, para%ng
       do j = 1, l_val
         do k = 1, 2*j-1
           indx = indx + 1
-          OrbInd(i,j,k) = indx
-!         write(*, *) i, j, k, OrbInd(i, j, k)
+          OrbIndOld(i,j,k) = indx
         end do
       end do
     end do
+    nTotOrbsOld = indx
       
-    nTotOrbs = indx
-    if (nTotOrbs.ne.(n_nqn*n_ml)) call stop_all('DVRrhf','Total number of orbitals does not match')
+!   if (nTotOrbs.ne.(n_nqn*n_ml)) call stop_all('DVRrhf','Total number of orbitals does not match')
 
     !!!!!
 
     ! allocate all the necessary matrices
     ! Den will store the density whereas DenOld will store those from the previous iteration
-    allocate(Den(nTotOrbs,nTotOrbs), stat=error)
+    allocate(Den(nTotOrbsNew,nTotOrbsNew), stat=error)
     call allocerror(error)
-    allocate(DenOld(nTotOrbs,nTotOrbs), stat=error)
+    allocate(DenOld(nTotOrbsNew,nTotOrbsNew), stat=error)
     call allocerror(error)
     ! F stores the Fock matrix
-    allocate(F(nTotOrbs,nTotOrbs), stat=error)
+    allocate(F(nTotOrbsNew,nTotOrbsNew), stat=error)
     call allocerror(error)
     ! hcore stores the one-body part of the Fock matrix
-    allocate(hcore(nTotOrbs,nTotOrbs), stat=error)
+    allocate(hcore(nTotOrbsNew,nTotOrbsNew), stat=error)
     call allocerror(error)
-    allocate(Vred(nTotOrbs,nTotOrbs), stat=error)
+    allocate(Vred(nTotOrbsNew,nTotOrbsNew), stat=error)
     call allocerror(error)
-    allocate(weight(nTotOrbs), stat=error)
+    allocate(OrbEn(nTotOrbsNew), stat=error)
     call allocerror(error)
 
 
     ! First expand the matrix of eigen vectors that we already get from solving 
     ! the radial Schroedinger into a product basis of R_{n,l}*Y{l,m}
-    call ExpandBasis(eigen_vecs, MOCoeffs, OrbInd, weight, n_l, n_nqn, nTotOrbs)
+    call ExpandBasis(eigen_vecs, MOCoeffs, OrbIndOld, OrbIndNew, n_l, n_nqn, &
+    &                nTotOrbsOld, nTotOrbsNew)
 
 !   do i = 1, para%ng
 !     do l = 1, n_l
@@ -108,23 +125,23 @@ module DVRrhf
 !   write(83, *) '##### Done'
 
     ! Calculate the initial density which then be used to calculate the initial energy
-    call GetDensity(Den, DenOld, MOCoeffs, weight, nTotOrbs)
+    call GetDensity(Den, DenOld, MOCoeffs,  nTotOrbsNew)
 
     ! Calculate the one-body part of the Fock matrix from the one-electron integrals stores in one_rad_int
-    call CalcHCore(one_e_rad_int, hcore, OrbInd)
+    call CalcHCore(one_e_rad_int, hcore, OrbIndNew)
 
     if (vopt.eq.1) then
-      call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+      call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbIndNew, nTotOrbsNew, n_nqn, n_l)
     else 
-      call Calc2ePrimOrbInts(TwoEInts, OrbInd, n_l, nTotOrbs)
-      call CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
+      call Calc2ePrimOrbInts(TwoEInts, OrbIndNew, n_l, nTotOrbsNew)
+      call CalcVred_2(TwoEInts, Den, Vred, OrbIndNew, nTotOrbsNew, n_l)
     end if
 
 !   Vred = 0.0d0
 
-    call GetFock(hcore, Vred, F, nTotOrbs)
+    call GetFock(hcore, Vred, F, nTotOrbsNew)
 
-    call CalcEnergy(Den, hcore, F, nTotOrbs, Energy)
+    call CalcEnergy(Den, hcore, F, nTotOrbsNew, Energy)
 
     write(iout, *) 'Energy at the beginning: ', Energy
 
@@ -137,7 +154,7 @@ module DVRrhf
       call cpu_time(start)
 
       ! First diagonalise the Fock matrix
-      call DiagFock(F , MOCoeffs, nTotOrbs)
+      call DiagFock(F , MOCoeffs, nTotOrbsNew, OrbEn)
 
 !     do i = 1, nTotOrbs
 !       do j = 1, nTotOrbs
@@ -150,22 +167,22 @@ module DVRrhf
 !     write(83, *) '##### Done'
 
       ! Calculate the new density from updated MOCoeffs
-      call GetDensity(Den, DenOld, MOCoeffs, weight, nTotOrbs)
+      call GetDensity(Den, DenOld, MOCoeffs, nTotOrbsNew)
 
       ! Check whether the density is converged or not
-      call CalcDelDen(Den, DenOld, nTotOrbs, Del)
+      call CalcDelDen(Den, DenOld, nTotOrbsNew, Del)
 
       ! Calculate the new Fock matrix
       if (vopt.eq.1) then
-        call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+        call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbIndNew, nTotOrbsNew, n_nqn, n_l)
       else
-        call CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
+        call CalcVred_2(TwoEInts, Den, Vred, OrbIndOld, nTotOrbsNew, n_l)
       end if
 
-      call GetFock(hcore, Vred, F, nTotOrbs)
+      call GetFock(hcore, Vred, F, nTotOrbsNew)
 
       ! Calculate the energy at this iteration
-      call CalcEnergy(Den, hcore, F, nTotOrbs, Energy)
+      call CalcEnergy(Den, hcore, F, nTotOrbsNew, Energy)
 
       if (Del.lt.tol) then 
 
@@ -175,7 +192,20 @@ module DVRrhf
 
         write(iout,*) 'RHF calculation is converged in:', iter, 'iterations...'
 
-        write(iout,*) 'Final RHF energy:', Energy, 'Hartree.'
+        write(iout,'(a,f20.12,a)') ' Final RHF energy:', Energy, ' Hartree.'
+
+        do i = 1, nTotorbsNew
+
+          if (2*i.le.para%Z) then
+            occ = 2
+          else
+            occ = 0
+          end if
+
+          write(iout, '(a,i3,a,f20.12,a,i2)') ' MO #', i, 'energy= ',  OrbEn(i), ' occ= ', occ
+
+        end do
+
         exit
 
       else
@@ -205,34 +235,36 @@ module DVRrhf
 
     write(iout,*) '***** RHF is done...'
 
-    deallocate(Den, DenOld, F, hcore, Vred, OrbInd)
+    deallocate(Den, DenOld, F, hcore, Vred, OrbIndNew, OrbIndOld, OrbEn)
 
   end subroutine DoRHF
 
-  subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbInd, weight, n_l, n_nqn, n_COs)
+  subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbIndOld, OrbIndNew, n_l, n_nqn, &
+    &                nTotOrbsOld, nTotOrbsNew)
 
     real(dp), allocatable, intent(in) :: EigenVecs(:,:,:)
     real(dp), allocatable, intent(inout) :: MOCoeffs(:,:)
-    real(dp), allocatable, intent(inout) :: weight(:)
-    integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) :: n_l, n_nqn, n_COs
+    integer, allocatable, intent(in) :: OrbIndOld(:,:,:), OrbIndNew(:,:,:)
+    integer, intent(in) :: n_l, n_nqn, nTotOrbsOld, nTotOrbsNew
 
     integer :: i, n, l, m, indx_1, indx_2, error
     real(dp) :: val
 
-    allocate(MOCoeffs(n_COs,n_COs), stat=error)
+    !allocate(MOCoeffs(nTotOrbsNew,nTotOrbsOld), stat=error)
+    allocate(MOCoeffs(nTotOrbsNew,nTotOrbsNew), stat=error)
     call allocerror(error)
 
     indx_1 = 0
     indx_2 = 0
     do n = 1, n_nqn
       do i = 1, para%ng
-        do l = 1, n_l
+        !do l = 1, n_l
+        do l = 1, min(i,n,n_l)
           !val = EigenVecs(i,n,l)/(sqrt(grid%weights(i)) * grid%r(i))
           val = EigenVecs(i,n,l)
           do m = 1, 2*l-1
-            indx_1 = OrbInd(n,l,m)
-            indx_2 = OrbInd(i,l,m)
+            indx_1 = OrbIndNew(n,l,m)
+            indx_2 = OrbIndNew(i,l,m)
             MOCoeffs(indx_1, indx_2) = val
 !           write(77,'(6i4,f15.8)') n, l, m, i, indx_1, indx_2, MOCoeffs(indx_1,indx_2)
           end do
@@ -240,51 +272,12 @@ module DVRrhf
       end do
     end do
 
-    do i = 1, para%ng
-        val = grid%weights(i)
-      do l = 1, n_l
-         do m = 1, 2*l-1
-           indx_1 = OrbInd(i,l,m)
-           weight(indx_1) = val
-         end do
-      end do
-    end do
-        
   end subroutine ExpandBasis
 
-  subroutine CheckOverlap(MOCoeffs, weight, n_COs)
-
-    real(dp), allocatable, intent(in) :: MOCoeffs(:,:)
-    real(dp), allocatable, intent(in) :: weight(:)
-    integer, intent(in) :: n_COs
-
-    integer :: i, j, k
-    real(dp), allocatable :: S(:,:)
-    real(dp) :: val
-
-    allocate(S(n_COs, n_COs))
-
-    do i = 1, n_COs
-      do j = 1, i
-        val = 0.0d0
-        do k = 1, para%ng
-          val = val + MOCoeffs(i,k)*MOCoeffs(j,k)*weight(k)!/(grid%r(k)**2)
-        end do
-        S(i,j) = val
-        S(j,i) = val
-!       if (abs(val).gt.1e-12) write(78,*) i, j, val
-      end do
-    end do
-
-    deallocate(S)
-
-  end subroutine CheckOverlap
-
-  subroutine GetDensity(Den, DenOld, MOCoeffs, weight, n_COs)
+  subroutine GetDensity(Den, DenOld, MOCoeffs, n_COs)
 
     real(dp), allocatable, intent(inout) :: Den(:,:), DenOld(:,:)
     real(dp), allocatable, intent(in) :: MOCoeffs(:,:)
-    real(dp), allocatable, intent(in) :: weight(:)
     integer, intent(in) :: n_COs
 
     integer :: i, j, nocc, iocc, nelec
@@ -302,7 +295,7 @@ module DVRrhf
 !   do iocc = 1, nocc
 !     norm = 0.0d0
 !     do i = 1, n_COs
-!       norm = norm + MOCoeffs(iocc, i)*MOCoeffs(iocc, i)*weight(i)
+!       norm = norm + MOCoeffs(iocc, i)*MOCoeffs(iocc, i)
 !     end do
 !     write(iout,*) 'Norm: ', iocc, norm
 !   end do
@@ -347,7 +340,7 @@ module DVRrhf
 
     do i = 1, para%ng
       do j = 1, i
-        do l = 1, para%l+1 
+        do l = 1, min(i,j, para%l+1)
 !         l_val = real(l * (l - 1), idp) / (two * para%mass * grid%r(i)**2) * delta(i,j)
           do m = 1, 2*l-1
             ind_1 = OrbInd(i, l, m)
@@ -417,20 +410,56 @@ module DVRrhf
 
     Vred = zero
 
-    do lm4 = 1, nl2
-      do lm3 = 1, nl2
-        do lm2 = 1, nl2
-          do lm1 = 1, nl2
+!   do lm4 = 1, nl2
+!     do lm3 = 1, nl2
+!       do lm2 = 1, nl2
+!         do lm1 = 1, nl2
+!           do l = 1, 2*para%l + 1
+!              val = AngEls(l, lm1, lm2, lm3, lm4)
+!              if (abs(val).gt.1e-12) then
+!                do k3 = 1, n_nqn
+!                  klm_3 = (k3 -1)*nl2 + lm3 
+!                  klm_4 = (k3 -1)*nl2 + lm4 
+!                  if (abs(Den(klm_3, klm_4)).gt.1e-12) then
+!                    do k1 = 1, n_nqn
+!                      klm_1 = (k1 -1)*nl2 + lm1
+!                      klm_2 = (k1 -1)*nl2 + lm2 
+!                      Vred(klm_1, klm_2) = Vred(klm_1, klm_2) + &
+!                      &  val * Den(klm_3, klm_4) * TwoERadInts(k1,k3,l)
+!                    end do
+!                  end if
+!                end do
+!              end if
+!           end do
+!         end do
+!       end do
+!     end do
+!   end do
+
+    do l4 = 1, para%l + 1
+    do m4 = 1, 2*l4 - 1
+      lm4 = (l4-1)**2 + m4
+      do l3 = 1, para%l + 1
+      do m3 = 1, 2*l3 - 1
+        lm3 = (l3-1)**2 + m3
+        do l2 = 1, para%l + 1
+        do m2 = 1, 2*l2 - 1
+          lm2 = (l2-1)**2 + m2
+          do l1 = 1, para%l + 1
+          do m1 = 1, 2*l1 - 1
+            lm1 = (l1-1)**2 + m1
             do l = 1, 2*para%l + 1
                val = AngEls(l, lm1, lm2, lm3, lm4)
                if (abs(val).gt.1e-12) then
                  do k3 = 1, n_nqn
-                   klm_3 = (k3 -1)*nl2 + lm3 
-                   klm_4 = (k3 -1)*nl2 + lm4 
+                   klm_3 = OrbInd(k3,l3,m3)
+                   klm_4 = OrbInd(k3,l4,m4)
+                   if (klm_3.eq.0.or.klm_4.eq.0) cycle
                    if (abs(Den(klm_3, klm_4)).gt.1e-12) then
                      do k1 = 1, n_nqn
-                       klm_1 = (k1 -1)*nl2 + lm1
-                       klm_2 = (k1 -1)*nl2 + lm2 
+                       klm_1 = OrbInd(k1,l1,m1)
+                       klm_2 = OrbInd(k1,l2,m2)
+                       if (klm_1.eq.0.or.klm_2.eq.0) cycle
                        Vred(klm_1, klm_2) = Vred(klm_1, klm_2) + &
                        &  val * Den(klm_3, klm_4) * TwoERadInts(k1,k3,l)
                      end do
@@ -439,8 +468,12 @@ module DVRrhf
                end if
             end do
           end do
+          end do
+        end do
         end do
       end do
+      end do
+    end do
     end do
 
 !   do k1 = 1, para%ng
@@ -604,14 +637,14 @@ module DVRrhf
 
   end subroutine CalcEnergy
 
-  subroutine DiagFock(F, MOCoeff, n_COs)
+  subroutine DiagFock(F, MOCoeff, n_COs, OrbEn)
 
     use dvr_diag_mod, only : diag_matrix
 
     real(dp), allocatable, intent(inout) :: F(:,:), MOCoeff(:,:)
+    real(dp), allocatable, intent(inout) :: OrbEn(:)
     integer, intent(in) :: n_COs
 
-    real(dp), allocatable :: evals(:) 
     real(dp), allocatable :: F_r(:,:)
     integer, allocatable :: OrbInd(:,:,:)
     integer, allocatable :: NewOrbInd(:,:,:)
@@ -622,77 +655,73 @@ module DVRrhf
 
     call cpu_time(start)
 
-!   allocate(evals(n_COs), stat=error)
-    allocate(F_r(n_COs,n_COs), stat=error)
-    allocate(NewOrbInd(para%ng, para%l+1, 2*para%l+1), stat=error)
-    allocate(OrbInd(para%ng, para%l+1, 2*para%l+1), stat=error)
+!   allocate(F_r(n_COs,n_COs), stat=error)
+!   allocate(NewOrbInd(para%ng, para%l+1, 2*para%l+1), stat=error)
+!   allocate(OrbInd(para%ng, para%l+1, 2*para%l+1), stat=error)
 
-    indx = 0
-    do i = 1, para%ng
-      do l = 1, para%l+1
-        do m = 1, 2*l - 1 
-          indx = indx + 1
-          OrbInd(i, l, m) = indx
-        end do
-      end do
-    end do
+!   indx = 0
+!   do i = 1, para%ng
+!     do l = 1, para%l+1
+!       do m = 1, 2*l - 1 
+!         indx = indx + 1
+!         OrbInd(i, l, m) = indx
+!       end do
+!     end do
+!   end do
 
-    indx = 0
-    do l = 1, para%l+1
-      do m = 1, 2*l - 1 
-        do i = 1, para%ng
-          indx = indx + 1
-          NewOrbInd(i, l, m) = indx
-        end do
-      end do
-    end do
+!   indx = 0
+!   do l = 1, para%l+1
+!     do m = 1, 2*l - 1 
+!       do i = 1, para%ng
+!         indx = indx + 1
+!         NewOrbInd(i, l, m) = indx
+!       end do
+!     end do
+!   end do
 
-    F_r = 0.0d0
-    do i = 1, para%ng
-      do j = 1, i
-        do l = 1, para%l+1 
-          do m = 1, 2*l-1
-            ind_1 = OrbInd(i, l, m)
-            ind_2 = OrbInd(j, l, m)
-            ind_3 = NewOrbInd(i, l, m)
-            ind_4 = NewOrbInd(j, l, m)
-            val = F(ind_1, ind_2)
-            F_r(ind_3, ind_4) = val
-            F_r(ind_4, ind_3) = val
+!   F_r = 0.0d0
+!   do i = 1, para%ng
+!     do j = 1, i
+!       do l = 1, para%l+1 
+!         do m = 1, 2*l-1
+!           ind_1 = OrbInd(i, l, m)
+!           ind_2 = OrbInd(j, l, m)
+!           ind_3 = NewOrbInd(i, l, m)
+!           ind_4 = NewOrbInd(j, l, m)
+!           val = F(ind_1, ind_2)
+!           F_r(ind_3, ind_4) = val
+!           F_r(ind_4, ind_3) = val
 !           write(76,*) ind_1, ind_2, hcore(ind_1, ind_2)
-          end do
-        end do
-      end do
-    end do
+!         end do
+!       end do
+!     end do
+!   end do
 
-    call diag_matrix(F_r, evals)
+!   call diag_matrix(F_r, OrbEn)
 
-    F = 0.0d0
-    do i =1, n_COs
-      do j = 1, para%ng
-        do l = 1, para%l+1 
-          do m = 1, 2*l-1
-            ind_1 = OrbInd(j, l, m)
-            ind_2 = NewOrbInd(j, l, m)
-            val = F_r(ind_2, i)
-            F(ind_1, i) = val
-          end do
-        end do
-      end do
-    end do
+!   F = 0.0d0
+!   do i =1, n_COs
+!     do j = 1, para%ng
+!       do l = 1, para%l+1 
+!         do m = 1, 2*l-1
+!           ind_1 = OrbInd(j, l, m)
+!           ind_2 = NewOrbInd(j, l, m)
+!           val = F_r(ind_2, i)
+!           F(ind_1, i) = val
+!         end do
+!       end do
+!     end do
+!   end do
 
 
-!   call diag_matrix(F, evals)
+    call diag_matrix(F, OrbEn)
 
 !   do i = 1, n_COs
-!     write(80,'(i4,f15.8)') i, evals(i)
+!     write(80,'(i4,f15.8)') i, OrbEn(i)
 !   end do
 !   write(80,*) 'Done####'
 
     MOCoeff = transpose(F)
-
-    write(iout, *) 'Energy of the orccupied orbital: ', evals(1)
-    deallocate(evals)
 
     call cpu_time(finish)
     if (debug.gt.6) &
