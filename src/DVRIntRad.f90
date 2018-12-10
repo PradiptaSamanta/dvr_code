@@ -34,7 +34,7 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!! Get Eigenvalues !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+
     !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
 !   call get_real_surf_matrix_cardinal(matrix_diag, grid, pot, Tkin_cardinal)
 !
@@ -54,7 +54,7 @@ module DVRIntRad
     ! We overwrite here the previous pot file which was obtained from a fixed 
     ! potential file
 
-    
+
     allocate(one_e_rad_int(size(grid%r), size(grid%r), 2*para%l+1), stat=error)
     call allocerror(error)
 
