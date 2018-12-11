@@ -33,7 +33,7 @@ module OrbInts
         do k = 1, 2*j-1
           indx = indx + 1
           SpatialOrbInd(i-j+1,j,k) = indx
-          write(iout, *) i-j+1, j, k, SpatialOrbInd(i-j+1, j, k)
+!         write(iout, *) i-j+1, j, k, SpatialOrbInd(i-j+1, j, k)
         end do
       end do
     end do
