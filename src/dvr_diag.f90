@@ -183,24 +183,25 @@ module DVRDiag
           eigen_vecs(i,j,l)  = matrix(i,j)
         end do
       end do
-      
-      open(11, file="overlap"//trim(int2str(l_val))//".dat", form="formatted", &
-      &    action="write")
 
-      do i = 1, para%nev
-        do j = 1, i
-          val = 0.0d0
-          do k = 1, size(grid%r)
-            val = val + matrix(k,i)*matrix(k,j)*grid%weights(k)/(grid%r(k)**2)
+      if (debug.gt.5) then
+        open(11, file="overlap"//trim(int2str(l_val))//".dat", form="formatted", &
+        &    action="write")
+ 
+        do i = 1, para%nev
+          do j = 1, i
+            val = 0.0d0
+            do k = 1, size(grid%r)
+              val = val + matrix(k,i)*matrix(k,j)*grid%weights(k)/(grid%r(k)**2)
+            end do
+            overlap(i,j) = val
+            overlap(j,i) = val
+            if (abs(val).gt.1e-12) &
+            & write(11,'(2i5,f20.12)') i, j, val
           end do
-          overlap(i,j) = val
-          overlap(j,i) = val
-          if (abs(val).gt.1e-12) &
-          & write(11,'(2i5,f20.12)') i, j, val
         end do
-      end do
-
-      close(11)
+        close(11)
+      end if
 
       if ( debug.gt.4) then
         write(iout,'(X,90a)') 'Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...'
