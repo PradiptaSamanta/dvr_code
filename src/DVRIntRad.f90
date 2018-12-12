@@ -25,7 +25,7 @@ module DVRIntRad
     real(idp), pointer         :: one_e_int_p(:,:)
     real(idp), pointer         :: two_e_int_p(:,:)
 
-    nr_limit           = 15
+    nr_limit           = para%nev
 !   inversion_check    = .true.
     inversion_check    = .false.
     ! 'alternative_formula' avoids some numerical issues with small denominators
@@ -34,7 +34,7 @@ module DVRIntRad
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!! Get Eigenvalues !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+
     !! Get banded storage format of Hamiltonian matrix in the FEM-DVR basis
 !   call get_real_surf_matrix_cardinal(matrix_diag, grid, pot, Tkin_cardinal)
 !
@@ -54,7 +54,7 @@ module DVRIntRad
     ! We overwrite here the previous pot file which was obtained from a fixed 
     ! potential file
 
-    
+
     allocate(one_e_rad_int(size(grid%r), size(grid%r), 2*para%l+1), stat=error)
     call allocerror(error)
 
@@ -64,8 +64,7 @@ module DVRIntRad
       write(iout, *) 'Calculating one-electron radial part of the integral for l = ', l_val
 
       do i = 1, size(pot(:,1))
-        pot(i, l) = - real(para%Z, idp) / grid%r(i)   +                                   &
-!       pot(i, l) = real(para%Z, idp) / grid%r(i)   +                                   &
+        pot(i, l) = - real(para%Z, idp) / grid%r(i)    +                                   &
         &        real(l_val * (l_val + 1), idp) / (two * para%mass * grid%r(i)**2)
       end do
 
