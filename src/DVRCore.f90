@@ -4,12 +4,14 @@ subroutine DVRCore()
   use ReadInput, only : ReadInputMain
   use InputData, only : dvr_diag, dvr_integrals, orbital_ints
   use DVRDiag, only : SetDVR, DVRDiagonalization,ReadEigValVec
+  use RHFData, only: tRHF
   use DVRIntRad, only : GetRadialElements
   use DVRIntAng, only : GetAngularElements
   use OrbInts, only  : GetOrbInts
   use PrimOrbInts, only  : GetPrimOrbInts
   use CombineInts, only : CombineIntegrals
   use RadCheck
+  use DVRRHF, only: DoRHF
   use FieldIntegrals
 
   implicit none
@@ -49,6 +51,10 @@ subroutine DVRCore()
     call GetAngularElements()
 !   call CombineIntegrals()
   endif
+
+  if (tRHF) then
+    call DoRHF()
+  end if
 
   ! Combine the 1-e and 2-e, radial and angular parts of integrals, calculated in the
   ! primitive basis to get the integrals in the eigenbasis as obtained from solving 

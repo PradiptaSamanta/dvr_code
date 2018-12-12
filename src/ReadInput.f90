@@ -5,6 +5,7 @@ module ReadInput
   use input_mod
   use InputData
   use DVRData, only: debug, direct_2e, with_field, nFields, FieldComp, prim_integrals
+  use RHFData, only: tRHF, n_rhf, maxit, DenTol
 
   implicit none
 
@@ -39,6 +40,9 @@ module ReadInput
       case("DVR")
         ! Read here the data defining DVR for the calculation
         call DVRInput(ir)
+      case("RHF")
+        ! Read here the data defining DVR for the calculation
+        call RHFInput(ir)
       case("ORBITAL")
         ! Read here the data related to orbitals
         orbital_ints = .true.
@@ -89,6 +93,10 @@ module ReadInput
     nfrz = 0
     with_field = .false.
     nFields = 0
+
+    tRHF = .false.
+    n_rhf = 0
+    maxit = 10
 
   end subroutine SetDVRInpDefaults
 
@@ -227,11 +235,47 @@ module ReadInput
       case("ENDORBITAL")
         exit
       case default
-        call stop_all('DVRInput', 'Keyword not recognized')
+        call stop_all('OrbitalInput', 'Keyword not recognized')
       end select
 
     end do
 
   end subroutine OrbitalInput
+
+  subroutine RHFInput(ir)
+
+    integer, intent(in) :: ir
+    logical :: eof
+    character (len=100)  :: w
+
+    tRHF = .true.
+
+    do
+      call read_line(eof, ir)
+      if (eof) then 
+        exit
+      end if  
+      call readu(w)
+
+      if (w(1:1).eq.'!'.or.w(1:1).eq.'#') cycle
+
+      select case(w)
+      
+      ! Number of n quntum to be stored from the Hartree-Fock solution
+      case("NUM-N-QN")
+        call geti(n_rhf)
+      case("MAXITER")
+        call geti(maxit)
+      case("DENSITY-TOL")
+        call getf(DenTol)
+      case("ENDRHF")
+        exit
+      case default
+        call stop_all('RHFInput', 'Keyword not recognized')
+      end select
+
+    end do
+
+  end subroutine RHFInput
 
 end module ReadInput
