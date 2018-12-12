@@ -110,14 +110,15 @@ module DVRDiag
 
   subroutine DVRDiagonalization()
 
-    integer                    :: i, j, l, l_val
+    integer                    :: i, j, l, l_val, k, error
     real(dp), allocatable      :: matrix(:,:), matrix_full(:,:)
     logical                    :: only_bound ! Only writes out bound states
     real(dp), pointer          :: pot_1(:)
     real(dp), pointer          :: eigenval_p(:)
     real(dp), allocatable      :: eigen_vals_full(:)
+    real(dp), allocatable      :: overlap(:,:)
 
-    real                       :: start, finish
+    real                       :: start, finish, val
 
 !   only_bound         = .true.
     only_bound         = .false.
@@ -131,6 +132,9 @@ module DVRDiag
     end do
     close(11)
  
+    allocate(overlap(para%nev, para%nev),stat=error)
+    call allocerror(error)
+
     !! Here start the loop over different values of the angular quantum number
 !   do l = 1, 2*para%l+1
     do l = 1, para%l+1
@@ -215,7 +219,25 @@ module DVRDiag
           eigen_vecs(i,j,l)  = matrix(i,j)
         end do
       end do
-      
+
+      if (debug.gt.5) then
+        open(11, file="overlap"//trim(int2str(l_val))//".dat", form="formatted", &
+        &    action="write")
+ 
+        do i = 1, para%nev
+          do j = 1, i
+            val = 0.0d0
+            do k = 1, size(grid%r)
+              val = val + matrix(k,i)*matrix(k,j)*grid%weights(k)/(grid%r(k)**2)
+            end do
+            overlap(i,j) = val
+            overlap(j,i) = val
+            if (abs(val).gt.1e-12) &
+            & write(11,'(2i5,f20.12)') i, j, val
+          end do
+        end do
+        close(11)
+      end if
 
       if ( debug.gt.4) then
         write(iout,'(X,90a)') 'Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...'
@@ -261,6 +283,8 @@ module DVRDiag
           do i = 1, size(matrix(:,1))
             write(11,*) grid%r(i), (eigen_vecs(i,j,l)/(sqrt(grid%weights(i)) * grid%r(i)), &
             & j = 1, size(matrix(i,:)))
+            !write(11,*) grid%r(i), (eigen_vecs(i,j,l), &
+            !& j = 1, size(matrix(i,:)))
           end do
           close(11)
         end if

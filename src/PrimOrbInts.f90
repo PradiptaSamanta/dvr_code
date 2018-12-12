@@ -40,9 +40,10 @@ module PrimOrbInts
     SpatialOrbInd = 0
 
     indx = 0
+    l_val = para%l+1
+!   write(*,*) 'limit for l_val:', l_val
+
     do i = 1, n_max
-      l_val = para%l+1
-!     write(*,*) 'limit for l_val:', l_val
       do j = 1, l_val
         do k = 1, 2*j-1
           indx = indx + 1
@@ -82,7 +83,6 @@ module PrimOrbInts
 
     do l = 1, para%l + 1
 
-      ! The first step is done here
       do n = 1, orb%n_max
         do m = 1, orb%n_max
           do ml = 1, 2*l-1
@@ -102,6 +102,7 @@ module PrimOrbInts
     write(iout,'(X,a,f10.5,X,a)') 'Time taken for 1e transformation = ', finish-start, 'seconds.'
 
   end subroutine Calc1ePrimOrbInts
+
   subroutine Calc2ePrimOrbInts()
 
     use DVRData, only : two_e_rad_int, para, grid, integrals_ang, sph_harm
