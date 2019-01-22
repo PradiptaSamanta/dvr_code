@@ -67,9 +67,10 @@ module ReadInput
     pot_filename  = 'input_pot.in'
     r_min         = 0.0
     r_max         = 300.0
-    m             = 200
+    m(1)          = 200
+    m(2)          = 0
     nl            = 5
-    nr            = m * nl + 1
+    nr            = m(1) * nl + 1
     l_max         = 3 !Rotational quantum number
     mass          = 1.0
     nev_fac       = 0.5d0
@@ -82,11 +83,13 @@ module ReadInput
     only_bound    = .true.
     
     debug = 1
+    split_grid = .false.
     dvr_diag = .false.
     dvr_integrals = .false.
     trans_integrals = .false.
     direct_2e = .false.
     prim_integrals = .false.
+    diagtype = 'both'
 
     n_max = 10
     two_e_int = 1
@@ -103,11 +106,12 @@ module ReadInput
   subroutine DVRInput(ir)
 
     integer, intent(in) :: ir
-    integer :: int_dummy
-    integer             :: check
-    logical :: eof
-    character (len=100)  :: w
-    character(len=32) :: Comp(3)
+    integer             :: int_dummy
+    integer             :: check, n_r, n_grids
+    logical             :: eof
+    character (len=100) :: w
+    character(len=32)   :: Comp(3)
+    real(dp)            :: r(3)
 
     check = 0
     do
@@ -122,23 +126,54 @@ module ReadInput
       select case(w)
       
       ! Minimum and maximum limits for the radial distance
+      ! For partitioning the total radial grid into two different regions, 
+      ! three different values of 'r' need to be provided in the input
       case("RLIMITS")
-        call getf(r_min,1.0d0)
-        call getf(r_max,1.0d0)
-        r_max2 = r_max
+        n_r = 0
+        if (nitems==1) then
+          call stop_all('DVRInput', 'Please specify atleast two values do define r_max and r_min')
+        end if
+        do while (item.lt.nitems)
+          n_r = n_r + 1
+          if (n_r.gt.3) then
+            call stop_all('DVRInput','Not allowed to split the radial grids in to more than two regions 1')
+          end if
+          call getf(r(n_r),1.0d0)
+        end do
+        if (n_r == 2) then
+          r_min = r(1)
+          r_max = r(2)
+        elseif (n_r == 3) then
+          r_min = r(1)
+          r_interm = r(2)
+          r_max = r(3)
+          split_grid = .true.
+        else
+          call stop_all('DVRInput', 'Not an option')
+        end if 
       ! Grid point which separates B1 from B2 region 
-      case("RMAX1")
-        call getf(r_max1,1.0d0)
+!     case("RMAX1")
+!       call getf(r_max1,1.0d0)
       ! Number of Finite Elements grids
       case("N-GRIDS")
-        call geti(m)
-      ! Number of Finite Elements in B1 region
-      case("N-GRIDS1")
-        call geti(m1)
-      ! Number of Finite Elements in B2 region
-      case("N-GRIDS2")
-        call geti(m2)
-        m = m1 + m2
+        n_grids = 0
+        if (nitems==1) then
+          call stop_all('DVRInput', 'Please specify atleast one value for n-grids')
+        end if
+        do while (item.lt.nitems)
+          n_grids = n_grids + 1
+          if (n_grids.gt.2) then
+            call stop_all('DVRInput','Not allowed to split the radial grids in to more than two regions 2')
+          end if
+          call geti(m(n_grids))
+        end do
+!     ! Number of Finite Elements in B1 region
+!     case("N-GRIDS1")
+!       call geti(m1)
+!     ! Number of Finite Elements in B2 region
+!     case("N-GRIDS2")
+!       call geti(m2)
+!       m = m1 + m2
       ! Number of point in the Gauss-Lobato quadrature
       case("N-GL")
         call geti(nl)
@@ -165,15 +200,17 @@ module ReadInput
       case("MAPPED-GRID")
         mapped_grid = .true.
         call getf(beta)
-      case("MAP_INNER_OUTER")
-        mapped_grid = .true.
-        maptype = 'inner_outer'
+!     case("MAP-INNER-OUTER")
+!       mapped_grid = .true.
+!       maptype = 'inner_outer'
       case("DIAGTYPE")
         call geti(int_dummy)
         if (int_dummy == 1) then
           diagtype = 'only_inner'
         elseif (int_dummy == 2) then
           diagtype = 'only_outer'
+        elseif (int_dummy == 3) then
+          diagtype = 'both'
         else
           call stop_all('DVRInput', 'Invalid Integer for diagtype')
         end if
