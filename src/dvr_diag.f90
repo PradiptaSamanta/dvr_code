@@ -18,46 +18,83 @@ module DVRDiag
 
     para%pottype       = 'file' ! 'density_file', 'file', 'analytical'
     para%pot_filename  = 'input_pot.in'
+
+    para%split_grid   = split_grid
+    para%mapped_grid  = mapped_grid
+
+    if (para%split_grid) then
+      para%diagtype = diagtype
+    end if
+
+    if (para%mapped_grid) then
+      if (para%split_grid) then
+        para%maptype  = 'inner_outer'
+      else
+        para%maptype = 'diff'
+      end if
+    end if
+
     para%r_min         = r_min
     para%r_max         = r_max
-    para%m             = m
     para%nl            = nl
-    para%nr            = m*nl + 1
-    para%ng            = m*nl - 1
+
+    ! Do some sanity check for the input here
+    if (para%split_grid) then
+      ! If no value for m(2) is given, use the same value of m in both the region
+      if (m(2).eq.0) m(2) = m(1)
+    end if
+
+    if (para%split_grid.and.para%maptype == 'inner_outer') then
+      para%r_max1        = r_interm
+      para%r_max2        = para%r_max
+      para%m1            = m(1)
+      para%m2            = m(2)
+      para%m             = para%m1 + para%m2
+      para%nr            = para%m*para%nl + 1
+    else
+      para%m             = m(1)
+      para%nr            = para%m*para%nl + 1
+    end if
+
+    para%ng            = para%m*para%nl - 1
     para%l             = l_max !Rotational quantum number
     para%Z             = z
     para%mass          = mass
+
     if (nev_fac.eq.1.0d0) then
       para%nev = para%nr - 2 
     else
       para%nev           = nint(nev_fac*para%nr)
     end if
  
-    para%mapped_grid   = mapped_grid
-    if (mapped_grid) then
-      para%maptype = 'diff'
-      if (maptype == 'inner_outer') then
-        para%maptype  = 'inner_outer'
-        para%diagtype = diagtype
-      end if
-    end if
-    para%r_max1        = 5.0
-    para%r_max2        = 30.0
-    para%m1            = 50 
-    para%m2            = 50
     para%read_envelope = ''
     para%beta          = beta
     para%E_max         = 1d-5
 
     write(iout, *) '**********'
     write(iout, *) 'Setting up these parameters:'
-    write(iout, '(X,A,3X, F6.2)') 'para%r_min     =', r_min
-    write(iout, '(X,A,3X, F6.2)') 'para%r_max     =', r_max
-    write(iout, '(X,A,3X, I6)') 'para%m         =', m
+    write(iout, '(X,A,3X, F6.2)') 'para%r_min     =', para%r_min
+    write(iout, '(X,A,3X, F6.2)') 'para%r_max     =', para%r_max
+    write(iout, '(X,A,3X, I6)') 'para%m         =', para%m
     write(iout, '(X,A,3X, I6)') 'para%nl        =', nl
+    if (para%mapped_grid) then
+      write(iout, *) '----------'
+      write(iout, '(X,A)') 'The radial grids are selected through mapping'
+      write(iout,'(X,A,3X, F8.6)') 'para%beta      =',  para%beta
+      write(iout,'(X,A,3X, F8.6)') 'para%E_max     =',  para%E_max
+      write(iout, *) '----------'
+    end if
+    if (para%split_grid) then
+      write(iout, *) '----------'
+      write(iout, '(X,A)') 'The radial grids are divided into outer and inner regions'
+      write(iout, '(X,A,3X, I6)') 'para%m1        =', para%m1
+      write(iout, '(X,A,3X, I6)') 'para%m2        =', para%m2
+      write(iout, '(X,A,3X, F6.2)') 'para%r_max1    =', para%r_max1
+      write(iout, *) '----------'
+    end if
     write(iout, '(X,A,3X, I6)') 'para%nr        =', para%nr
     write(iout, '(X,A,3X, I6)') 'para%l_max     =', l_max
-    write(iout, '(X,A,3X, I6)') 'para%nev     =', para%nev
+    write(iout, '(X,A,3X, I6)') 'para%nev       =', para%nev
     write(iout, '(X,A,3X, I6)') 'para%Z         =', z
     write(iout, '(X,A,3X, F6.2)') 'para%mass      =', mass
     write(iout, *) '***********' 
@@ -155,7 +192,7 @@ module DVRDiag
       call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0,               &
       &                       para%nl)
 
-      if (para%maptype == 'inner_outer') then
+      if (para%split_grid) then
         if (para%diagtype == 'only_inner') then
           do i = (para%m1 * para%nl) + 1, para%nr-2
             do j = 1, para%nr-2

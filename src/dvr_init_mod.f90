@@ -36,7 +36,7 @@ contains
     character(len=maptype_l)    :: basis_for_mapping
 
     nr    = para%nr
-    if (para%maptype == 'inner_outer') then
+    if (para%split_grid) then
       nl    = para%nl
       m     = para%m1 + para%m2
       m1    = para%m1
@@ -146,9 +146,9 @@ contains
           &   + r_max1 + (real(m2,idp)- half) * (r_max2 - r_max1) /            &
           &                                                         real(m2,idp)
 
-       case default
-         write(*,*) "ERROR: Cannot initialize mapped GLL grid! Unknown maptype."
-         stop
+        case default
+          write(*,*) "ERROR: Cannot initialize mapped GLL grid! Unknown maptype."
+          stop
       end select
 
       do j = 0, nl

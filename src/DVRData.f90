@@ -27,6 +27,7 @@ module DVRData
   !! @param: pottype         Type of potential {'analytical'|'file'}
   !! @param: pot_filename    Name of file with potential data
   !! @param: mapped_grid     Decides whether mapping is employed for the grid 
+  !! @param: split_grid      Logical to divide the total grid into upto two sub-region
   !! @param: maptype         Type of mapping {'diff'|'int'}
   !! @param: diagtype        Region to diagonalise {'only_inner'|'only_outer'}
   !!                         (only if maptype = 'inner_outer')
@@ -56,11 +57,12 @@ module DVRData
     real(dp)                   :: Z 
     real(dp)                   :: r_min
     real(dp)                   :: r_max
-    real(dp)                  :: r_max1
-    real(dp)                  :: r_max2
+    real(dp)                   :: r_max1
+    real(dp)                   :: r_max2
     character(len=pottype_l)   :: pottype
     character(len=file_l)      :: pot_filename 
     logical                    :: mapped_grid
+    logical                    :: split_grid
     character(len=maptype_l)   :: maptype
     character(len=diagtype_l)  :: diagtype
     character(len=file_l)      :: read_envelope
