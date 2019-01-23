@@ -716,7 +716,7 @@ module DVRrhf
     integer, allocatable :: OrbInd(:,:,:)
     integer, allocatable :: NewOrbInd(:,:,:)
     integer :: error, i, j, indx
-    integer :: ind_1, ind_2, ind_3, ind_4, l, m
+    integer :: ind_1, ind_2, ind_3, ind_4, l, m, len_1, len_2
     real(dp) :: val, start, finish
 
 
@@ -767,31 +767,102 @@ module DVRrhf
 
 
     OrbEn = 0.0d0
-    do l = 1, para%l+1
-      do m = 1, 2*l-1
-        F_r = 0.0d0
-        do i = 1, ng
-          do j = 1, i
+
+    if (para%split_grid) then
+
+      len_1 = para%m1*para%nl
+      len_2 = para%m2*para%nl - 1
+      if (allocated(F_r)) deallocate(F_r)
+      allocate(F_r(len_1, len_1))
+      if (allocated(En)) deallocate(En)
+      allocate(En(len_1))
+
+      do l = 1, para%l+1
+        do m = 1, 2*l-1
+          F_r = 0.0d0
+          do i = 1, len_1
+            do j = 1, i
+              ind_1 = OrbInd(i, l, m)
+              ind_2 = OrbInd(j, l, m)
+              val = F(ind_1, ind_2)
+              F_r(i,j) = val
+              F_r(j,i) = val
+            end do
+          end do
+          call diag_matrix(F_r, En)
+          do i = 1, len_1
             ind_1 = OrbInd(i, l, m)
-            ind_2 = OrbInd(j, l, m)
-            val = F(ind_1, ind_2)
-            F_r(i,j) = val
-            F_r(j,i) = val
+            do j = 1, len_1
+              ind_2 = OrbInd(j, l, m)
+              val = F(j,i)
+              F(ind_1,ind_2) = F_r(i,j)
+              F(ind_2,ind_1) = F_r(j,i)
+            end do
+            OrbEn(ind_1) = En(i)
           end do
-        end do
-        call diag_matrix(F_r, En)
-        do i = 1, ng
-          ind_1 = OrbInd(i, l, m)
-          do j = 1, ng
-            ind_2 = OrbInd(j, l, m)
-            val = F(j,i)
-            F(ind_1,ind_2) = F_r(i,j)
-            F(ind_2,ind_1) = F_r(j,i)
-          end do
-          OrbEn(ind_1) = En(i)
         end do
       end do
-    end do
+
+      deallocate(F_r)
+      allocate(F_r(len_2, len_2))
+      deallocate(En)
+      allocate(En(len_2))
+
+      do l = 1, para%l+1
+        do m = 1, 2*l-1
+          F_r = 0.0d0
+          do i = 1, len_2
+            do j = 1, i
+              ind_1 = OrbInd(i+len_1, l, m)
+              ind_2 = OrbInd(j+len_1, l, m)
+              val = F(ind_1, ind_2)
+              F_r(i,j) = val
+              F_r(j,i) = val
+            end do
+          end do
+          call diag_matrix(F_r, En)
+          do i = 1, len_2
+            ind_1 = OrbInd(i+len_1, l, m)
+            do j = 1, len_2
+              ind_2 = OrbInd(j+len_1, l, m)
+              val = F(j,i)
+              F(ind_1,ind_2) = F_r(i,j)
+              F(ind_2,ind_1) = F_r(j,i)
+            end do
+            OrbEn(ind_1) = En(i)
+          end do
+        end do
+      end do
+
+    else
+
+      do l = 1, para%l+1
+        do m = 1, 2*l-1
+          F_r = 0.0d0
+          do i = 1, ng
+            do j = 1, i
+              ind_1 = OrbInd(i, l, m)
+              ind_2 = OrbInd(j, l, m)
+              val = F(ind_1, ind_2)
+              F_r(i,j) = val
+              F_r(j,i) = val
+            end do
+          end do
+          call diag_matrix(F_r, En)
+          do i = 1, ng
+            ind_1 = OrbInd(i, l, m)
+            do j = 1, ng
+              ind_2 = OrbInd(j, l, m)
+              val = F(j,i)
+              F(ind_1,ind_2) = F_r(i,j)
+              F(ind_2,ind_1) = F_r(j,i)
+            end do
+            OrbEn(ind_1) = En(i)
+          end do
+        end do
+      end do
+
+    end if
 
 !   call diag_matrix(F_r, OrbEn)
 
