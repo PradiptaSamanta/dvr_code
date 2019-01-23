@@ -629,21 +629,47 @@ module DVRrhf
     real(dp), allocatable, intent(inout) :: F(:,:)
     integer,               intent(in)    :: n_COs
 
-    integer  :: i, j 
+    integer  :: i, j, len_1, len_2, n_l
     real(dp) :: start, finish, val
 
     call cpu_time(start)
 
     F = zero
 
-    do j = 1, n_COs
-      do i = 1, j
-        val = hcore(i,j) + V(i,j)
-        F(i,j) = val
-        F(j,i) = val
-!       if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+    if (para%split_grid) then
+
+      n_l = para%l + 1
+      len_1 = para%m1*para%nl*n_l*n_l
+      len_2 = (para%m2*para%nl-1)*n_l*n_l
+      write(*,*) 'Debugging:', len_1, len_2
+
+      do j = 1, len_1
+        do i = 1, j
+          val = hcore(i,j) + V(i,j)
+          F(i,j) = val
+          F(j,i) = val
+!         if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+        end do
       end do
-    end do
+      do j = len_1+1, len_1+len_2
+        do i = len_1+1, j
+          val = hcore(i,j) + V(i,j)
+          F(i,j) = val
+          F(j,i) = val
+!         if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+        end do
+      end do
+
+    else
+      do j = 1, n_COs
+        do i = 1, j
+          val = hcore(i,j) + V(i,j)
+          F(i,j) = val
+          F(j,i) = val
+!         if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+        end do
+      end do
+    end if
 !   write(84, *) 'Done####'
 
     call cpu_time(finish)
