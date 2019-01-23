@@ -1,7 +1,7 @@
 dvr
 rlimits  0.0 20.0 
 mapped-grid 0.001
-n-grids 200
+n-grids 20
 n-gl 5
 rot-qn-max 2
 num-eig-value-fac 1.0
@@ -9,7 +9,7 @@ nuclear-charge 2
 mass 1.0
 dvr-diag
 dvr-integrals
-direct-integrals
+!direct-integrals
 debug 6
 enddvr
 
