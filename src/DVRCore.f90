@@ -3,6 +3,7 @@ subroutine DVRCore()
   use constants
   use ReadInput, only : ReadInputMain
   use InputData, only : dvr_diag, dvr_integrals, orbital_ints
+  use DVRData, only:  eigen_vecs, one_e_rad_int, two_e_rad_int
   use DVRDiag, only : SetDVR, DVRDiagonalization,ReadEigValVec
   use RHFData, only: tRHF
   use DVRIntRad, only : GetRadialElements
@@ -18,6 +19,7 @@ subroutine DVRCore()
 
   character(64) :: file_in, file_out
   real(dp)  :: start, finish
+  real(dp), allocatable :: EigVec(:,:,:), OneInts(:,:), TwoInts(:,:)
 
   call cpu_time(start)
 
@@ -53,7 +55,11 @@ subroutine DVRCore()
   endif
 
   if (tRHF) then
-    call DoRHF()
+!   if (SplitGrid) then
+!     call DoRHF(ng, EigVec, OneInts, TwoInts)
+!   else
+      call DoRHF(para%ng, eigen_vecs, one_e_rad_int, two_e_rad_int)
+!   end if
   end if
 
   ! Combine the 1-e and 2-e, radial and angular parts of integrals, calculated in the

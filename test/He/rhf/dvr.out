@@ -3,11 +3,16 @@
  Setting up these parameters:
  para%r_min     =     0.00
  para%r_max     =    20.00
- para%m         =      200
+ para%m         =       20
  para%nl        =        5
- para%nr        =     1001
+ ----------
+ The radial grids are selected through mapping
+ para%beta      =   0.001000
+ para%E_max     =   0.000010
+ ----------
+ para%nr        =      101
  para%l_max     =        2
- para%nev     =      999
+ para%nev       =       99
  para%Z         =        2
  para%mass      =     1.00
  ***********
@@ -15,19 +20,19 @@
     Original grid parameters were changed by differential map
                original                 after mapping
     r_min    0.00000000000000000E+00  0.00000000000000000E+00
-    r_max    2.00000000000000000E+01  1.98612318968059824E+01
-    nr         1001                        1001
+    r_max    2.00000000000000000E+01  1.98612318968063262E+00
+    nr          101                         101
  Using potential from file input_pot.in
    
  Grid initialization is done.
  Solving the radial Schroedinger equation for l =            0
- Time taken for diagonalization =     2.84418 seconds.
+ Time taken for diagonalization =     0.00800 seconds.
  Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...
  Solving the radial Schroedinger equation for l =            1
- Time taken for diagonalization =     2.84018 seconds.
+ Time taken for diagonalization =     0.01200 seconds.
  Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...
  Solving the radial Schroedinger equation for l =            2
- Time taken for diagonalization =     2.84018 seconds.
+ Time taken for diagonalization =     0.01200 seconds.
  Writing down the eigenvalues, eigenvectors and combining coefficients as demanded ...
  Calculating one-electron radial part of the integral for l =            0
  Calculating one-electron radial part of the integral for l =            1
@@ -35,7 +40,7 @@
  Calculating one-electron radial part of the integral for l =            3
  Calculating one-electron radial part of the integral for l =            4
  writing down the one-electron radial integrals
- Two-electron integrals are calculated directly from the corresponding expression...
+ two-electron integrals are calculated indirectly from an alternative expression
  Calculating two-electron radial part of the integral for l =            0
  Calculating two-electron radial part of the integral for l =            1
  Calculating two-electron radial part of the integral for l =            2
@@ -51,45 +56,45 @@
  Writing down the angular integrals
  Writing down the angular integrals
  ***** Doing RHF Calculation using FE-DVR basis *****
- Energy at the beginning:   -2.85933617244927     
+ Energy at the beginning:   -2.54485129980865     
  iter      error          Energy     time
-   1     0.02821308    -2.86156381  36.05025
-   2     0.00187865    -2.86156728  36.02225
-   3     0.00037392    -2.86156740  36.03825
-   4     0.00010536    -2.86156741  36.03425
-   5     0.00003083    -2.86156741  36.03425
-   6     0.00000906    -2.86156741  36.03025
+   1     0.04458027    -2.55259313   0.12001
+   2     0.00684085    -2.55274432   0.12001
+   3     0.00100158    -2.55274752   0.12001
+   4     0.00014587    -2.55274759   0.12001
+   5     0.00002123    -2.55274759   0.11601
+   6     0.00000309    -2.55274759   0.12001
  RHF calculation is converged in:           6 iterations...
- Final RHF energy:     -2.861567409507 Hartree.
- MO #  1energy=      -0.917871265070 occ=  2
- MO #  2energy=      -0.433158624978 occ=  0
- MO #  3energy=      -0.433158624978 occ=  0
- MO #  4energy=      -0.433158624978 occ=  0
- MO #  5energy=      -0.218345362475 occ=  0
- MO #  6energy=      -0.218345362475 occ=  0
- MO #  7energy=      -0.218345362475 occ=  0
- MO #  8energy=      -0.218345362475 occ=  0
- MO #  9energy=      -0.218345362475 occ=  0
- MO # 10energy=      -0.158327073151 occ=  0
- MO # 11energy=      -0.202174901638 occ=  0
- MO # 12energy=      -0.202174901638 occ=  0
- MO # 13energy=      -0.202174901638 occ=  0
- MO # 14energy=      -0.122002415758 occ=  0
- MO # 15energy=      -0.122002415758 occ=  0
- MO # 16energy=      -0.122002415758 occ=  0
- MO # 17energy=      -0.122002415758 occ=  0
- MO # 18energy=      -0.122002415758 occ=  0
- MO # 19energy=      -0.061992453132 occ=  0
- MO # 20energy=      -0.112800058799 occ=  0
+ Final RHF energy:     -2.552747586592 Hartree.
+ MO #  1energy=      -0.652029102817 occ=  2
+ MO #  2energy=       0.784988132956 occ=  0
+ MO #  3energy=       0.784988132956 occ=  0
+ MO #  4energy=       0.784988132956 occ=  0
+ MO #  5energy=       2.595263408971 occ=  0
+ MO #  6energy=       2.595263408971 occ=  0
+ MO #  7energy=       2.595263408971 occ=  0
+ MO #  8energy=       2.595263408971 occ=  0
+ MO #  9energy=       2.595263408971 occ=  0
+ MO # 10energy=       2.745257996502 occ=  0
+ MO # 11energy=       5.335057796897 occ=  0
+ MO # 12energy=       5.335057796897 occ=  0
+ MO # 13energy=       5.335057796897 occ=  0
+ MO # 14energy=       8.483449343946 occ=  0
+ MO # 15energy=       8.483449343946 occ=  0
+ MO # 16energy=       8.483449343946 occ=  0
+ MO # 17energy=       8.483449343946 occ=  0
+ MO # 18energy=       8.483449343946 occ=  0
+ MO # 19energy=       8.667451633079 occ=  0
+ MO # 20energy=      12.527124891510 occ=  0
  ***** RHF is done...
  **********
  Setting up these parameters for the orbitals:
  orb%n_max     =        3
  orb%nSpatialOrbs     =       14
  ***********
- Time taken for 1e transformation =    0.10401 seconds.
- Time taken for 2e transformation =    8.69254 seconds.
- Time taken for combining integrals =    0.00000 seconds.
+ Time taken for 1e transformation =    0.00000 seconds.
+ Time taken for 2e transformation =    0.11201 seconds.
+ Time taken for combining integrals =    0.00400 seconds.
  Deallocated all the main matrices.
  The calculation is done. 
- Time =    282.053627000000      seconds.
+ Time =    1.20807500000000      seconds.

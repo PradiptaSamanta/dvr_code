@@ -10,10 +10,14 @@ module DVRrhf
 
   contains
   
-  subroutine DoRHF()
+  subroutine DoRHF(ng, EigVec, OneInts, TwoInts)
 
     use DVRData, only:  eigen_vecs, one_e_rad_int, two_e_rad_int, integrals_ang
 
+    integer, intent(in)   :: ng
+    real(dp), allocatable, intent(inout) :: EigVec(:,:,:)
+    real(dp), allocatable, intent(in) :: OneInts(:,:,:)
+    real(dp), allocatable, intent(in) :: TwoInts(:,:,:)
     real(dp), allocatable :: MOCoeffs(:,:), Den(:,:), DenOld(:,:), F(:,:)
     real(dp), allocatable :: hcore(:,:)
     real(dp), allocatable :: TwoEInts(:,:,:,:)
@@ -36,14 +40,14 @@ module DVRrhf
     ! Total number of spherical harmonics
     n_ml = n_l**2
     ! Total number of n_quantum number, which equal to the total number of radial grids
-    n_nqn = para%ng
+    n_nqn = ng
 
     !!!!!
     ! Here the total number product basis is calculated and linked to the 
     ! individual sets of (n,l,m) quantum numbers
 
 
-    allocate(OrbInd(para%ng,para%l+1,2*para%l+1), stat=error)
+    allocate(OrbInd(ng,para%l+1,2*para%l+1), stat=error)
     call allocerror(error)
 
     OrbInd = 0
@@ -53,7 +57,7 @@ module DVRrhf
     indx = 0
     
     if (RemoveL) then
-      do i = 1, para%ng
+      do i = 1, ng
         do j = 1, min(n_l,i)
           do k = 1, 2*j-1
             indx = indx + 1
@@ -63,7 +67,7 @@ module DVRrhf
       end do
       nTotOrbs = indx
     else
-      do i = 1, para%ng
+      do i = 1, ng
         do j = 1, n_l
           do k = 1, 2*j-1
             indx = indx + 1
@@ -101,10 +105,10 @@ module DVRrhf
 
     ! First expand the matrix of eigen vectors that we already get from solving 
     ! the radial Schroedinger into a product basis of R_{n,l}*Y{l,m}
-    call ExpandBasis(eigen_vecs, MOCoeffs, OrbInd, n_l, n_nqn, &
+    call ExpandBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn, &
     &                nTotOrbs, RemoveL)
 
-!   do i = 1, para%ng
+!   do i = 1, ng
 !     do l = 1, n_l
 !       do m = 1, 2*l-1
 !         indx = OrbInd(i,l,m)
@@ -129,14 +133,16 @@ module DVRrhf
     call GetDensity(Den, DenOld, MOCoeffs,  nTotOrbs)
 
     ! Calculate the one-body part of the Fock matrix from the one-electron integrals stores in one_rad_int
-    call CalcHCore(one_e_rad_int, hcore, OrbInd, RemoveL)
+    call CalcHCore(OneInts, hcore, OrbInd, ng, RemoveL)
 
-    if (vopt.eq.1) then
-      call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
-    else 
-      call Calc2ePrimOrbInts(TwoEInts, OrbInd, n_l, nTotOrbs)
-      call CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
-    end if
+!   if (vopt.eq.1) then
+
+    call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+
+!   else 
+!     call Calc2ePrimOrbInts(TwoEInts, OrbInd, n_l, nTotOrbs)
+!     call CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
+!   end if
 
 !   Vred = 0.0d0
 
@@ -155,7 +161,7 @@ module DVRrhf
       call cpu_time(start)
 
       ! First diagonalise the Fock matrix
-      call DiagFock(F , MOCoeffs, nTotOrbs, OrbEn)
+      call DiagFock(F , MOCoeffs, ng, nTotOrbs, OrbEn)
 
 !     do i = 1, nTotOrbs
 !       do j = 1, nTotOrbs
@@ -175,7 +181,7 @@ module DVRrhf
 
       ! Calculate the new Fock matrix
       if (vopt.eq.1) then
-        call CalcVred(two_e_rad_int, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+        call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
       else
         call CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
       end if
@@ -207,17 +213,17 @@ module DVRrhf
 
         end do
 
-        call ContractBasis(eigen_vecs, MOCoeffs, OrbInd, n_l, n_nqn)
+        call ContractBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn)
 
         if (debug.gt.5) then
           do l = 1, n_l
             l_val = l - 1
             open(11, file="rhfvectors_GLL"//trim(int2str(l_val))//".dat", form="formatted",&
             &    action="write", recl=100000)
-            do i = 1, size(eigen_vecs(:,1,l))
-              write(11,*) grid%r(i), (eigen_vecs(i,j,l)/(sqrt(grid%weights(i)) * grid%r(i)), &
-              & j = 1, size(eigen_vecs(i,:,l)))
-              !write(11,*) grid%r(i), (eigen_vecs(i,j,l), &
+            do i = 1, size(EigVec(:,1,l))
+              write(11,*) grid%r(i), (EigVec(i,j,l)/(sqrt(grid%weights(i)) * grid%r(i)), &
+              & j = 1, size(EigVec(i,:,l)))
+              !write(11,*) grid%r(i), (EigVec(i,j,l), &
               !& j = 1, size(matrix(i,:)))
             end do
             close(11)
@@ -241,7 +247,7 @@ module DVRrhf
     end do
 
     do j = 1, 10
-      do i = 1, para%ng
+      do i = 1, ng
         if (RemoveL) then
           l_val = min(i,n_l)
         else
@@ -265,13 +271,13 @@ module DVRrhf
 
   end subroutine DoRHF
 
-  subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbInd, n_l, n_nqn, &
+  subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbInd, ng, n_l, n_nqn, &
     &                nTotOrbs, RemoveL)
 
     real(dp), allocatable, intent(in) :: EigenVecs(:,:,:)
     real(dp), allocatable, intent(inout) :: MOCoeffs(:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) :: n_l, n_nqn, nTotOrbs
+    integer, intent(in) :: ng, n_l, n_nqn, nTotOrbs
     logical, intent(in) :: RemoveL
 
     integer :: i, n, l, m, indx_1, indx_2, error, l_val
@@ -281,7 +287,7 @@ module DVRrhf
     indx_1 = 0
     indx_2 = 0
     do n = 1, n_nqn
-      do i = 1, para%ng
+      do i = 1, ng
         if (RemoveL) then
           l_val =  min(i,n,n_l)
         else 
@@ -350,24 +356,25 @@ module DVRrhf
 
   end subroutine GetDensity
 
-  subroutine CalcHCore(OneEInts, hcore, OrbInd, RemoveL)
+  subroutine CalcHCore(OneEInts, hcore, OrbInd, ng, RemoveL)
 
     real(dp), allocatable, intent(in) :: OneEInts(:,:,:)
     real(dp), allocatable, intent(inout) :: hcore(:,:)
+    integer, intent(in) :: ng
     logical, intent(in) :: RemoveL
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer :: i, j, l, m, ind_1, ind_2, l_prime
     real(dp) :: val, l_val
     real(dp), allocatable :: delta(:,:)
 
-    allocate(delta(para%ng, para%ng))
+    allocate(delta(ng, ng))
 
     delta = 0.0d0
-    do i = 1, para%ng
+    do i = 1, ng
       delta(i,i) = 1.0d0
     end do
 
-    do i = 1, para%ng
+    do i = 1, ng
       do j = 1, i
         if (RemoveL) then
           l_prime = min(i,j,para%l+1)
@@ -510,7 +517,7 @@ module DVRrhf
     end do
     end do
 
-!   do k1 = 1, para%ng
+!   do k1 = 1, ng
 !     do l1 = 1, n_l
 !       n_m1 = 2*l1 - 1
 !       do m1 = 1, n_m1
@@ -524,7 +531,7 @@ module DVRrhf
 !               klm_2 = OrbInd(k1,l2,m2)
 
 !               int_value = 0.0d0
-!               do k3 = 1, para%ng
+!               do k3 = 1, ng
 !               do l3 = 1, n_l
 !                 n_m3 = 2*l3 - 1
 !                 do m3 = 1, n_m3
@@ -671,13 +678,13 @@ module DVRrhf
 
   end subroutine CalcEnergy
 
-  subroutine DiagFock(F, MOCoeff, n_COs, OrbEn)
+  subroutine DiagFock(F, MOCoeff, ng, n_COs, OrbEn)
 
     use dvr_diag_mod, only : diag_matrix
 
     real(dp), allocatable, intent(inout) :: F(:,:), MOCoeff(:,:)
     real(dp), allocatable, intent(inout) :: OrbEn(:)
-    integer, intent(in) :: n_COs
+    integer, intent(in) :: ng, n_COs
 
     real(dp), allocatable :: F_r(:,:), En(:)
     integer, allocatable :: OrbInd(:,:,:)
@@ -690,13 +697,13 @@ module DVRrhf
     call cpu_time(start)
 
 !   allocate(F_r(n_COs,n_COs), stat=error)
-    allocate(F_r(para%ng,para%ng), stat=error)
-    allocate(En(para%ng), stat=error)
-    allocate(NewOrbInd(para%ng, para%l+1, 2*para%l+1), stat=error)
-    allocate(OrbInd(para%ng, para%l+1, 2*para%l+1), stat=error)
+    allocate(F_r(ng,ng), stat=error)
+    allocate(En(ng), stat=error)
+    allocate(NewOrbInd(ng, para%l+1, 2*para%l+1), stat=error)
+    allocate(OrbInd(ng, para%l+1, 2*para%l+1), stat=error)
 
     indx = 0
-    do i = 1, para%ng
+    do i = 1, ng
       do l = 1, para%l+1
         do m = 1, 2*l - 1 
           indx = indx + 1
@@ -708,7 +715,7 @@ module DVRrhf
     indx = 0
     do l = 1, para%l+1
       do m = 1, 2*l - 1 
-        do i = 1, para%ng
+        do i = 1, ng
           indx = indx + 1
           NewOrbInd(i, l, m) = indx
         end do
@@ -716,7 +723,7 @@ module DVRrhf
     end do
 
 !   F_r = 0.0d0
-!   do i = 1, para%ng
+!   do i = 1, ng
 !     do j = 1, i
 !       do l = 1, para%l+1 
 !         do m = 1, 2*l-1
@@ -737,7 +744,7 @@ module DVRrhf
     do l = 1, para%l+1
       do m = 1, 2*l-1
         F_r = 0.0d0
-        do i = 1, para%ng
+        do i = 1, ng
           do j = 1, i
             ind_1 = OrbInd(i, l, m)
             ind_2 = OrbInd(j, l, m)
@@ -747,9 +754,9 @@ module DVRrhf
           end do
         end do
         call diag_matrix(F_r, En)
-        do i = 1, para%ng
+        do i = 1, ng
           ind_1 = OrbInd(i, l, m)
-          do j = 1, para%ng
+          do j = 1, ng
             ind_2 = OrbInd(j, l, m)
             val = F(j,i)
             F(ind_1,ind_2) = F_r(i,j)
@@ -764,7 +771,7 @@ module DVRrhf
 
 !   F = 0.0d0
 !   do i =1, n_COs
-!     do j = 1, para%ng
+!     do j = 1, ng
 !       do l = 1, para%l+1 
 !         do m = 1, 2*l-1
 !           ind_1 = OrbInd(j, l, m)
@@ -815,13 +822,13 @@ module DVRrhf
 
   end subroutine CalcDelDen
 
-  subroutine Calc2ePrimOrbInts(TwoEInts, OrbInd, n_l, n_orb)
+  subroutine Calc2ePrimOrbInts(TwoEInts, OrbInd, ng, n_l, n_orb)
 
     use DVRData, only : two_e_rad_int, para, grid, integrals_ang
 
     real(dp), allocatable, intent(inout) :: TwoEInts(:,:,:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) :: n_l, n_orb
+    integer, intent(in) :: ng, n_l, n_orb
     integer  :: n_mp, l1, l2, l3, l4, m1, m2, m3, m4, k1, k2, l
     integer  :: klm_1, klm_2, klm_3, klm_4, error
     integer  :: n_m1, n_m2, n_m3, n_m4, lm1, lm2, lm3, lm4
@@ -854,8 +861,8 @@ module DVRrhf
                   lm3 = (l3-1)**2 + m3
                   do m4 = 1, n_m4
                     lm4 = (l4-1)**2 + m4
-                    do k1 = 1, para%ng
-                      do k2 = 1, para%ng
+                    do k1 = 1, ng
+                      do k2 = 1, ng
                         klm_1 = OrbInd(k1,l1,m1)
                         klm_2 = OrbInd(k2,l2,m2)
                         klm_3 = OrbInd(k1,l3,m3)
@@ -903,12 +910,12 @@ module DVRrhf
 
   end subroutine Calc2ePrimOrbInts
 
-  subroutine ContractBasis(EigenVecs, MOCoeffs, OrbInd, n_l, n_nqn)
+  subroutine ContractBasis(EigenVecs, MOCoeffs, OrbInd, ng, n_l, n_nqn)
 
     real(dp), allocatable, intent(inout) :: EigenVecs(:,:,:)
     real(dp), allocatable, intent(in) :: MOCoeffs(:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) :: n_l, n_nqn
+    integer, intent(in) :: ng, n_l, n_nqn
 
     integer :: i, n, l, m, indx_1, indx_2
     real(dp) :: val
@@ -919,7 +926,7 @@ module DVRrhf
     do l = 1, n_l
       !do n = 1, n_nqn - (l - 1)
       do n = 1, n_nqn
-        do i = 1, para%ng
+        do i = 1, ng
           !indx_1 = OrbInd(n+l-1,l,1)
           indx_1 = OrbInd(n,l,1)
           indx_2 = OrbInd(i,l,1)

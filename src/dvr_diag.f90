@@ -44,7 +44,7 @@ module DVRDiag
       if (m(2).eq.0) m(2) = m(1)
     end if
 
-    if (para%split_grid.and.para%maptype == 'inner_outer') then
+    if (para%split_grid) then
       para%r_max1        = r_interm
       para%r_max2        = para%r_max
       para%m1            = m(1)
