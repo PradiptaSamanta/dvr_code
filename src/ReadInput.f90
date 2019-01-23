@@ -211,6 +211,8 @@ module ReadInput
           diagtype = 'only_outer'
         elseif (int_dummy == 3) then
           diagtype = 'both'
+        elseif (int_dummy == 4) then
+          diagtype = 'dont'
         else
           call stop_all('DVRInput', 'Invalid Integer for diagtype')
         end if

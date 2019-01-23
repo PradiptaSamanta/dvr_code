@@ -90,6 +90,7 @@ module DVRDiag
       write(iout, '(X,A,3X, I6)') 'para%m1        =', para%m1
       write(iout, '(X,A,3X, I6)') 'para%m2        =', para%m2
       write(iout, '(X,A,3X, F6.2)') 'para%r_max1    =', para%r_max1
+      write(iout, '(X,A,3X, A)') 'para%diagtype    =', para%diagtype
       write(iout, *) '----------'
     end if
     write(iout, '(X,A,3X, I6)') 'para%nr        =', para%nr
@@ -147,13 +148,14 @@ module DVRDiag
 
   subroutine DVRDiagonalization()
 
-    integer                    :: i, j, l, l_val, k, error
+    integer                    :: i, j, l, l_val, k, error, len_1, len_2
     real(dp), allocatable      :: matrix(:,:), matrix_full(:,:)
     logical                    :: only_bound ! Only writes out bound states
     real(dp), pointer          :: pot_1(:)
     real(dp), pointer          :: eigenval_p(:)
     real(dp), allocatable      :: eigen_vals_full(:)
     real(dp), allocatable      :: overlap(:,:)
+    real(dp), allocatable      :: matrix_1(:,:), matrix_2(:,:), eigen_vals_1(:), eigen_vals_2(:)
 
     real                       :: start, finish, val
 
@@ -169,6 +171,10 @@ module DVRDiag
     end do
     close(11)
  
+    do i = 1, size(grid%r)
+      write(76,*) grid%r(i)
+    end do
+
     allocate(overlap(para%nev, para%nev),stat=error)
     call allocerror(error)
 
@@ -192,50 +198,134 @@ module DVRDiag
       call mat_banded_to_full(matrix_full, matrix, para%nr-2, 0,               &
       &                       para%nl)
 
-      if (para%split_grid) then
-        if (para%diagtype == 'only_inner') then
-          do i = (para%m1 * para%nl) + 1, para%nr-2
-            do j = 1, para%nr-2
-              matrix_full(i,j) = zero
-            end do
-          end do
-          do i = 1, para%nr-2
-            do j = (para%m1 * para%nl) + 1, para%nr-2
-              matrix_full(i,j) = zero
-            end do
-          end do
-        elseif (para%diagtype == 'only_outer') then
-          do i = 1, (para%m1 * para%nl)
-            do j = 1, para%nr-2 
-              matrix_full(i,j) = zero
-            end do
-          end do
-          do i = 1, (para%m1 * para%nl)
-            do j = 1, para%nr-2 
-              matrix_full(i,j) = zero
-            end do
-          end do
-        end if
-      end if
-  
       call cpu_time(start)
 
-      !! Diagonalize Hamiltonian matrix which is stored in banded format.
-      !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
-      !! If needed, just add more
-      !call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)), &
-      !&                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
-      !&                   rvec=.true.)
-      
-      ! Since the arpack diagonalisation becomes wonky if nev=size(matrix(1,:))
-      ! we will instead perform a full BLAS diagonalisation of the symmetric
-      ! matrix, matrix_full
-      call diag_matrix(matrix_full, eigen_vals_full)
-  
+      if (para%split_grid) then
+
+        !! This part is implemented at a later point to deal with the situation when
+        !! the total grids are divided into two different regions. 
+        !! Diagonalisation can be done for only the inner or outer part of these region
+        !! and also for both of these two regions together.
+
+        len_1 = para%m1*para%nl
+        len_2 = para%m2*para%nl - 1
+        allocate(matrix_1(len_1,len_1), matrix_2(len_2,len_2))
+        allocate(eigen_vals_1(len_1), eigen_vals_2(len_2))
+        matrix_1 = 0.0d0
+        matrix_2 = 0.0d0
+
+        ! Case I
+        if (para%diagtype == 'only_inner') then
+          do i = 1, len_1
+            do j = 1, len_1
+              matrix_1(i,j) = matrix_full(i,j)
+            end do
+          end do
+          ! Diagonalise only the inner part of the matrix
+          call diag_matrix(matrix_1, eigen_vals_1)
+
+          ! Store the eigenvalues and eigenvectors in their proper positions
+          matrix_full = 0.0d0
+          if (allocated(eigen_vals_full)) deallocate(eigen_vals_full)
+          allocate(eigen_vals_full(len_1+len_2))
+          eigen_vals_full = 0.0d0
+
+          do i = 1, len_1
+            eigen_vals_full(i) = eigen_vals_1(i)
+            do j = 1, len_1
+              matrix_full(i,j) = matrix_1(i,j)
+            end do
+          end do
+
+        ! Case II
+        elseif (para%diagtype == 'only_outer') then
+          do i = 1, len_2
+            do j = 1, len_2
+              matrix_2(i,j) = matrix_full(i+len_1,j+len_1)
+            end do
+          end do
+          ! Diagonalise only the outer part of the matrix
+          call diag_matrix(matrix_2, eigen_vals_2)
+
+          ! Store the eigenvalues and eigenvectors in their proper positions
+          matrix_full = 0.0d0
+          if (allocated(eigen_vals_full)) deallocate(eigen_vals_full)
+          allocate(eigen_vals_full(len_1+len_2))
+          eigen_vals_full = 0.0d0
+          do i = 1, len_2
+            eigen_vals_full(i+len_1) = eigen_vals_2(i)
+            do j = 1, len_2
+              matrix_full(i+len_1,j+len_1)  = matrix_2(i,j) 
+            end do
+          end do
+
+        ! Case III
+        elseif (para%diagtype == 'both') then
+          do i = 1, len_1
+            do j = 1, len_1
+              matrix_1(i,j) = matrix_full(i,j)
+            end do
+          end do
+          ! Diagonalise first the inner part of the matrix
+          call diag_matrix(matrix_1, eigen_vals_1)
+
+          do i = 1, len_2
+            do j = 1, len_2
+              matrix_2(i,j) = matrix_full(i+len_1,j+len_1)
+            end do
+          end do
+          ! Diagonalise subsequently the outer part of the matrix
+          call diag_matrix(matrix_2, eigen_vals_2)
+
+          ! Store the eigenvalues and eigenvectors in their proper positions
+          matrix_full = 0.0d0
+          if (allocated(eigen_vals_full)) deallocate(eigen_vals_full)
+          allocate(eigen_vals_full(len_1+len_2))
+          eigen_vals_full = 0.0d0
+          do i = 1, len_1
+            eigen_vals_full(i) = eigen_vals_1(i)
+          end do
+          do i = 1, len_1
+            do j = 1, len_1
+              matrix_full(i,j) = matrix_1(i,j)
+            end do
+          end do
+          do i = 1, len_2
+            eigen_vals_full(i+len_1) = eigen_vals_2(i)
+            do j = 1, len_2
+              matrix_full(i+len_1,j+len_1)  = matrix_2(i,j) 
+            end do
+          end do
+        else
+          ! If the option does not match with the above, the normal diagonalisation 
+          ! is done 
+          call diag_matrix(matrix_full, eigen_vals_full)
+        end if
+
+        deallocate(matrix_1, matrix_2, eigen_vals_1, eigen_vals_2)
+      else
+        
+        !! This part was implemented first for calculations without any split of the grid.
+        !! Diagonalize Hamiltonian matrix which is stored in banded format.
+        !! nev specifies the first nev eigenvalues and eigenvectors to be extracted.
+        !! If needed, just add more
+        !call diag_arpack_real_sym_matrix(matrix, formt='banded', n=size(matrix(1,:)), &
+        !&                   nev=para%nev, which='SA', eigenvals=eigenval_p, &
+        !&                   rvec=.true.)
+ 
+        ! Since the arpack diagonalisation becomes wonky if nev=size(matrix(1,:))
+        ! we will instead perform a full BLAS diagonalisation of the symmetric
+        ! matrix, matrix_full
+
+        call diag_matrix(matrix_full, eigen_vals_full)
+
+      end if
+
       ! Now we transfer the eigenvectors from matrix_full to matrix to keep
       ! the rest of the code intact (since it operates on matrix instead of 
       ! matrix_full). Note that we need to allocate matrix to have less columns
       ! than matrix full if para%nev < size(grid%r)
+     
       deallocate(matrix)
       allocate(matrix(size(matrix_full(1,:)),para%nev))
       do i = 1, size(matrix_full(1,:))
@@ -244,7 +334,7 @@ module DVRDiag
           eigenval_p(j) = eigen_vals_full(j)
         end do
       end do
-  
+
       call cpu_time(finish)
 
       write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for diagonalization = ', finish-start, 'seconds.'
