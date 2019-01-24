@@ -95,6 +95,7 @@ end subroutine DVRCore
 subroutine DoRHFSplit()
 
   use constants
+  use util_mod, only: stop_all
   use DVRData, only : para, eigen_vecs, one_e_rad_int, two_e_rad_int
   use DVRRHF, only: DoRHF
 
@@ -157,65 +158,17 @@ subroutine DoRHFSplit()
       deallocate(EigVec, OneInts, TwoInts)
 
     ! Case III
-    elseif (para%diagtype == 'both') then
-
-      if (allocated(EigVec))  deallocate(EigVec)
-      if (allocated(OneInts)) deallocate(OneInts)
-      if (allocated(TwoInts)) deallocate(TwoInts)
-
-      allocate(EigVec(len_1, len_1, para%l+1))
-      allocate(OneInts(len_1, len_1, 2*para%l+1))
-      allocate(TwoInts(len_1, len_1, 2*para%l+1))
-
-      do i = 1, len_1
-        do j = 1, len_1
-          EigVec(i,j,:) = eigen_vecs(i,j,:)
-          OneInts(i,j,:) = one_e_rad_int(i,j,:)
-          TwoInts(i,j,:) = two_e_rad_int(i,j,:)
-        end do
-      end do
-
-      call DoRHF(len_1, EigVec, OneInts, TwoInts)
-    
-      eigen_vecs = 0.0d0
-      do i = 1, len_1
-        do j = 1, len_1
-          eigen_vecs(i,j,:) = EigVec(i,j,:)
-        end do
-      end do
-
-      deallocate(EigVec, OneInts, TwoInts)
-
-      allocate(EigVec(len_2, len_2, para%l+1))
-      allocate(OneInts(len_2, len_2, 2*para%l+1))
-      allocate(TwoInts(len_2, len_2, 2*para%l+1))
-
-      do i = 1, len_2
-        do j = 1, len_2
-          EigVec(i,j,:) = eigen_vecs(i+len_1,j+len_1,:)
-          OneInts(i,j,:) = one_e_rad_int(i+len_1,j+len_1,:)
-          TwoInts(i,j,:) = two_e_rad_int(i+len_1,j+len_1,:)
-        end do
-      end do
-
-      call DoRHF(len_2, EigVec, OneInts, TwoInts)
-    
-      do i = 1, len_2
-        do j = 1, len_2
-          eigen_vecs(i+len_1,j+len_1,:) = EigVec(i,j,:)
-        end do
-      end do
-
-      deallocate(EigVec, OneInts, TwoInts)
-
-    ! Case IV
-    else
+    elseif ((para%diagtype == 'both').or.(para%diagtype == 'dont')) then
 
       call DoRHF(para%ng, eigen_vecs, one_e_rad_int, two_e_rad_int)
 
+    else
+       
+      call stop_all('DoRHFSplit','Not a possible option to run RHF')
+
     end if
 
-end subroutine
+end subroutine DoRHFSplit
 
 subroutine DeallocMatrices()
    
