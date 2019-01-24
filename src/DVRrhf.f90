@@ -215,7 +215,7 @@ module DVRrhf
 
         call ContractBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn)
 
-        if (debug.gt.5) then
+        if (debug.gt.4) then
           do l = 1, n_l
             l_val = l - 1
             open(11, file="rhfvectors_GLL"//trim(int2str(l_val))//".dat", form="formatted",&
@@ -641,7 +641,6 @@ module DVRrhf
       n_l = para%l + 1
       len_1 = para%m1*para%nl*n_l*n_l
       len_2 = (para%m2*para%nl-1)*n_l*n_l
-      write(*,*) 'Debugging:', len_1, len_2
 
       do j = 1, len_1
         do i = 1, j
