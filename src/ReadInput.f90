@@ -68,7 +68,7 @@ module ReadInput
     r_min         = 0.0
     r_max         = 300.0
     m(1)          = 200
-    m(2)          = 0
+    m(2)          = -1
     nl            = 5
     nr            = m(1) * nl + 1
     l_max         = 3 !Rotational quantum number
@@ -91,7 +91,8 @@ module ReadInput
     prim_integrals = .false.
     diagtype = 'both'
 
-    n_max = 10
+    n_max(1) = 10
+    n_max(2) = -1
     two_e_int = 1
     nfrz = 0
     with_field = .false.
@@ -100,6 +101,7 @@ module ReadInput
     tRHF = .false.
     n_rhf = 0
     maxit = 10
+    shift_int = .true.
 
   end subroutine SetDVRInpDefaults
 
@@ -250,6 +252,7 @@ module ReadInput
     integer, intent(in) :: ir
     logical :: eof
     character (len=100)  :: w
+    integer :: n_grids
 
     do
       call read_line(eof, ir)
@@ -264,13 +267,25 @@ module ReadInput
       
       ! Number of Finite Elements grids
       case("NUM-N-QN")
-        call geti(n_max)
+        n_grids = 0
+        if (nitems==1) then
+          call stop_all('OrbitalInput', 'Please specify atleast one value for n_max')
+        end if
+        do while (item.lt.nitems)
+          n_grids = n_grids + 1
+          if (n_grids.gt.2) then
+            call stop_all('DVRInput','Not allowed to split the radial grids in to more than two regions 2')
+          end if
+          call geti(n_max(n_grids))
+        end do
       case("TWO-E-INT")
         call geti(two_e_int)
       case("FROZEN")
         call geti(nfrz)
       case("PRIMITIVES")
         prim_integrals = .true.
+      case("NOSHIFT")
+        shift_int = .false.
       case("ENDORBITAL")
         exit
       case default

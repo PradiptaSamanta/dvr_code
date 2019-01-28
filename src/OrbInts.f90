@@ -2,7 +2,7 @@ module OrbInts
 
   use constants
   use util_mod, only : stop_all, allocerror
-  use ReadInput, only : n_max, two_e_int, nfrz
+  use ReadInput, only : n_max, two_e_int, nfrz, shift_int
   use OrbData
   use CombineInts, only : CombineOrbInts, CombineOrbInts_old
   use CombineInts_alt, only : CombineOrbInts_alt, Calc2eRadOrbInts_alt
@@ -18,15 +18,23 @@ module OrbInts
 
     integer :: i, j, k, l_val, i_o, indx, error
 
-    orb%n_max = n_max
+    if (para%split_grid) then
+      if (n_max(2) == -1) n_max(2) = n_max(1)
+      orb%n_inner = n_max(1)
+      orb%n_outer = n_max(2)
+      orb%n_max = sum(n_max)
+      orb%shift_int = shift_int
+    else 
+      orb%n_max = n_max(1)
+    end if
 
-    allocate(SpatialOrbInd(n_max,para%l+1,2*para%l+1),stat=error)
+    allocate(SpatialOrbInd(orb%n_max,para%l+1,2*para%l+1),stat=error)
     call allocerror(error)
 
     SpatialOrbInd = 0
 
     indx = 0
-    do i = 1, n_max
+    do i = 1, orb%n_max
       l_val = min(i,para%l+1)
 !     write(*,*) 'limit for l_val:', l_val
       do j = 1, l_val
@@ -37,14 +45,18 @@ module OrbInts
         end do
       end do
     end do
-      
+
     orb%nSpatialOrbs = indx
 
     nFrozen = nfrz
 
     write(iout, *) '**********'
     write(iout, *) 'Setting up these parameters for the orbitals:'
-    write(iout, '(X,A,3X, I6)') 'orb%n_max     =', n_max
+    write(iout, '(X,A,3X, I6)') 'orb%n_max     =', orb%n_max
+    if (para%split_grid) then
+      write(iout, '(X,A,3X, I6)') 'orb%n_inner     =', orb%n_inner
+      write(iout, '(X,A,3X, I6)') 'orb%n_outer     =', orb%n_outer
+    end if
     write(iout, '(X,A,3X, I6)') 'orb%nSpatialOrbs     =', indx
     write(iout, *) '***********' 
 
@@ -64,8 +76,12 @@ module OrbInts
 ! ***********************
   subroutine GetOrbInts()
 
+    use DVRData, only : para, eigen_vecs
+
     real(dp) :: tol
     logical  :: all4
+
+    real(dp), allocatable :: EigVecs(:,:,:)
 
     all4 = two_e_int.eq.1
 !   all4 = .true.
@@ -75,16 +91,35 @@ module OrbInts
 
     call SetOrbData()
 
-    call Calc1eOrbInts()
+    if (para%split_grid) call SetUpEigVec(eigen_vecs, EigVecs)
+
+    if (para%split_grid) then
+      call Calc1eOrbInts(EigVecs)
+      !call Calc1eOrbInts(eigen_vecs)
+    else
+      call Calc1eOrbInts(eigen_vecs)
+    end if
 
     if (all4) then
-      call Calc2eRadOrbInts()
 
+      if (para%split_grid) then
+        !call Calc2eRadOrbInts(EigVecs)
+        call Calc2eRadOrbInts(eigen_vecs)
+      else
+        call Calc2eRadOrbInts(eigen_vecs)
+      end if
       call CombineOrbInts()
+
     else 
-      call Calc2eRadOrbInts_alt()
- 
+
+      if (para%split_grid) then
+        !call Calc2eRadOrbInts_alt(EigVecs)
+        call Calc2eRadOrbInts_alt(eigen_vecs)
+      else
+        call Calc2eRadOrbInts_alt(eigen_vecs)
+      end if
       call CombineOrbInts_alt()
+ 
     end if
   
     file_int = 'FCIDUMP'
@@ -94,11 +129,54 @@ module OrbInts
   end subroutine GetOrbInts
 ! ***********************
 
+  subroutine SetUpEigVec(VecsOld, EigVecs)
 
-  subroutine Calc1eOrbInts()
+    use DVRData, only : para, grid
 
-    use DVRData, only : one_e_rad_int, para, grid, eigen_vecs
+    real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
+    real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
 
+    integer :: len_1, len_2, len_mid, i, j
+
+    len_1 = para%m1*para%nl
+    len_2 = para%m2*para%nl - 1
+    if (orb%shift_int) then
+      len_mid = para%m1*para%nl + orb%n_inner
+    else
+      len_mid = para%m1*para%nl
+    end if
+
+    do i = 1, size(grid%r)
+      write(78, '(11f10.6)') (VecsOld(i,j,1), j=1, size(VecsOld(1,:,3)))
+    end do
+
+    allocate(EigVecs(size(grid%r),orb%n_max,para%l+1))
+    EigVecs = 0.0d0
+    do i = 1, len_1
+      do j = 1, orb%n_inner
+        EigVecs(i,j,:) = VecsOld(i,j,:)
+      end do
+    end do
+
+    if (orb%n_outer == 0) return
+
+    do i = 1, len_2
+      do j = 1, orb%n_outer
+        EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
+      end do
+    end do
+
+    do i = 1, size(grid%r)
+      write(79, '(11f10.6)') (EigVecs(i,j,1), j=1, size(EigVecs(1,:,3)))
+    end do
+
+  end subroutine SetUpEigVec
+
+  subroutine Calc1eOrbInts(EigVecs)
+
+    use DVRData, only : one_e_rad_int, para, grid
+
+    real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     integer  :: i, j, l, l_val, m, n, error, ml, ind_1, ind_2
     real(dp) :: int_value, start, finish
 
@@ -132,8 +210,8 @@ module OrbInts
 
           int_value = 0.0d0
           do j = 1, para%ng
-             int_value = int_value + one_e_rad_int(i,j,l)*eigen_vecs(j,n,l)
-!            write(77,'(3i4,3f20.10)') i, n, l, one_e_rad_int(i,j,l),eigen_vecs(j,n,l),int_value
+             int_value = int_value + one_e_rad_int(i,j,l)*EigVecs(j,n,l)
+!            write(77,'(3i4,3f20.10)') i, n, l, one_e_rad_int(i,j,l),EigVecs(j,n,l),int_value
           end do 
           inter_int(i,n) = int_value
 !         write(iout,*) i, n, l, int_value
@@ -147,8 +225,8 @@ module OrbInts
 
           int_value = 0.0d0
           do i = 1, para%ng
-            int_value = int_value + eigen_vecs(i,m,l) * inter_int(i,n)
-!            write(78,'(3i4,3f20.10)') m, n, l, inter_int(i,n), eigen_vecs(i,m,l), int_value
+            int_value = int_value + EigVecs(i,m,l) * inter_int(i,n)
+!            write(78,'(3i4,3f20.10)') m, n, l, inter_int(i,n), EigVecs(i,m,l), int_value
           end do
 
 !         write(iout,*) m, n, l, int_value
@@ -300,9 +378,11 @@ module OrbInts
 
   end subroutine Calc2eRadOrbInts_old
 
-  subroutine Calc2eRadOrbInts()
+  subroutine Calc2eRadOrbInts(EigVecs)
 
-    use DVRData, only : two_e_rad_int, para, grid, eigen_vecs
+    use DVRData, only : two_e_rad_int, para, grid
+
+    real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
 
     integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
     real(dp) :: int_value, start, finish, int_value_xc, int_value_dr
@@ -351,9 +431,9 @@ module OrbInts
 
     ! The calculation is done over a loop of l
 
-!   write(*,*) 'Size 1', size(eigen_vecs(:,1,1))
-!   write(*,*) 'Size 2', size(eigen_vecs(1,:,1))
-!   write(*,*) 'Size 3', size(eigen_vecs(1,1,:))
+!   write(*,*) 'Size 1', size(EigVecs(:,1,1))
+!   write(*,*) 'Size 2', size(EigVecs(1,:,1))
+!   write(*,*) 'Size 3', size(EigVecs(1,1,:))
 
 !   flush(6)
 
@@ -374,12 +454,12 @@ module OrbInts
                 int_value = 0.0d0
 
                 do j = 1, para%ng
-                   int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,n,l2)*eigen_vecs(j,m,l1)
+                   int_value = int_value + two_e_rad_int(i,j,l)*EigVecs(j,n,l2)*EigVecs(j,m,l1)
                 end do 
 
 !               if (abs(int_value).gt.1e-12) write(88,'(4i3,f13.8)') i,m,n,l1,int_value
                 inter_int(i,m,n,l1,l2) = int_value
- !              write(76,'(3I5,X,F20.10)') i, n, l, eigen_vecs(i,n,l)
+ !              write(76,'(3I5,X,F20.10)') i, n, l, EigVecs(i,n,l)
               end do
             end do 
           end do 
@@ -397,8 +477,8 @@ module OrbInts
                       int_value = 0.0d0
                       int_value_xc = 0.0d0
                       do i = 1, para%ng
-                        int_value = int_value + eigen_vecs(i,mp,l1)*eigen_vecs(i,np,l1)*inter_int(i,m,n,l2,l2)
-                        int_value_xc = int_value_xc + eigen_vecs(i,mp,l1)*inter_int(i,m,np,l2,l1)*eigen_vecs(i,n,l2)
+                        int_value = int_value + EigVecs(i,mp,l1)*EigVecs(i,np,l1)*inter_int(i,m,n,l2,l2)
+                        int_value_xc = int_value_xc + EigVecs(i,mp,l1)*inter_int(i,m,np,l2,l1)*EigVecs(i,n,l2)
                       end do
           
                       write(81,'(7i4,f16.8)') m, n, mp, np, l1, l2, l, int_value_xc
@@ -427,9 +507,9 @@ module OrbInts
                   int_value_xc = 0.0d0
                     do i = 1, para%ng
                       do j = 1, para%ng
-                        int_value = int_value + (eigen_vecs(i,mp,l1)*eigen_vecs(i,np,l1))*two_e_rad_int(i,j,l)*(eigen_vecs(j,m,l2)*eigen_vecs(j,n,l2))
-                        int_value_xc = int_value_xc + two_e_rad_int(i,j,l)*(eigen_vecs(i,mp,l1)*eigen_vecs(j,m,l2))*(eigen_vecs(i,n,l2)*eigen_vecs(j,np,l1))
-!          write(80,'(4i4, 4f16.8)') m, n, i, j, eigen_vecs(i,m,l), eigen_vecs(j,n,l),two_e_rad_int(i,j,l), int_value
+                        int_value = int_value + (EigVecs(i,mp,l1)*EigVecs(i,np,l1))*two_e_rad_int(i,j,l)*(EigVecs(j,m,l2)*EigVecs(j,n,l2))
+                        int_value_xc = int_value_xc + two_e_rad_int(i,j,l)*(EigVecs(i,mp,l1)*EigVecs(j,m,l2))*(EigVecs(i,n,l2)*EigVecs(j,np,l1))
+!          write(80,'(4i4, 4f16.8)') m, n, i, j, EigVecs(i,m,l), EigVecs(j,n,l),two_e_rad_int(i,j,l), int_value
                       end do
                     end do
                     TwoERadOrbInts_dr(mp, m, np, n, l1, l2, l) = int_value

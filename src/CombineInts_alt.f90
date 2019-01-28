@@ -108,11 +108,12 @@ module CombineInts_alt
 
   end subroutine CombineOrbInts_alt
 
-  subroutine Calc2eRadOrbInts_alt()
+  subroutine Calc2eRadOrbInts_alt(EigVecs)
 
-    use DVRData, only : two_e_rad_int, para, grid, eigen_vecs
+    use DVRData, only : two_e_rad_int, para, grid
     use OrbData, only : orb, TwoERadOrbInts
 
+    real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
     real(dp) :: int_value, start, finish, int_value_xc, int_value_dr
     real(dp) :: time_1, time_2, time_3
@@ -159,7 +160,7 @@ module CombineInts_alt
 
       do l2 = 1, n_l
         do m = 1, orb%n_max
-          vec_1(:) = eigen_vecs(:,m,l2) 
+          vec_1(:) = EigVecs(:,m,l2) 
           do j = 1, para%ng
             do i = 1, para%ng
                inter_int_1(i,j) = two_e_rad_int(i,j,l)*vec_1(i)
@@ -168,7 +169,7 @@ module CombineInts_alt
 
           do l4 = 1, n_l
             do n = 1, orb%n_max
-              vec_1(:) = eigen_vecs(:,n,l4) 
+              vec_1(:) = EigVecs(:,n,l4) 
               do j = 1, para%ng
       
                 int_value = 0.0d0
@@ -182,7 +183,7 @@ module CombineInts_alt
 
               do l1 = 1, n_l
                 do mp = 1, orb%n_max
-                  vec_1(:) = eigen_vecs(:,mp,l1)
+                  vec_1(:) = EigVecs(:,mp,l1)
 
                   do i = 1, para%ng
                     inter_int_3(i) = vec_1(i)*inter_int_2(i)
@@ -190,7 +191,7 @@ module CombineInts_alt
 
                   do l3 = 1, n_l
                     do np = 1, orb%n_max
-                      vec_1(:) = eigen_vecs(:,np,l3)
+                      vec_1(:) = EigVecs(:,np,l3)
                       int_value = 0.0d0
 
                       do i = 1, para%ng
@@ -221,7 +222,7 @@ module CombineInts_alt
 !     
 !           int_value = 0.0d0
 !           do j = 1, para%ng
-!              int_value = int_value + two_e_rad_int(i,j,l)*eigen_vecs(j,m,l1)
+!              int_value = int_value + two_e_rad_int(i,j,l)*EigVecs(j,m,l1)
 !           end do 
 !           inter_int_1(i,j,m,l1) = int_value
 !         end do

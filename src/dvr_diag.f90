@@ -41,7 +41,7 @@ module DVRDiag
     ! Do some sanity check for the input here
     if (para%split_grid) then
       ! If no value for m(2) is given, use the same value of m in both the region
-      if (m(2).eq.0) m(2) = m(1)
+      if (m(2).eq.-1) m(2) = m(1)
     end if
 
     if (para%split_grid) then
