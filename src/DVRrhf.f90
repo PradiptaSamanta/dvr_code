@@ -23,6 +23,7 @@ module DVRrhf
     real(dp), allocatable :: TwoEInts(:,:,:,:)
     real(dp), allocatable :: Vred(:,:)
     real(dp), allocatable :: OrbEn(:)
+    real(dp), allocatable :: OrbEn_l(:,:)
     integer, allocatable :: OrbInd(:,:,:)
     integer :: n_l, n_ml, n_nqn, error, indx, l_val, nTotOrbs
     integer :: i, j, k, iter, l, m, occ
@@ -48,6 +49,8 @@ module DVRrhf
 
 
     allocate(OrbInd(ng,para%l+1,2*para%l+1), stat=error)
+    call allocerror(error)
+    allocate(OrbEn_l(ng,para%l+1), stat=error)
     call allocerror(error)
 
     OrbInd = 0
@@ -213,9 +216,18 @@ module DVRrhf
 
         end do
 
-        call ContractBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn)
+        call ContractBasis(EigVec, MOCoeffs, OrbEn_l, OrbEn, OrbInd, ng, n_l, n_nqn)
 
         if (debug.gt.4) then
+          do l = 1, n_l
+            l_val = l - 1
+            open(11, file="rhfenergies_GLL"//trim(int2str(l_val))//".dat", form="formatted",&
+            &    action="write", recl=100000)
+            do i = 1, ng
+              write(11,*) i, OrbEn_l(i,l)
+            end do
+            close(11)
+          end do
           do l = 1, n_l
             l_val = l - 1
             open(11, file="rhfvectors_GLL"//trim(int2str(l_val))//".dat", form="formatted",&
@@ -638,6 +650,9 @@ module DVRrhf
 
     if (para%split_grid) then
 
+      if (para%diagtype == 'only_inner'.or.para%diagtype == 'only_outer') &
+      &  call stop_all('GetFock', 'RHF is not implemented yet for only_inner or only_outer')
+
       n_l = para%l + 1
       len_1 = para%m1*para%nl*n_l*n_l
       len_2 = (para%m2*para%nl-1)*n_l*n_l
@@ -1006,10 +1021,10 @@ module DVRrhf
 
   end subroutine Calc2ePrimOrbInts
 
-  subroutine ContractBasis(EigenVecs, MOCoeffs, OrbInd, ng, n_l, n_nqn)
+  subroutine ContractBasis(EigenVecs, MOCoeffs, OrbEn_l, OrbEn, OrbInd, ng, n_l, n_nqn)
 
-    real(dp), allocatable, intent(inout) :: EigenVecs(:,:,:)
-    real(dp), allocatable, intent(in) :: MOCoeffs(:,:)
+    real(dp), allocatable, intent(inout) :: EigenVecs(:,:,:), OrbEn_l(:,:)
+    real(dp), allocatable, intent(in) :: MOCoeffs(:,:), OrbEn(:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer, intent(in) :: ng, n_l, n_nqn
 
@@ -1022,15 +1037,16 @@ module DVRrhf
     do l = 1, n_l
       !do n = 1, n_nqn - (l - 1)
       do n = 1, n_nqn
+        indx_1 = OrbInd(n,l,1)
         do i = 1, ng
           !indx_1 = OrbInd(n+l-1,l,1)
-          indx_1 = OrbInd(n,l,1)
           indx_2 = OrbInd(i,l,1)
           val = MOCoeffs(indx_1, indx_2) 
           EigenVecs(i,n,l) = val 
 !         do m = 1, 2*l-1
 !         end do
         end do
+        OrbEn_l(n,l) = OrbEn(indx_1)
       end do
     end do
 

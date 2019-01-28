@@ -34,7 +34,7 @@ module PrimOrbInts
 
     orb%n_max = para%ng
 
-    allocate(SpatialOrbInd(n_max,para%l+1,2*para%l+1),stat=error)
+    allocate(SpatialOrbInd(orb%n_max,para%l+1,2*para%l+1),stat=error)
     call allocerror(error)
 
     SpatialOrbInd = 0
@@ -43,7 +43,7 @@ module PrimOrbInts
     l_val = para%l+1
 !   write(*,*) 'limit for l_val:', l_val
 
-    do i = 1, n_max
+    do i = 1, orb%n_max
       do j = 1, l_val
         do k = 1, 2*j-1
           indx = indx + 1
