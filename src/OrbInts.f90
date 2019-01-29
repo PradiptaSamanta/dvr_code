@@ -146,9 +146,14 @@ module OrbInts
       len_mid = para%m1*para%nl
     end if
 
-    do i = 1, size(grid%r)
-      write(78, '(11f10.6)') (VecsOld(i,j,1), j=1, size(VecsOld(1,:,3)))
-    end do
+    write(iout, *) 'The integrals are now calculated for orbitals taken from two separated regions.'
+    write(iout, '(a, i3)') ' Orbitals from the inner region: 1 -', len_1
+    write(iout, '(a,i3,a,i3)') ' Orbitals from the outer region: ', len_mid+1, ' -', len_mid+len_2
+    if (.not.orb%shift_int) write(iout, *) '***Orbitals are not shifted in the outer region***'
+
+!   do i = 1, size(grid%r)
+!     write(78, '(11f10.6)') (VecsOld(i,j,1), j=1, size(VecsOld(1,:,3)))
+!   end do
 
     allocate(EigVecs(size(grid%r),orb%n_max,para%l+1))
     EigVecs = 0.0d0
@@ -166,9 +171,9 @@ module OrbInts
       end do
     end do
 
-    do i = 1, size(grid%r)
-      write(79, '(11f10.6)') (EigVecs(i,j,1), j=1, size(EigVecs(1,:,3)))
-    end do
+!   do i = 1, size(grid%r)
+!     write(79, '(11f10.6)') (EigVecs(i,j,1), j=1, size(EigVecs(1,:,3)))
+!   end do
 
   end subroutine SetUpEigVec
 
@@ -481,7 +486,7 @@ module OrbInts
                         int_value_xc = int_value_xc + EigVecs(i,mp,l1)*inter_int(i,m,np,l2,l1)*EigVecs(i,n,l2)
                       end do
           
-                      write(81,'(7i4,f16.8)') m, n, mp, np, l1, l2, l, int_value_xc
+!                     write(81,'(7i4,f16.8)') m, n, mp, np, l1, l2, l, int_value_xc
           
                       !TwoERadOrbInts(mp, m, np, n, l1, l2, l3, l4, l) = int_value
                       TwoERadOrbInts_dr(mp, m, np, n, l1, l2, l) = int_value
