@@ -268,9 +268,9 @@ module DVRrhf
         do l = 1, l_val
           do m = 1, 2*l-1
             indx = OrbInd(i,l,m)
-            if (abs(MOCoeffs(j,indx)).gt.1e-12) then
-            write(81,'(3i4,f15.8)') i, l, m, MOCoeffs(j,indx)
-            end if
+!           if (abs(MOCoeffs(j,indx)).gt.1e-12) then
+!           write(81,'(3i4,f15.8)') i, l, m, MOCoeffs(j,indx)
+!           end if
           end do
         end do
       end do
