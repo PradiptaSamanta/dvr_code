@@ -136,44 +136,56 @@ module OrbInts
     real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
     real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
 
-    integer :: len_1, len_2, len_mid, i, j
+    integer :: len_1, len_2, i, j, l, n_shift
+    integer, allocatable :: len_mid(:)
+
+    allocate(len_mid(para%l+1))
 
     len_1 = para%m1*para%nl
     len_2 = para%m2*para%nl - 1
+
+    n_shift = 0
+
     if (orb%shift_int) then
-      len_mid = para%m1*para%nl + orb%n_inner
+      len_mid = para%m1*para%nl + orb%n_inner + n_shift
+      do l = 1, para%l+1
+        len_mid(l) = len_mid(l) - l + 1
+      end do
     else
       len_mid = para%m1*para%nl
     end if
 
     write(iout, *) 'The integrals are now calculated for orbitals taken from two separated regions.'
     write(iout, '(a, i3)') ' Orbitals from the inner region: 1 -', len_1
-    write(iout, '(a,i3,a,i3)') ' Orbitals from the outer region: ', len_mid+1, ' -', len_mid+len_2
+    write(iout, '(a,i3,a,i3)') ' Orbitals from the outer region: ', len_mid(1)+1, ' -', len_mid(1)+len_2
     if (.not.orb%shift_int) write(iout, *) '***Orbitals are not shifted in the outer region***'
 
-!   do i = 1, size(grid%r)
-!     write(78, '(11f10.6)') (VecsOld(i,j,1), j=1, size(VecsOld(1,:,3)))
-!   end do
+    do i = 1, size(grid%r)
+      write(78, '(11f10.6)') (VecsOld(i,j,1), j=1, size(VecsOld(1,:,3)))
+    end do
 
     allocate(EigVecs(size(grid%r),orb%n_max,para%l+1))
     EigVecs = 0.0d0
-    do i = 1, len_1
-      do j = 1, orb%n_inner
+    do j = 1, orb%n_inner
+      do i = 1, len_1
         EigVecs(i,j,:) = VecsOld(i,j,:)
       end do
     end do
 
     if (orb%n_outer == 0) return
 
-    do i = 1, len_2
+    do l = 1, para%l+1
       do j = 1, orb%n_outer
-        EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
+        do i = 1, len_2
+          EigVecs(i+len_1,j+orb%n_inner,l) = VecsOld(i+len_1,j+len_mid(l),l)
+          !EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
+        end do
       end do
     end do
 
-!   do i = 1, size(grid%r)
-!     write(79, '(11f10.6)') (EigVecs(i,j,1), j=1, size(EigVecs(1,:,3)))
-!   end do
+    do i = 1, size(grid%r)
+      write(79, '(11f10.6)') (EigVecs(i,j,1), j=1, size(EigVecs(1,:,3)))
+    end do
 
   end subroutine SetUpEigVec
 

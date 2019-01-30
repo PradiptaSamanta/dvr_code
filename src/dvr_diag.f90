@@ -355,7 +355,8 @@ module DVRDiag
           do j = 1, i
             val = 0.0d0
             do k = 1, size(grid%r)
-              val = val + matrix(k,i)*matrix(k,j)*grid%weights(k)/(grid%r(k)**2)
+              !val = val + matrix(k,i)*matrix(k,j)*grid%weights(k)/(grid%r(k)**2)
+              val = val + matrix(k,i)*matrix(k,j)
             end do
             overlap(i,j) = val
             overlap(j,i) = val
