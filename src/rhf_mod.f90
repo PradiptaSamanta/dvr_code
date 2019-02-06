@@ -236,7 +236,7 @@ module RHFMod
                    klm_4 = OrbInd(k3,l4,m4)
                    if (klm_3.eq.0.or.klm_4.eq.0) cycle
                    if (abs(Den(klm_3, klm_4)).gt.1e-12) then
-                     write(80,'(2i4,f15.10)') klm_3, klm_4, Den(klm_3, klm_4)
+                     !write(80,'(2i4,f15.10)') klm_3, klm_4, Den(klm_3, klm_4)
                      do k1 = 1, n_nqn
                        klm_1 = OrbInd(k1,l1,m1)
                        klm_2 = OrbInd(k1,l2,m2)
