@@ -10,7 +10,6 @@ subroutine DVRCore()
   use DVRIntAng, only : GetAngularElements
   use OrbInts, only  : GetOrbInts
   use PrimOrbInts, only  : GetPrimOrbInts
-  use CombineInts, only : CombineIntegrals
   use RadCheck
   use DVRRHF, only: DoRHF
   use FieldIntegrals
@@ -50,7 +49,6 @@ subroutine DVRCore()
   if (dvr_integrals) then
     call GetRadialElements()
     call GetAngularElements()
-!   call CombineIntegrals()
   endif
 
   if (tRHF) then
