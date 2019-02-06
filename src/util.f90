@@ -3,6 +3,7 @@ module util_mod
   use constants
   use DVRData, only : datline_l, converted_l
 
+  implicit none
   contains
 
 
@@ -433,4 +434,63 @@ end subroutine stop_all
 
   end subroutine allocerror
   
+!----------------------------------------------------------------------*
+  subroutine printversion(lu)
+!----------------------------------------------------------------------*
+    implicit none
+!----------------------------------------------------------------------*
+! date.h is automatically created by date.sh:      
+!----------------------------------------------------------------------*
+    include 'date.h'
+    integer, intent(in) :: lu
+    integer :: getcwd, nn
+    integer :: hostnm, stat
+    character(255) :: dirname, host
+
+    write(lu, *) '==================================='
+    write (lu,'(x,a)') trim(vers)
+    write (lu,'(/,x,2a)') 'compiled from ref: ', trim(commit)
+    write (lu,'(/,x,2a)') 'compiled with: ',cmp(1:len_trim(cmp))
+    write (lu,'(x,2a)') 'level 1 optimization: ',trim(opt1)
+    write (lu,'(x,2a)') 'level 2 optimization: ',trim(opt2)
+    write (lu,'(x,2a/)')'level 3 optimization: ',trim(opt3)
+    stat = getcwd(dirname)
+    write (iout,'(a20)', advance='no') 'Working directory: '
+    write (iout,'(x,a)') trim(dirname)
+    stat = hostnm(host)
+    write (iout,'(a13,a)') 'Running on: ',trim(host)
+    write(iout,*) '==================================='
+    write(iout,*) ''
+
+  end  subroutine printversion
+!----------------------------------------------------------------------*
+
+  subroutine printheader(lu)
+!----------------------------------------------------------------------*
+    implicit none
+!----------------------------------------------------------------------*
+! date.h is automatically created by date.sh:      
+!----------------------------------------------------------------------*
+    integer, intent(in) :: lu
+    integer :: getcwd, nn
+    integer :: hostnm, stat
+    character(255) :: dirname, host, commit 
+
+    nn = 11
+    write(iout,*) '==================================='
+    call execute_command_line('git rev-parse HEAD > commit')
+    open(unit=nn, file='commit',status='old')
+    read(nn,*) commit 
+    close(nn)
+    write(iout,*) 'Compiled from ref: ', trim(commit)
+    stat = getcwd(dirname)
+    write (iout,'(a20)', advance='no') 'Working directory: '
+    write (iout,'(x,a)') trim(dirname)
+    stat = hostnm(host)
+    write (iout,'(a13,a)') 'Running on: ',trim(host)
+    write(iout,*) '==================================='
+
+  end  subroutine printheader
+!----------------------------------------------------------------------*
+
 end module util_mod

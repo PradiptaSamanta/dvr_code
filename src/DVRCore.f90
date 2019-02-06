@@ -1,6 +1,7 @@
 subroutine DVRCore()
 
   use constants
+  use util_mod, only : printheader, printversion
   use ReadInput, only : ReadInputMain
   use InputData, only : dvr_diag, dvr_integrals, orbital_ints
   use DVRData, only:  eigen_vecs, one_e_rad_int, two_e_rad_int
@@ -26,6 +27,10 @@ subroutine DVRCore()
 
   ! open the output file
   open (iout, File=file_out, status='UNKNOWN', form= "FORMATTED")
+
+  ! Write down the version of the code and related information at the beginning of the code
+  !call printheader(iout)
+  call printversion(iout)
 
   ! Reading the input from an input file
   call ReadInputMain(file_in)
