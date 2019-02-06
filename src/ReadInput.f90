@@ -282,7 +282,7 @@ module ReadInput
           end if
           call geti(n_max(n_grids))
         end do
-      case("TWO-E-INT")
+      case("TWO-E-INT") ! This option is now obsolete
         call geti(two_e_int)
       case("FROZEN")
         call geti(nfrz)
