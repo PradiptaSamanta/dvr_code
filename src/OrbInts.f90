@@ -2,7 +2,7 @@ module OrbInts
 
   use constants
   use util_mod, only : stop_all, allocerror
-  use ReadInput, only : n_max, two_e_int, nfrz, shift_int
+  use ReadInput, only : n_max, two_e_int, nfrz, shift_int, reduce_int, red_start, red_num
   use OrbData
   use CombineInts, only : CombineOrbInts, CombineOrbInts_old
   use CombineInts_alt, only : CombineOrbInts_alt, Calc2eRadOrbInts_alt
@@ -28,6 +28,12 @@ module OrbInts
       orb%n_max = n_max(1)
     end if
 
+    orb%reduce_orb = reduce_int
+    if (orb%reduce_orb) then
+      orb%break = red_start
+      orb%n_red = red_num
+    end if
+    
     allocate(SpatialOrbInd(orb%n_max,para%l+1,2*para%l+1),stat=error)
     call allocerror(error)
 
@@ -84,18 +90,22 @@ module OrbInts
     real(dp), allocatable :: EigVecs(:,:,:)
 
     all4 = two_e_int.eq.1
-!   all4 = .true.
-!   all4 = .false.
 
     tol = 1e-12
 
     call SetOrbData()
 
-    if (para%split_grid) call SetUpEigVec(eigen_vecs, EigVecs)
+    if (para%split_grid) then
+        call SetUpEigVec(eigen_vecs, EigVecs)
+    elseif (orb%reduce_orb) then
+        call SetUpEigVecNorm(eigen_vecs, EigVecs)
+    end if
 
     if (para%split_grid) then
       call Calc1eOrbInts(EigVecs)
       !call Calc1eOrbInts(eigen_vecs)
+    else if (orb%reduce_orb) then
+      call Calc1eOrbInts(EigVecs)
     else
       call Calc1eOrbInts(eigen_vecs)
     end if
@@ -103,8 +113,9 @@ module OrbInts
     if (all4) then
 
       if (para%split_grid) then
-        !call Calc2eRadOrbInts(EigVecs)
-        call Calc2eRadOrbInts(eigen_vecs)
+        call Calc2eRadOrbInts(EigVecs)
+      else if (orb%reduce_orb) then
+        call Calc2eRadOrbInts(EigVecs)
       else
         call Calc2eRadOrbInts(eigen_vecs)
       end if
@@ -113,8 +124,9 @@ module OrbInts
     else 
 
       if (para%split_grid) then
-        !call Calc2eRadOrbInts_alt(EigVecs)
-        call Calc2eRadOrbInts_alt(eigen_vecs)
+        call Calc2eRadOrbInts_alt(EigVecs)
+      else if (orb%reduce_orb) then
+        call Calc2eRadOrbInts_alt(EigVecs)
       else
         call Calc2eRadOrbInts_alt(eigen_vecs)
       end if
@@ -136,58 +148,126 @@ module OrbInts
     real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
     real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
 
-    integer :: len_1, len_2, i, j, l, n_shift
+    integer :: len_2, i, j, l, n_shift, n_l, len_1, j_p
     integer, allocatable :: len_mid(:)
 
-    allocate(len_mid(para%l+1))
+    n_l = para%l + 1
+    allocate(len_mid(n_l))
+!    allocate(len_1(n_l))
 
     len_1 = para%m1*para%nl
     len_2 = para%m2*para%nl - 1
 
     n_shift = 0
+    !n_shift = 0
 
     if (orb%shift_int) then
       len_mid = para%m1*para%nl + orb%n_inner + n_shift
-      do l = 1, para%l+1
+      do l = 1, n_l
         len_mid(l) = len_mid(l) - l + 1
       end do
     else
-      len_mid = para%m1*para%nl
+      len_mid = para%m1*para%nl + n_shift
     end if
 
+
     write(iout, *) 'The integrals are now calculated for orbitals taken from two separated regions.'
-    write(iout, '(a, i3)') ' Orbitals from the inner region: 1 -', len_1
-    write(iout, '(a,i3,a,i3)') ' Orbitals from the outer region: ', len_mid(1)+1, ' -', len_mid(1)+len_2
+    write(iout, '(a, i3)') ' Orbitals from the inner region: 1 -', orb%n_inner
+    write(iout, '(a,i3,a,i3)') ' Orbitals from the outer region: ', len_mid(1)+1, ' -', len_mid(1)+ orb%n_outer
     if (.not.orb%shift_int) write(iout, *) '***Orbitals are not shifted in the outer region***'
 
-    do i = 1, size(grid%r)
-      write(78, '(11f10.6)') (VecsOld(i,j,1), j=1, size(VecsOld(1,:,3)))
-    end do
+!   do i = 1, size(grid%r)
+!     write(78, '(11f10.6)') (VecsOld(i,j,3), j=1, size(VecsOld(1,:,2)))
+!   end do
 
-    allocate(EigVecs(size(grid%r),orb%n_max,para%l+1))
+    allocate(EigVecs(size(grid%r),orb%n_max,n_l))
     EigVecs = 0.0d0
-    do j = 1, orb%n_inner
-      do i = 1, len_1
-        EigVecs(i,j,:) = VecsOld(i,j,:)
+    do l = 1, n_l
+      do j = 1, orb%n_inner - l + 1
+        do i = 1, len_1
+          EigVecs(i,j,l) = VecsOld(i,j,l)
+        end do
       end do
     end do
 
     if (orb%n_outer == 0) return
 
-    do l = 1, para%l+1
-      do j = 1, orb%n_outer
+    do l = 1, n_l
+      do j = 1, orb%n_outer + l - 1
+        j_p = j + orb%n_inner - l + 1
         do i = 1, len_2
-          EigVecs(i+len_1,j+orb%n_inner,l) = VecsOld(i+len_1,j+len_mid(l),l)
+          EigVecs(i+len_1,j_p,l) = VecsOld(i+len_1,j+len_mid(l),l)
+          !EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
+        end do
+      end do
+    end do
+
+!   do i = 1, size(grid%r)
+!     write(79, '(11f10.6)') (EigVecs(i,j,3), j=1, size(EigVecs(1,:,2)))
+!   end do
+
+  end subroutine SetUpEigVec
+
+  subroutine SetUpEigVecNorm(VecsOld, EigVecs)
+
+    use DVRData, only : para, grid
+
+    real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
+    real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
+
+    integer :: len_2, i, j, l, n_shift, n_l, len_1, j_p
+    integer, allocatable :: len_mid(:)
+
+    n_l = para%l + 1
+    allocate(len_mid(n_l))
+!    allocate(len_1(n_l))
+
+    len_1 = para%m1*para%nl
+    len_2 = para%m2*para%nl - 1
+
+    len_1 = orb%break
+    len_2 = orb%n_max - orb%break - orb%n_red
+
+
+    len_mid = orb%break + orb%n_red
+    do l = 1, n_l
+      len_mid(l) = len_mid(l) - l + 1
+    end do
+
+
+    write(iout, *) 'The integrals are now calculated for orbitals after leaving out some orbitals from middle'
+    write(iout, '(a, i3)') ' Orbitals from the first half: 1 -', len_1
+    write(iout, '(a,i3,a,i3)') ' Orbitals from the second half: ', len_mid(1)+1, ' -', len_mid(1)+len_2
+
+    do i = 1, size(grid%r)
+      write(78, '(11f10.6)') (VecsOld(i,j,3), j=1, size(VecsOld(1,:,2)))
+    end do
+
+    allocate(EigVecs(size(grid%r),orb%n_max-orb%n_red,n_l))
+    EigVecs = 0.0d0
+    do l = 1, n_l
+      do j = 1, len_1 - l + 1
+        do i = 1, size(grid%r)
+          EigVecs(i,j,l) = VecsOld(i,j,l)
+        end do
+      end do
+    end do
+
+    do l = 1, n_l
+      do j = 1, len_2 + l - 1
+        j_p = j + len_1 - l + 1
+        do i = 1, size(grid%r)
+          EigVecs(i,j_p,l) = VecsOld(i,j+len_mid(l),l)
           !EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
         end do
       end do
     end do
 
     do i = 1, size(grid%r)
-      write(79, '(11f10.6)') (EigVecs(i,j,1), j=1, size(EigVecs(1,:,3)))
+      write(79, '(11f10.6)') (EigVecs(i,j,3), j=1, size(EigVecs(1,:,2)))
     end do
 
-  end subroutine SetUpEigVec
+  end subroutine SetUpEigVecNorm
 
   subroutine Calc1eOrbInts(EigVecs)
 

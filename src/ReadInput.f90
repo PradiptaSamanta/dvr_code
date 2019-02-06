@@ -103,6 +103,10 @@ module ReadInput
     maxit = 10
     shift_int = .true.
 
+    reduce_int = .false.
+    red_start = 1001 ! initialising with a big number, so that it is never used if not given in the input
+    red_num = 0
+
   end subroutine SetDVRInpDefaults
 
   subroutine DVRInput(ir)
@@ -286,6 +290,13 @@ module ReadInput
         prim_integrals = .true.
       case("NOSHIFT")
         shift_int = .false.
+      case("REDUCE")
+        reduce_int = .false.
+        if (nitems.lt.3) then
+          call stop_all('OrbitalInput', 'Please specify two values for reduce')
+        end if
+        call geti(red_start)
+        call geti(red_num)
       case("ENDORBITAL")
         exit
       case default

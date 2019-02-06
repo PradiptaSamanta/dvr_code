@@ -11,6 +11,9 @@ module OrbData
     integer   :: n_inner, n_outer
     integer   :: nSpatialOrbs
     logical   :: shift_int
+    logical   :: reduce_orb
+    integer   :: break
+    integer   :: n_red
 
   end type orb_t
 
