@@ -29,6 +29,7 @@ set(${PROJECT_NAME}_CONFIGURATIONS dvr)
 #HAVE_OPENMP
 
 #set (CMAKE_FORTRAN_FLAGS "-qopenmp -lblas -llapack -C -O3")
+#set(CMAKE_Fortran_COMPILER_NAMES ifort)
 set(CMAKE_Fortran_FLAGS "-O5")
 #set(CMAKE_Fortran_FLAGS_DEBUG "-fbounds-check -check bounds -O5")
 set(CMAKE_Fortran_FLAGS_DEBUG "-C -O5")
@@ -57,5 +58,14 @@ set (PROJECT_LINK_LIBS ${PROJECT_SOURCE_DIR}/build/libarpack.a) # -lblas -llapac
 file(GLOB SOURCES "src/*.f90")
 #include_directories(${PROJECT_SOURCE_DIR}/src)
 
+add_custom_target(get_date
+  COMMAND ${PROJECT_SOURCE_DIR}/src/date.sh ${CMAKE_Fortran_COMPILER} ${CMAKE_Fortran_FLAGS_DEBUG}
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/src
+  COMMENT "Getting information about the code"
+# SOURCES ${test2_SOURCES}
+)
+
 add_executable(dvr ${SOURCES})
+add_dependencies(dvr get_date)
 target_link_libraries(dvr ${PROJECT_LINK_LIBS} )
+
