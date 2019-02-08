@@ -107,6 +107,9 @@ module ReadInput
     red_start = 1001 ! initialising with a big number, so that it is never used if not given in the input
     red_num = 0
 
+    limit_ml = .false.
+    ml_max = 999
+
   end subroutine SetDVRInpDefaults
 
   subroutine DVRInput(ir)
@@ -186,6 +189,13 @@ module ReadInput
       ! Maximum number of the angular momentum to be involved
       case("ROT-QN-MAX")
         call geti(l_max)
+      ! Set a limit for the values that the 'm_l' quantum number to take
+      case("LIMIT-M")
+        limit_ml = .true.
+        if (nitems==1) then
+          call stop_all('DVRInput', 'Please specify a value for limiting m_l')
+        end if
+        call geti(ml_max)
       ! The fraction of the total number of grid points to be 
       ! obtained as eigenvalue after the diagonalization
       case("NUM-EIG-VALUE-FAC")

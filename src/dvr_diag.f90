@@ -11,7 +11,7 @@ module DVRDiag
 
   subroutine SetDVR()
 
-    integer  :: i, l, l_val, error
+    integer  :: i, l, l_val, error, dimn, ml
     real(dp),  allocatable    :: file_r(:)     ! Temporary arrays to store the distances
     real(dp), target, allocatable    :: file_pot(:,:) ! Temporary arrays to store the potential
     real(dp),  pointer :: pot_new(:), pot_old(:)
@@ -58,6 +58,22 @@ module DVRDiag
 
     para%ng            = para%m*para%nl - 1
     para%l             = l_max !Rotational quantum number
+    para%limit_ml = limit_ml ! If a limit is applied to the m_l quantum number
+    para%ml_max = ml_max ! Set the limit
+    
+
+    if (para%limit_ml) then
+      if (para%l.lt.para%ml_max) call stop_all('SetDVR', 'Not a wise choice for ml_max')
+      ml = (2*para%ml_max + 1) 
+      dimn = ml*(para%l+1)
+      do i = 1, para%ml_max
+        dimn = dimn - 2*i
+      end do
+      para%dim_l = dimn
+    else 
+      para%dim_l = (para%l + 1)**2
+    end if
+
     para%Z             = z
     para%mass          = mass
 
@@ -98,6 +114,15 @@ module DVRDiag
     write(iout, '(X,A,3X, I6)') 'para%nev       =', para%nev
     write(iout, '(X,A,3X, I6)') 'para%Z         =', z
     write(iout, '(X,A,3X, F6.2)') 'para%mass      =', mass
+    if (para%limit_ml) then
+      write(iout, *) '----------'
+      write(iout, '(X,A)') 'Setting a maximum value for m_l'
+      write(iout, '(X,A,3X, I6)') 'para%ml_max    =', para%ml_max
+      write(iout, '(X,A,3X, I6)') 'para%dim_l     =', para%dim_l
+      write(iout, *) '----------'
+    else
+      write(iout, '(X,A,3X, I6)') 'para%dim_l     =', para%dim_l
+    end if
     write(iout, *) '***********' 
 
     call init_grid_dim_GLL(grid, para) 
