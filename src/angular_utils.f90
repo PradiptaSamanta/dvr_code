@@ -113,12 +113,13 @@ module angular_utils
                                                                                  
   end function int2str
   
-  subroutine write_int_angular_real(integrals, sph_harm, all_int, file_name_syntx)
+  subroutine write_int_angular_real(integrals, sph_harm, all_int, file_name_syntx, l_interm)
 
     type(sph_harm_t),  intent(in)           :: sph_harm
     complex(idp),      intent(in)           :: integrals(:,:,:,:,:)
     logical,           intent(in)           :: all_int
     character(len=32), intent(in)           :: file_name_syntx
+    integer,           intent(in)           :: l_interm(:)
 
     integer    :: n_l, n_mp, error, dim_l, k
     integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
@@ -135,21 +136,21 @@ module angular_utils
       
       if (all_int) then
         do l1 = 1, n_l 
-          n_m1 = 2*l1 - 1
+          n_m1 = sph_harm%n_m(l1)
           do m1 = 1, n_m1
-            lm1 = (l1-1)**2 + m1
+            lm1 = l_interm(l1) + m1
             do l2 = 1, n_l 
-              n_m2 = 2*l2 - 1
+              n_m2 = sph_harm%n_m(l2)
               do m2 = 1, n_m2
-                lm2 = (l2-1)**2 + m2
+                lm2 = l_interm(l2) + m2
                 do l3 = 1, n_l 
-                  n_m3 = 2*l3 - 1
+                  n_m3 = sph_harm%n_m(l3)
                   do m3 = 1, n_m3
-                    lm3 = (l3-1)**2 + m3
+                    lm3 = l_interm(l3) + m3
                     do l4 = 1, n_l 
-                      n_m4 = 2*l4 - 1
+                      n_m4 = sph_harm%n_m(l4)
                       do m4 = 1, n_m4
-                        lm4 = (l4-1)**2 + m4
+                        lm4 = l_interm(l4) + m4
                         if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
                         &   write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   real(integrals(k, lm1, lm2, lm3, lm4))
@@ -163,22 +164,22 @@ module angular_utils
         end do
       else
         do l1 = 1, n_l 
-          n_m1 = 2*l1 - 1
+          n_m1 = sph_harm%n_m(l1)
           do m1 = 1, n_m1
-            lm1 = (l1-1)**2 + m1
+            lm1 = l_interm(l1) + m1
             do l2 = 1, n_l 
-              n_m2 = 2*l2 - 1
+              n_m2 = sph_harm%n_m(l2)
               do m2 = 1, n_m2
-                lm2 = (l2-1)**2 + m2
+                lm2 = l_interm(l2) + m2
                 do l3 = 1, n_l 
-                  n_m3 = 2*l3 - 1
+                  n_m3 = sph_harm%n_m(l3)
                   do m3 = 1, n_m3
-                    lm3 = (l3-1)**2 + m3
+                    lm3 = l_interm(l3) + m3
                     do l4 = 1, n_l 
-                      n_m4 = 2*l4 - 1
+                      n_m4 = sph_harm%n_m(l4)
                       m4 = (-l1 -l2 +l3 +l4) + (m1 +m2 -m3)  ! following the condition m1-m3 = m4-m2 transformed into the index we are using here for m
                       if (0.lt.m4.and.m4.le.n_m4) then
-                        lm4 = (l4-1)**2 + m4
+                        lm4 = l_interm(l4) + m4
                          if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
                         &  write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   real(integrals(k, lm1, lm2, lm3, lm4))
@@ -197,12 +198,13 @@ module angular_utils
 
   end subroutine write_int_angular_real
 
-  subroutine write_int_angular_imaginary(integrals, sph_harm, all_int, file_name_syntx)
+  subroutine write_int_angular_imaginary(integrals, sph_harm, all_int, file_name_syntx, l_interm)
       
     type(sph_harm_t),  intent(in)           :: sph_harm
     complex(idp),      intent(in)           :: integrals(:,:,:,:,:)
     logical,           intent(in)           :: all_int
     character(len=32), intent(in)           :: file_name_syntx
+    integer,           intent(in)           :: l_interm(:)
 
     integer    :: n_l, n_mp, error, dim_l, k
     integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
@@ -219,21 +221,21 @@ module angular_utils
       
       if (all_int) then
         do l1 = 1, n_l 
-          n_m1 = 2*l1 - 1
+          n_m1 = sph_harm%n_m(l1)
           do m1 = 1, n_m1
-            lm1 = (l1-1)**2 + m1
+            lm1 = l_interm(l1) + m1
             do l2 = 1, n_l 
-              n_m2 = 2*l2 - 1
+              n_m2 = sph_harm%n_m(l2)
               do m2 = 1, n_m2
-                lm2 = (l2-1)**2 + m2
+                lm2 = l_interm(l2) + m2
                 do l3 = 1, n_l 
-                  n_m3 = 2*l3 - 1
+                  n_m3 = sph_harm%n_m(l3)
                   do m3 = 1, n_m3
-                    lm3 = (l3-1)**2 + m3
+                    lm3 = l_interm(l3) + m3
                     do l4 = 1, n_l 
-                      n_m4 = 2*l4 - 1
+                      n_m4 = sph_harm%n_m(l4)
                       do m4 = 1, n_m4
-                        lm4 = (l4-1)**2 + m4
+                        lm4 = l_interm(l4) + m4
                         if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
                         &   write(11,'(4I3, 2ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   real(integrals(k, lm1, lm2, lm3, lm4)),   &
@@ -248,22 +250,22 @@ module angular_utils
         end do
       else
         do l1 = 1, n_l 
-          n_m1 = 2*l1 - 1
+          n_m1 = sph_harm%n_m(l1)
           do m1 = 1, n_m1
-            lm1 = (l1-1)**2 + m1
+            lm1 = l_interm(l1) + m1
             do l2 = 1, n_l 
-              n_m2 = 2*l2 - 1
+              n_m2 = sph_harm%n_m(l2)
               do m2 = 1, n_m2
-                lm2 = (l2-1)**2 + m2
+                lm2 = l_interm(l2) + m2
                 do l3 = 1, n_l 
-                  n_m3 = 2*l3 - 1
+                  n_m3 = sph_harm%n_m(l3)
                   do m3 = 1, n_m3
-                    lm3 = (l3-1)**2 + m3
+                    lm3 = l_interm(l3) + m3
                     do l4 = 1, n_l 
-                      n_m4 = 2*l4 - 1
+                      n_m4 = sph_harm%n_m(l4)
                       m4 = (-l1 -l2 +l3 +l4) + (m1 +m2 -m3)  ! following the condition m1-m3 = m4-m2 transformed into the index we are using here for m
                       if (0.lt.m4.and.m4.le.n_m4) then
-                        lm4 = (l4-1)**2 + m4
+                        lm4 = l_interm(l4) + m4
                          if (abs(integrals(k, lm1, lm2, lm3, lm4)).gt.1e-12)      &
                         & write(11,'(4I3, ES20.12)') lm1, lm2, lm3, lm4,       &
                         &   real(integrals(k, lm1, lm2, lm3, lm4)),  &
