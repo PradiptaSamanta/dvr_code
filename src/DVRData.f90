@@ -63,6 +63,7 @@ module DVRData
     character(len=file_l)      :: pot_filename 
     logical                    :: mapped_grid
     logical                    :: split_grid
+    logical                    :: limit_ml
     character(len=maptype_l)   :: maptype
     character(len=diagtype_l)  :: diagtype
     character(len=file_l)      :: read_envelope
@@ -72,10 +73,12 @@ module DVRData
     integer                    :: nr
     integer                    :: ng
     integer                    :: nl
+    integer                    :: ml_max
     integer                    :: m
     integer                    :: m1
     integer                    :: m2
     integer                    :: l 
+    integer                    :: dim_l 
     integer                    :: nev
   end type para_t
   
@@ -117,6 +120,10 @@ module DVRData
   type sph_harm_t
       integer           :: n_l  ! number of L quantum number
       integer           :: n_mp ! orders of multipole included
+      ! The following are some new parameters which need to be calculated and 
+      ! stored in case there is a limit on the value of the m_l qunatum number
+      integer, allocatable :: n_m(:) ! Array containing the number of m_l quantum for each l
+      integer, allocatable :: m_init(:) ! Array containing the number of m_l quantum for each l
 
   end type sph_harm_t
 
