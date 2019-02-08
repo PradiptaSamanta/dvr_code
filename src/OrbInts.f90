@@ -12,7 +12,7 @@ module OrbInts
 
   subroutine SetOrbData()
 
-    use DVRData, only : para
+    use DVRData, only : para, sph_harm
     use util_mod, only : allocerror
 
     integer :: i, j, k, l_val, i_o, indx, error
@@ -43,7 +43,8 @@ module OrbInts
       l_val = min(i,para%l+1)
 !     write(*,*) 'limit for l_val:', l_val
       do j = 1, l_val
-        do k = 1, 2*j-1
+        !do k = 1, 2*j-1
+        do k = 1, sph_harm%n_m(j)
           indx = indx + 1
           SpatialOrbInd(i-j+1,j,k) = indx
 !         write(iout, *) i-j+1, j, k, SpatialOrbInd(i-j+1, j, k)
