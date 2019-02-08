@@ -177,7 +177,7 @@ subroutine DeallocMatrices()
    
   use constants, only : iout
   use DVRData, only : eigen_vals, eigen_vecs, one_e_rad_int, &
-    &                 two_e_rad_int, integrals_ang
+    &                 two_e_rad_int, integrals_ang, sph_harm
   use OrbData, only : SpatialOrbInd, OneEInts, TwoEInts, TwoERadOrbInts
   
   if (allocated(eigen_vals)) deallocate(eigen_vals)
@@ -191,6 +191,9 @@ subroutine DeallocMatrices()
   if (allocated(TwoEInts)) deallocate(TwoEInts)
   if (allocated(TwoERadOrbInts)) deallocate(TwoERadOrbInts)
   
+  if (allocated(sph_harm%n_m)) deallocate(sph_harm%n_m)
+  if (allocated(sph_harm%m_init)) deallocate(sph_harm%m_init)
+
   write(iout, *) 'Deallocated all the main matrices.'
 
 end subroutine DeallocMatrices
