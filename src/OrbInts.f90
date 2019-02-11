@@ -257,7 +257,7 @@ module OrbInts
 
   subroutine Calc1eOrbInts(EigVecs)
 
-    use DVRData, only : one_e_rad_int, para, grid
+    use DVRData, only : one_e_rad_int, para, grid, sph_harm
 
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     integer  :: i, j, l, l_val, m, n, error, ml, ind_1, ind_2
@@ -314,7 +314,7 @@ module OrbInts
 
 !         write(iout,*) m, n, l, int_value
 
-          do ml = 1, 2*l_val+1
+          do ml = 1, sph_harm%n_m(l)
 !           ind_1 = SpatialOrbInd(m+l-1, l, ml)
             ind_1 = SpatialOrbInd(m, l, ml)
             if (ind_1.eq.0) write(iout,*) 'ind_1', m, l, ml, ind_1
@@ -342,6 +342,8 @@ module OrbInts
     real(dp), intent(in) :: tol
     integer :: i, j, k, l, f_int, norbs, ij, kl, ijkl, i_n, j_n, k_n, l_n, nelec
     real(dp) :: h_core, int_value
+    integer :: i_p, j_p, k_p, l_p
+    integer, allocatable :: temp_pos(:)
 
     f_int = 15
     open(f_int, file=file_int, status='unknown', form="formatted")
@@ -376,21 +378,29 @@ module OrbInts
     write(f_int,*) ' ISYM=1,'
     write(f_int, *) ' &END'
 
+    !allocate(temp_pos(norbs))
+    !temp_pos = (/1,2,3,4,5,6,7,8,9,11,12,13,15,16,17,18,20,21,22,26,27,28/)
+    !temp_pos = (/1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,25,26,27,28,29/)
     ij  = 0
     ijkl = 0
     do i = 1, norbs
       i_n = i + nFrozen
+      !i_p = temp_pos(i)
       do j = 1, i
         j_n = j + nFrozen
+        !j_p = temp_pos(j)
         kl = 0
 !       do k = 1, norbs
         do k = 1, i
           k_n = k + nFrozen
+          !k_p = temp_pos(k)
           do l = 1, k
             l_n = l + nFrozen
+            !l_p = temp_pos(l)
             if (ij.ge.kl) then
               if (abs(TwoEInts(i_n,k_n,j_n,l_n)).gt.tol) &
               & write(f_int, 1005) TwoEInts(i_n,k_n,j_n,l_n), i, j, k, l
+              !& write(f_int, 1005) TwoEInts(i_n,k_n,j_n,l_n), i_p, j_p, k_p, l_p
               ijkl = ijkl + 1
             end if
             kl = kl + 1
@@ -416,8 +426,10 @@ module OrbInts
 
     do i = 1, norbs
       i_n = i + nFrozen
+      !i_p = temp_pos(i)
       do j = 1, i
         j_n = j + nFrozen
+        !j_p = temp_pos(j)
         int_value = OneEInts(i_n,j_n)
 !       if (nFrozen.gt.0.and.i.eq.j) then
         if (nFrozen.gt.0) then
@@ -428,6 +440,7 @@ module OrbInts
         if (abs(int_value).gt.tol) &
 !       if (i.eq.j) &
         & write(f_int, 1005) int_value, i, j, 0, 0
+        !& write(f_int, 1005) int_value, i_p, j_p, 0, 0
       end do 
     end do
 

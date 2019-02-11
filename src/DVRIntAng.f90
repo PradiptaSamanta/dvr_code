@@ -24,8 +24,16 @@ module DVRIntAng
     sph_harm%n_l   = para%l + 1
     sph_harm%n_mp  = 2*para%l + 1
 
-    ! allocate some new arrays here
+    ! The following three arrays will be required further in the subroutine.
+    ! Although these arrays might look redundant in normal cases, they are very useful 
+    ! (and therefore attempted) when 'm_l' values for 'l' are restricted to reduce the
+    ! total number of orbitals.
+
+    ! The array sph_harm%n_m stores the number 'm_l' quantum number for each 'l'+1
+    ! e.g. n_m(1) = 1, n_m(2) = 3, n_m(3) = 5, while using the normal degeneracy for 'l'
     allocate(sph_harm%n_m(sph_harm%n_l))
+    ! sph_harm%m_init stores 'min(m_l) - 1' for each 'l'+1
+    ! e.g. m_init(1) = -1, m_init(2) = -2, m_init(3) = -3, while using the normal degeneracy for 'l'
     allocate(sph_harm%m_init(sph_harm%n_l))
     ! array to keep track the sum of the angular functions
     allocate(l_interm(sph_harm%n_l))
@@ -79,9 +87,6 @@ module DVRIntAng
         write(iout, *) 'Writing down the angular integrals'
         call write_int_angular_real(integrals_ang_prim, sph_harm, all_int, file_name_syntx, l_interm)
       end if
-
-      write(iout, *) 'Done first step'
-      flush(iout)
 
       ! Second step
 
@@ -378,23 +383,35 @@ module DVRIntAng
     prim_fac_2 = (val_1,0.0d0)
     !prim_fac_2 = (val_1, 0.0d0)
 
+    ! The following three arrays are needed to store numbers which will be required
+    ! during the further loops. These are stored as separated arrays, instead of calculating them
+    ! inside the loops, because calculations of these numbers are more involved when not all 'm_l' are used for 'l'. 
+
+    ! n_m stores the number of 'm_l' quantum number =< 0 for each 'l'+1 
+    ! e.g. n_m(1) = 1, only 0; n_m(2) = 2, -1 and 0; n_m(3) = -2, -1, 0, while using the normal degeneracy for 'l'
     allocate(n_m(n_l))
+    ! l_finish stores the number of spherical harmonics exist upto each 'l'+1
+    ! e.g. l_finish(1) = 1; l_finish(2) = 4; l_finish(3) = 9, while using the normal degeneracy for 'l'
     allocate(l_finish(n_l))
+    ! pos_m_zero stores the position of the m_l=0 in the distribution of all 'm_l' for a particular 'l'+1
+    ! e.g. pos_m_zero(1)=1; pos_m_zero(2)=2; pos_m_zero=3; while using the normal degeneracy for 'l' 
     allocate(pos_m_zero(n_l))
+
+    ! These new arrays are calculated here
     do k = 1, n_l
       n_m(k) = min(k,para%ml_max+1)
       l_finish(k) = sum(sph_harm%n_m(1:k))
       pos_m_zero(k) = min(k,para%ml_max+1)
     end do
     
-    write(iout, *) n_m
-    write(iout, *) l_finish
-    write(iout, *) pos_m_zero
+!   write(iout, *) n_m
+!   write(iout, *) l_finish
+!   write(iout, *) pos_m_zero
 
     do k = 1, n_mp
       do l1 = 1, n_l
-        n_m1 = n_m(l1)
-        l10 = pos_m_zero(l1)
+        n_m1 = n_m(l1) ! Note the use of the 'n_m' array
+        l10 = pos_m_zero(l1) ! Note the use of the 'pos_m_zero' array
         do l3 = 1, n_l
           n_m3 = n_m(l3)
           l30 = pos_m_zero(l3)
@@ -422,7 +439,7 @@ module DVRIntAng
                             if (m4.eq.l40) then
                               integrals(k, lm1, lm2, lm3, lm4) = int_1
                             else
-                              lm4_p = l_finish(l4) - m4 + 1
+                              lm4_p = l_finish(l4) - m4 + 1 ! Note the use of the 'l_finish' array
                               md = sph_harm%m_init(l4) + m4
                               msign_1 = m_one**md
                               int_2 = msign_1 * integrals_prim(k, lm1, lm2, lm3, lm4_p)
