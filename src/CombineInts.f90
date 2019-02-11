@@ -16,6 +16,7 @@ module CombineInts
     integer  :: la, lb, lc, ld, ma, mb, mc, md, n_m1, n_m2, n_m3, n_m4, error
     integer  :: m1_init, m2_init, m3_init, m4_init, lma, lmb, lmc, lmd
     integer  :: klm_1, klm_2, klm_3, klm_4
+    integer, allocatable :: l_interm(:)
     real(dp) :: start, finish, int_value_dr, int_value_xc
 
 
@@ -27,37 +28,49 @@ module CombineInts
 
     TwoEInts = zero
 
+    allocate(l_interm(sph_harm%n_l), stat= error)
+    call allocerror(error)
+
     n_l  = sph_harm%n_l
     n_mp = sph_harm%n_mp
+
+    l_interm(1) = 0
+    do l = 2, sph_harm%n_l
+      l_interm(l) = sum(sph_harm%n_m(1:l-1))
+    end do
 
     indx = 0
 
     do l1 = 1, n_l 
-      la = l1 - 1
-      n_m1 = 2*l1 - 1
+      n_m1 = sph_harm%n_m(l1)
+      !n_m1 = 2*l1 - 1
 
       do l3 = 1, n_l
-        lc = l3 - 1
-        n_m3 = 2*l3 - 1
+        n_m3 = sph_harm%n_m(l3)
+        !n_m3 = 2*l3 - 1
 
         do l2 = 1, n_l
-          lb = l2 - 1
-          n_m2 = 2*l2 - 1
+          n_m2 = sph_harm%n_m(l2)
+          !n_m2 = 2*l2 - 1
 
           do l4 = 1, n_l
-            ld = l4 - 1
-            n_m4 = 2*l4 - 1
+            n_m4 = sph_harm%n_m(l4)
+            !n_m4 = 2*l4 - 1
 
 
             do m1 = 1, n_m1
-              lma = (l1-1)**2 + m1
+              !lma = (l1-1)**2 + m1
+              lma = l_interm(l1) + m1
               do m3 = 1, n_m3
-                lmc = (l3-1)**2 + m3
+                !lmc = (l3-1)**2 + m3
+                lmc = l_interm(l3) + m3
 
                 do m2 = 1, n_m2
-                  lmb = (l2-1)**2 + m2
+                  !lmb = (l2-1)**2 + m2
+                  lmb = l_interm(l2) + m2
                   do m4 = 1, n_m4
-                    lmd = (l4-1)**2 + m4
+                    !lmd = (l4-1)**2 + m4
+                    lmd = l_interm(l4) + m4
 
                     do k1 = 1, orb%n_max - l1 + 1
                       do k2 = 1, orb%n_max - l2 + 1  
