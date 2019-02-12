@@ -7,6 +7,7 @@ module FieldIntegrals
   use angular_utils
   use util_mod
   use OrbData
+  use OrbInts, only : SetUpEigVec
 
   implicit none
 
@@ -18,6 +19,7 @@ module FieldIntegrals
 
     integer :: iField 
     real(idp) :: tol, start, finish
+    real(idp), allocatable :: EigVecs(:,:,:)
 
     call cpu_time(start)
 
@@ -37,9 +39,19 @@ module FieldIntegrals
 
     ! Integrals are then calculated in the basis of eigenvectors obtained from 
     ! solving Schroedinger equation
+    ! First the eigenvectors are made block diagonal when the total radial grid are split
+    if (para%split_grid) then
+      call SetUpEigVec(eigen_vecs, EigVecs)
+    end if
+
     do iField = 1, nFields
 !     call CombineFieldInts(iField)
-      call ConvertFieldInts(iField)
+      if (para%split_grid) then
+        call ConvertFieldInts(iField, EigVecs)
+      else 
+        call ConvertFieldInts(iField, eigen_vecs)
+      end if
+
       call WriteFieldInts(iField, tol)
     end do
 
@@ -771,9 +783,10 @@ module FieldIntegrals
 
   end subroutine CombineFieldInts
 
-  subroutine ConvertFieldInts(iField)
+  subroutine ConvertFieldInts(iField, EigVecs)
 
     integer, intent(in) :: iField
+    real(idp), intent(in) :: EigVecs(:,:,:)
     complex(idp), allocatable ::  inter_int(:,:,:,:)
 
     integer :: error, na, nb, la, lb, ma, mb, lma, lmb, n_l,  i
@@ -823,9 +836,9 @@ module FieldIntegrals
             lma = (la-1)**2 + ma
             do na = 1, orb%n_max - (la-1)
               do i = 1, para%ng
-                inter_int(lma,lmb, na, i) = inter_int(lma,lmb, na, i) + eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)
+                inter_int(lma,lmb, na, i) = inter_int(lma,lmb, na, i) + EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)
 !               if(abs(PrimPointInts(lma,lmb,i)).gt.1e-12) then
-!                   write(77,'(5i4, 3f15.8)') la, ma, lb, mb, i, eigen_vecs(i,na,la), real(PrimPointInts(lma,lmb,i)), inter_int(i)
+!                   write(77,'(5i4, 3f15.8)') la, ma, lb, mb, i, EigVecs(i,na,la), real(PrimPointInts(lma,lmb,i)), inter_int(i)
 !               end if
               end do
             end do
@@ -845,9 +858,9 @@ module FieldIntegrals
               do nb = 1, orb%n_max - (lb-1) 
                 int_val = 0.0d0
                 do i = 1, para%ng
-                  int_val = int_val + inter_int(lma,lmb, na, i)*eigen_vecs(i,nb,lb)
-!                 if (abs(eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)*eigen_vecs(i,nb,lb)).gt.1e-12) then
-!                   write(84,'(7i4, 3f15.8)') na, la, ma, nb, lb, mb, i, real(PrimPointInts(lma,lmb,i)),real(eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)*eigen_vecs(i,nb,lb)), real(int_val)
+                  int_val = int_val + inter_int(lma,lmb, na, i)*EigVecs(i,nb,lb)
+!                 if (abs(EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)*EigVecs(i,nb,lb)).gt.1e-12) then
+!                   write(84,'(7i4, 3f15.8)') na, la, ma, nb, lb, mb, i, real(PrimPointInts(lma,lmb,i)),real(EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)*EigVecs(i,nb,lb)), real(int_val)
 !                 end if
                 end do
                 ind_1 = SpatialOrbInd(na, la, ma) 
@@ -872,9 +885,9 @@ module FieldIntegrals
 !             do nb = 1, orb%n_max - (lb-1) 
 !               int_val = 0.0d0
 !               do i = 1, para%ng
-!                 int_val = int_val + eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)*eigen_vecs(i,nb,lb)
-!                 if (abs(eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)*eigen_vecs(i,nb,lb)).gt.1e-12) then
-!                   write(84,'(7i4, 3f15.8)') na, la, ma, nb, lb, mb, i, real(PrimPointInts(lma,lmb,i)),real(eigen_vecs(i,na,la)*PrimPointInts(lma,lmb,i)*eigen_vecs(i,nb,lb)), real(int_val)
+!                 int_val = int_val + EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)*EigVecs(i,nb,lb)
+!                 if (abs(EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)*EigVecs(i,nb,lb)).gt.1e-12) then
+!                   write(84,'(7i4, 3f15.8)') na, la, ma, nb, lb, mb, i, real(PrimPointInts(lma,lmb,i)),real(EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)*EigVecs(i,nb,lb)), real(int_val)
 !                 end if
 !               end do
 !               ind_1 = SpatialOrbInd(na, la, ma) 
