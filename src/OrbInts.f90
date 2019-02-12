@@ -179,6 +179,8 @@ module OrbInts
     if (orb%n_outer == 0) return
 
     do l = 1, n_l
+      if ((len_mid(l)+orb%n_outer+l-1).gt.size(grid%r))  &
+      &  call stop_all('SetUpEigVec','Not enough orbitals in the outer region')
       do j = 1, orb%n_outer + l - 1
         j_p = j + orb%n_inner - l + 1
         do i = 1, len_2
