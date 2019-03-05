@@ -11,15 +11,15 @@ module RHFMod
   contains
 
   subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbInd, ng, n_l, n_nqn, &
-    &                nTotOrbs, RemoveL)
+    &                RemoveL)
 
     real(dp), allocatable, intent(in) :: EigenVecs(:,:,:)
     real(dp), allocatable, intent(inout) :: MOCoeffs(:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) :: ng, n_l, n_nqn, nTotOrbs
+    integer, intent(in) :: ng, n_l, n_nqn
     logical, intent(in) :: RemoveL
 
-    integer :: i, n, l, m, indx_1, indx_2, error, l_val
+    integer :: i, n, l, m, indx_1, indx_2, l_val
     real(dp) :: val
 
     !allocate(MOCoeffs(nTotOrbsNew,nTotOrbsOld), stat=error)
@@ -54,7 +54,7 @@ module RHFMod
     integer, intent(in) :: n_COs
 
     integer :: i, j, nocc, iocc, nelec
-    real(dp) :: val, norm
+    real(dp) :: val
 
 
     nelec =  para%Z
@@ -103,7 +103,7 @@ module RHFMod
     logical, intent(in) :: RemoveL
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer :: i, j, l, m, ind_1, ind_2, l_prime
-    real(dp) :: val, l_val
+    real(dp) :: val
     real(dp), allocatable :: delta(:,:)
 
     allocate(delta(ng, ng))
@@ -136,17 +136,17 @@ module RHFMod
 
   end subroutine CalcHCore
 
-  subroutine CalcVred(TwoERadInts, AngInts, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+  subroutine CalcVred(TwoERadInts, AngInts, Den, Vred, OrbInd, n_nqn, n_l)
 
     real(dp), allocatable, intent(in) :: TwoERadInts(:,:,:), Den(:,:)
     complex(idp), allocatable, intent(in) :: AngInts(:,:,:,:,:)
     real(dp), allocatable, intent(inout) :: Vred(:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) :: n_nqn, n_l, nTotOrbs
+    integer, intent(in) :: n_nqn, n_l
 
-    integer :: k1, k2, k3, k4, l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4, nl2
+    integer :: k1, k3, l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4, nl2
     integer :: n_m1, n_m2, n_m3, n_m4, klm_1, klm_2, klm_3, klm_4, l, error
-    complex(idp) :: int_value, val
+    complex(idp) :: val
     complex(idp), allocatable :: AngEls(:,:,:,:,:)
     real(dp) :: start, finish
 
@@ -320,16 +320,14 @@ module RHFMod
 
   end subroutine CalcVred
 
-  subroutine CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
+  subroutine CalcVred_2(TwoEInts, Den, Vred, nTotOrbs)
 
     real(dp), allocatable, intent(in) :: TwoEInts(:,:,:,:), Den(:,:)
     real(dp), allocatable, intent(inout) :: Vred(:,:)
-    integer, allocatable, intent(in) :: OrbInd(:,:,:)
-    integer, intent(in) ::  n_l, nTotOrbs
+    integer, intent(in) ::  nTotOrbs
 
-    integer :: k1, k2, k3, k4, l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
-    integer :: n_m1, n_m2, n_m3, n_m4, klm_1, klm_2, klm_3, klm_4, l, error
-    complex(idp) :: int_value, val
+    integer :: klm_1, klm_2, klm_3, klm_4
+    complex(idp) :: int_value
     real(dp) :: start, finish
 
     call cpu_time(start)
@@ -446,19 +444,19 @@ module RHFMod
 
   end subroutine CalcEnergy
 
-  subroutine DiagFock(F, MOCoeff, ng, n_COs, OrbEn)
+  subroutine DiagFock(F, MOCoeff, ng, OrbEn)
 
     use dvr_diag_mod, only : diag_matrix
 
     real(dp), allocatable, intent(inout) :: F(:,:), MOCoeff(:,:)
     real(dp), allocatable, intent(inout) :: OrbEn(:)
-    integer, intent(in) :: ng, n_COs
+    integer, intent(in) :: ng
 
     real(dp), allocatable :: F_r(:,:), En(:)
     integer, allocatable :: OrbInd(:,:,:)
     integer, allocatable :: NewOrbInd(:,:,:)
     integer :: error, i, j, indx
-    integer :: ind_1, ind_2, ind_3, ind_4, l, m, len_1, len_2
+    integer :: ind_1, ind_2, l, m, len_1, len_2
     real(dp) :: val, start, finish
 
 
@@ -645,7 +643,6 @@ module RHFMod
     real(dp), intent(out) :: Del
 
     integer :: i, j
-    real :: val
 
     Del = 0.0d0
     do i = 1, nTotOrbs
@@ -663,7 +660,7 @@ module RHFMod
 
   subroutine Calc2ePrimOrbInts(TwoEInts, OrbInd, ng, n_l, n_orb)
 
-    use DVRData, only : two_e_rad_int, para, grid, integrals_ang
+    use DVRData, only : two_e_rad_int, para, integrals_ang
 
     real(dp), allocatable, intent(inout) :: TwoEInts(:,:,:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
@@ -747,6 +744,8 @@ module RHFMod
 
 1005 format(f20.16,x,5i5)
 
+    call cpu_time(finish)
+
   end subroutine Calc2ePrimOrbInts
 
   subroutine ContractBasis(EigenVecs, MOCoeffs, OrbEn_l, OrbEn, OrbInd, ng, n_l, n_nqn)
@@ -756,7 +755,7 @@ module RHFMod
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer, intent(in) :: ng, n_l, n_nqn
 
-    integer :: i, n, l, m, indx_1, indx_2
+    integer :: i, n, l, indx_1, indx_2
     real(dp) :: val
 
     EigenVecs = 0.0d0

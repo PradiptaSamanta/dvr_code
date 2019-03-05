@@ -13,7 +13,7 @@ module DVRrhf
   
   subroutine DoRHF(ng, EigVec, OneInts, TwoInts)
 
-    use DVRData, only:  eigen_vecs, one_e_rad_int, two_e_rad_int, integrals_ang
+    use DVRData, only:  integrals_ang
 
     integer, intent(in)   :: ng
     real(dp), allocatable, intent(inout) :: EigVec(:,:,:)
@@ -112,7 +112,7 @@ module DVRrhf
     ! First expand the matrix of eigen vectors that we already get from solving 
     ! the radial Schroedinger into a product basis of R_{n,l}*Y{l,m}
     call ExpandBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn, &
-    &                nTotOrbs, RemoveL)
+    &                RemoveL)
 
 !   do i = 1, ng
 !     do l = 1, n_l
@@ -143,7 +143,7 @@ module DVRrhf
 
 !   if (vopt.eq.1) then
 
-    call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+    call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, n_nqn, n_l)
 
 !   else 
 !     call Calc2ePrimOrbInts(TwoEInts, OrbInd, n_l, nTotOrbs)
@@ -167,7 +167,7 @@ module DVRrhf
       call cpu_time(start)
 
       ! First diagonalise the Fock matrix
-      call DiagFock(F , MOCoeffs, ng, nTotOrbs, OrbEn)
+      call DiagFock(F , MOCoeffs, ng, OrbEn)
 
 !     do i = 1, nTotOrbs
 !       do j = 1, nTotOrbs
@@ -187,9 +187,9 @@ module DVRrhf
 
       ! Calculate the new Fock matrix
       if (vopt.eq.1) then
-        call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, nTotOrbs, n_nqn, n_l)
+        call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, n_nqn, n_l)
       else
-        call CalcVred_2(TwoEInts, Den, Vred, OrbInd, nTotOrbs, n_l)
+        call CalcVred_2(TwoEInts, Den, Vred, nTotOrbs)
       end if
 
       call GetFock(hcore, Vred, F, nTotOrbs)

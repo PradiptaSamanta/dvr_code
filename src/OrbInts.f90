@@ -15,7 +15,7 @@ module OrbInts
     use DVRData, only : para, sph_harm
     use util_mod, only : allocerror
 
-    integer :: i, j, k, l_val, i_o, indx, error
+    integer :: i, j, k, l_val, indx, error
 
     if (para%split_grid) then
       if (n_max(2) == -1) n_max(2) = n_max(1)
@@ -203,7 +203,7 @@ module OrbInts
     real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
     real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
 
-    integer :: len_2, i, j, l, n_shift, n_l, len_1, j_p
+    integer :: len_2, i, j, l, n_l, len_1, j_p
     integer, allocatable :: len_mid(:)
 
     n_l = para%l + 1
@@ -259,7 +259,7 @@ module OrbInts
 
   subroutine Calc1eOrbInts(EigVecs)
 
-    use DVRData, only : one_e_rad_int, para, grid, sph_harm
+    use DVRData, only : one_e_rad_int, para, sph_harm
 
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     integer  :: i, j, l, l_val, m, n, error, ml, ind_1, ind_2
@@ -344,8 +344,8 @@ module OrbInts
     real(dp), intent(in) :: tol
     integer :: i, j, k, l, f_int, norbs, ij, kl, ijkl, i_n, j_n, k_n, l_n, nelec
     real(dp) :: h_core, int_value
-    integer :: i_p, j_p, k_p, l_p
-    integer, allocatable :: temp_pos(:)
+    !integer :: i_p, j_p, k_p, l_p
+    !integer, allocatable :: temp_pos(:)
 
     f_int = 15
     open(f_int, file=file_int, status='unknown', form="formatted")

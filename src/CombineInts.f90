@@ -13,8 +13,8 @@ module CombineInts
     use OrbData, only : TwoERadOrbInts, TwoEInts, orb, SpatialOrbInd
 
     integer  :: n_l, n_mp, l1, l2, l3, l4, m1, m2, m3, m4, k1, k2, k3, k4, l, indx
-    integer  :: la, lb, lc, ld, ma, mb, mc, md, n_m1, n_m2, n_m3, n_m4, error
-    integer  :: m1_init, m2_init, m3_init, m4_init, lma, lmb, lmc, lmd
+    integer  :: n_m1, n_m2, n_m3, n_m4, error
+    integer  :: lma, lmb, lmc, lmd
     integer  :: klm_1, klm_2, klm_3, klm_4
     integer, allocatable :: l_interm(:)
     real(dp) :: start, finish, int_value_dr, int_value_xc
@@ -123,15 +123,13 @@ module CombineInts
 
   subroutine Calc2eRadOrbInts(EigVecs)
 
-    use DVRData, only : two_e_rad_int, para, grid
+    use DVRData, only : two_e_rad_int, para
     use OrbData, only : orb, TwoERadOrbInts
 
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
-    integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
-    real(dp) :: int_value, start, finish, int_value_xc, int_value_dr
-    real(dp) :: time_1, time_2, time_3
-    integer  :: count_i, count_j, count_l
-    logical  :: split
+    integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error
+    real(dp) :: int_value, start, finish
+    real(dp) :: time_1, time_3
 
     real(dp), allocatable :: inter_int_1(:,:), inter_int_2(:), inter_int_3(:)
     real(dp), allocatable :: vec_1(:)
@@ -249,13 +247,12 @@ module CombineInts
 
   subroutine Calc2eRadOrbInts_alt_1()
 
-    use DVRData, only : two_e_rad_int, para, grid, eigen_vecs
+    use DVRData, only : two_e_rad_int, para, eigen_vecs
     use OrbData, only : orb, TwoERadOrbInts
 
-    integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error, ml, ind_1, ind_2
-    real(dp) :: int_value, start, finish, int_value_xc, int_value_dr, val
+    integer  :: i, j, l, l1, l2, l3 ,l4, n_l, l_val, m, n, mp, np, error
+    real(dp) :: int_value, start, finish, int_value_xc, val
     real(dp) :: time_1, time_2, time_3
-    integer  :: count_i, count_j, count_l
     logical  :: split
 
     real(dp), allocatable :: inter_int(:,:,:,:,:)

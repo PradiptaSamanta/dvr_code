@@ -30,7 +30,7 @@ module PrimOrbInts
   subroutine SetPrimOrbData()
 
     use DVRData, only : para
-    integer :: i, j, k, l_val, i_o, indx, error
+    integer :: i, j, k, l_val, indx, error
 
     orb%n_max = para%ng
 
@@ -65,7 +65,7 @@ module PrimOrbInts
 
   subroutine Calc1ePrimOrbInts()
 
-    use DVRData, only : one_e_rad_int, para, grid, eigen_vecs
+    use DVRData, only : one_e_rad_int, para
 
     integer  :: l, m, n, error, ml, ind_1, ind_2
     real(dp) :: start, finish
@@ -105,7 +105,7 @@ module PrimOrbInts
 
   subroutine Calc2ePrimOrbInts()
 
-    use DVRData, only : two_e_rad_int, para, grid, integrals_ang, sph_harm
+    use DVRData, only : two_e_rad_int, para, integrals_ang, sph_harm
     use OrbData, only : TwoEInts, orb, SpatialOrbInd
 
     integer  :: n_l, n_mp, l1, l2, l3, l4, m1, m2, m3, m4, k1, k2, l
@@ -165,6 +165,8 @@ module PrimOrbInts
         end do
       end do
     end do
+
+    call cpu_time(finish)
 
   end subroutine Calc2ePrimOrbInts
 

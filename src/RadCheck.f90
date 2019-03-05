@@ -14,8 +14,8 @@ contains
   subroutine radial_check()
 
     integer                    :: i, j, a, b, c, d, l, l_val, norb
-    real(idp)                  :: full_r_max, curr_r, curr_r_prime, integral_val, dr
-    real(idp)                  :: integral_val_1,  integral_val_2
+    real(idp)                  :: curr_r, curr_r_prime, integral_val, dr
+    real(idp)                  :: integral_val_1
  
     !norb = orb%nSpatialOrbs
     norb = 2
@@ -152,10 +152,10 @@ contains
   subroutine check_with_analytic()
 
     integer :: norb, l_max, lp_max
-    integer :: a, b, c, d, la, lb, lc, ld, lac, lbd, l, l_val, i, j, n_points
+    integer :: a, b, c, d, lac, lbd, l, l_val, i, j, n_points
 
-    real(dp) :: dr, curr_r, curr_rp, fact_1, fact_2, val_a, val_b, val_c, val_c_xc, val_d, val_d_xc, nrm, tol
-    real(dp), allocatable :: an(:,:,:), int_val_dr(:), int_val_xc(:)
+    real(dp) :: dr, curr_r, curr_rp, fact_1, fact_2, val_a, val_b, val_c, val_c_xc, val_d, val_d_xc, tol
+    real(dp), allocatable :: int_val_dr(:), int_val_xc(:)
     real(dp), allocatable :: hydrogen_wf(:,:,:), TwoEInts(:,:,:,:)
 
     
@@ -278,7 +278,7 @@ contains
     integer :: norb, l_max
     integer :: a, la, k, i, n
     real(dp), allocatable :: an(:)
-    real(dp) :: dr, drho, val, nrm, curr_r, curr_rho, norm
+    real(dp) :: dr, drho, val, curr_r, curr_rho, norm
 
     allocate(hydrogen_wf(n_points,norb,l_max))
 
@@ -334,8 +334,8 @@ contains
 
 !   real(idp), allocatable :: an(:)
   
-    integer :: i, k
-    real(idp) :: val, dr, curr_r, drho, curr_rho
+    integer :: k
+    real(idp) :: val, curr_rho
     
 !   integer, save :: prev_n = -1, prev_l = -1
 !   real(idp), save :: norm = - one
@@ -420,9 +420,8 @@ contains
 
     integer :: m_val
     integer :: i_val
-    integer :: i
     real(idp) :: r_min, r_max
-    real(idp) :: xi, xi_ref, xi_curr
+    real(idp) :: xi, xi_ref
     real(idp) :: numerator, denominator
     
     i_val = ind / para%nl
@@ -616,9 +615,9 @@ contains
     real(dp), allocatable, intent(in)  :: TwoERadOrbInts_xc(:,:,:,:,:,:,:)
     real(dp), allocatable, intent(inout) :: TwoEInts(:,:,:,:)
 
-    integer  :: n_l, n_mp, l1, l2, l3, l4, m1, m2, m3, m4, k1, k2, k3, k4, l, indx
-    integer  :: la, lb, lc, ld, ma, mb, mc, md, n_m1, n_m2, n_m3, n_m4, error
-    integer  :: m1_init, m2_init, m3_init, m4_init, lma, lmb, lmc, lmd
+    integer  :: n_l, n_mp, l1, l2, m1, m2, m3, m4, k1, k2, k3, k4, l, indx
+    integer  :: la, lb, ma, mb, mc, md, n_m1, n_m2, error
+    integer  :: m1_init, m2_init, lma, lmb, lmc, lmd
     integer  :: klm_1, klm_2, klm_3, klm_4
     real(dp) :: start, finish, int_value_dr, int_value_xc
 
