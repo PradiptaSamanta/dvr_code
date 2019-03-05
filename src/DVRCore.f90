@@ -3,7 +3,7 @@ subroutine DVRCore()
   use constants
   use util_mod, only : printheader, printversion
   use ReadInput, only : ReadInputMain
-  use InputData, only : dvr_diag, dvr_integrals, orbital_ints
+  use InputData, only : dvr_diag, dvr_integrals, orbital_ints, get_density
   use DVRData, only:  eigen_vecs, one_e_rad_int, two_e_rad_int
   use DVRDiag, only : SetDVR, DVRDiagonalization,ReadEigValVec
   use RHFData, only: tRHF
@@ -14,6 +14,7 @@ subroutine DVRCore()
   use RadCheck
   use DVRRHF, only: DoRHF
   use FieldIntegrals
+  use Density, only: CalcDensity
 
   implicit none
 
@@ -81,6 +82,10 @@ subroutine DVRCore()
     call CalcFieldInts()
   end if 
 
+  if (get_density) then
+    call CalcDensity() 
+  end if
+
 ! call radial_check()
 
 ! call check_with_analytic()
@@ -102,8 +107,10 @@ subroutine DoRHFSplit()
   use DVRData, only : para, eigen_vecs, one_e_rad_int, two_e_rad_int
   use DVRRHF, only: DoRHF
 
+  implicit none
+
   real(dp), allocatable :: EigVec(:,:,:), OneInts(:,:,:), TwoInts(:,:,:)
-  integer :: len_1, len_2
+  integer :: len_1, len_2, i, j
 
     len_1 = para%m1*para%nl
     len_2 = para%m2*para%nl - 1
@@ -180,6 +187,8 @@ subroutine DeallocMatrices()
     &                 two_e_rad_int, integrals_ang, sph_harm
   use OrbData, only : SpatialOrbInd, OneEInts, TwoEInts, TwoERadOrbInts
   
+  implicit none
+
   if (allocated(eigen_vals)) deallocate(eigen_vals)
   if (allocated(eigen_vecs)) deallocate(eigen_vecs)
   if (allocated(one_e_rad_int)) deallocate(one_e_rad_int)

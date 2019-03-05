@@ -200,174 +200,174 @@ contains
   !!                     desired eigenvalues
   !! @param: rvec        Specifies wheather the associated `nev` eigenvector
   !!                     will be calculated or not.
-  subroutine diag_arpack_real_sym_matrix(matrix, formt, n, nev, which,         &
-  & eigenvals, rvec)
+! subroutine diag_arpack_real_sym_matrix(matrix, formt, n, nev, which,         &
+! & eigenvals, rvec)
 
-    real(idp), allocatable, intent(inout) :: matrix(:,:)
-    character(len=*),       intent(in)    :: formt
-    integer,                intent(in)    :: n
-    integer,                intent(in)    :: nev
-    character(len=2),       intent(in)    :: which
-    real(idp),              intent(inout) :: eigenvals(:)
-    logical,                intent(in)    :: rvec
+!   real(idp), allocatable, intent(inout) :: matrix(:,:)
+!   character(len=*),       intent(in)    :: formt
+!   integer,                intent(in)    :: n
+!   integer,                intent(in)    :: nev
+!   character(len=2),       intent(in)    :: which
+!   real(idp),              intent(inout) :: eigenvals(:)
+!   logical,                intent(in)    :: rvec
 
-    integer                :: ldv, mode, maxitr, lworkl
-    integer                :: i, j, ido, error, iter
-    real(idp)              :: sigma, tol
-    character(len=1)       :: bmat
-    integer                :: ncv, info
-    integer                :: iparam(11)
-    logical,   allocatable :: selct(:)
-    real(idp), allocatable :: resid(:)
-    real(idp), allocatable :: v(:,:)
-    real(idp), allocatable :: workd(:)
-    real(idp), allocatable :: workl(:)
-    integer                :: ipntr(14)
-    real(idp), allocatable :: d(:)
-    real(idp)              :: start, finish
+!   integer                :: ldv, mode, maxitr, lworkl
+!   integer                :: i, j, ido, error, iter
+!   real(idp)              :: sigma, tol
+!   character(len=1)       :: bmat
+!   integer                :: ncv, info
+!   integer                :: iparam(11)
+!   logical,   allocatable :: selct(:)
+!   real(idp), allocatable :: resid(:)
+!   real(idp), allocatable :: v(:,:)
+!   real(idp), allocatable :: workd(:)
+!   real(idp), allocatable :: workl(:)
+!   integer                :: ipntr(14)
+!   real(idp), allocatable :: d(:)
+!   real(idp)              :: start, finish
 
-    ido    = 0
-    info   = 0
-    sigma  = zero
-    tol    = zero
-    ldv    = n
-    ncv    = n
-    lworkl = ncv**2 + 8*ncv
-    maxitr = 900
-    mode   = 1
-    bmat   = 'I'
-    iparam(1) = 1 !
-    iparam(3) = maxitr
-    iparam(4) = 1
-    iparam(7) = mode
+!   ido    = 0
+!   info   = 0
+!   sigma  = zero
+!   tol    = zero
+!   ldv    = n
+!   ncv    = n
+!   lworkl = ncv**2 + 8*ncv
+!   maxitr = 900
+!   mode   = 1
+!   bmat   = 'I'
+!   iparam(1) = 1 !
+!   iparam(3) = maxitr
+!   iparam(4) = 1
+!   iparam(7) = mode
 
-    allocate(v(ldv,ncv),stat=error)
-    call allocerror(error)
-    allocate(resid(n),stat=error)
-    call allocerror(error)
-    allocate(workd(3*n),stat=error)
-    call allocerror(error)
-    allocate(workl(lworkl),stat=error)
-    call allocerror(error)
-    allocate(selct(ncv),stat=error)
-    call allocerror(error)
-    allocate(d(nev),stat=error)
-    call allocerror(error)
+!   allocate(v(ldv,ncv),stat=error)
+!   call allocerror(error)
+!   allocate(resid(n),stat=error)
+!   call allocerror(error)
+!   allocate(workd(3*n),stat=error)
+!   call allocerror(error)
+!   allocate(workl(lworkl),stat=error)
+!   call allocerror(error)
+!   allocate(selct(ncv),stat=error)
+!   call allocerror(error)
+!   allocate(d(nev),stat=error)
+!   call allocerror(error)
 
-    iter = 0
+!   iter = 0
 
-    call cpu_time(start)
+!   call cpu_time(start)
 
-    select case (formt)
+!   select case (formt)
 
-      case ('full')
+!     case ('full')
 
-        do
-          iter = iter + 1
-          call dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,       &
-          &           iparam, ipntr, workd, workl, lworkl, info)
-          select case (abs(ido))
-            case (1)
-              ! compute  Y = OP * X  where
-              ! IPNTR(1) is the pointer into WORKD for X,
-              ! IPNTR(2) is the pointer into WORKD for Y.
-              ! This is for the initialization phase to force the
-              ! starting vector into the range of OP.
-              call wrap_dsymv(n, one, matrix, workd(ipntr(1):ipntr(1)+n-1),    &
-              &               zero, workd(ipntr(2):ipntr(2)+n-1))
-              if (ido > 0) then       !no need to do this loop B=1
-                ! compute Z = B * X for B = unity
-                ! IPNTR(1) is the pointer into WORKD for X,
-                ! IPNTR(3) is the pointer into WORKD for Z.
-                do i = 1, n ! simply copy
-                  workd(ipntr(3)+i-1) = workd(ipntr(1)+i-1)
-                end do
-              end if
-            case (99)
-              exit
-            case default
-              write(*,*) "ERROR: Unknown value for ido: ", ido
-              stop
-          end select
-        end do
+!       do
+!         iter = iter + 1
+!         call dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,       &
+!         &           iparam, ipntr, workd, workl, lworkl, info)
+!         select case (abs(ido))
+!           case (1)
+!             ! compute  Y = OP * X  where
+!             ! IPNTR(1) is the pointer into WORKD for X,
+!             ! IPNTR(2) is the pointer into WORKD for Y.
+!             ! This is for the initialization phase to force the
+!             ! starting vector into the range of OP.
+!             call wrap_dsymv(n, one, matrix, workd(ipntr(1):ipntr(1)+n-1),    &
+!             &               zero, workd(ipntr(2):ipntr(2)+n-1))
+!             if (ido > 0) then       !no need to do this loop B=1
+!               ! compute Z = B * X for B = unity
+!               ! IPNTR(1) is the pointer into WORKD for X,
+!               ! IPNTR(3) is the pointer into WORKD for Z.
+!               do i = 1, n ! simply copy
+!                 workd(ipntr(3)+i-1) = workd(ipntr(1)+i-1)
+!               end do
+!             end if
+!           case (99)
+!             exit
+!           case default
+!             write(*,*) "ERROR: Unknown value for ido: ", ido
+!             stop
+!         end select
+!       end do
 
-      case ('banded')
+!     case ('banded')
 
-        do
-          iter = iter + 1
-          call dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,       &
-          &           iparam, ipntr, workd, workl, lworkl, info)
-          select case (abs(ido))
-            case (1)
-              ! compute  Y = OP * X  where
-              ! IPNTR(1) is the pointer into WORKD for X,
-              ! IPNTR(2) is the pointer into WORKD for Y.
-              ! This is for the initialization phase to force the
-              ! starting vector into the range of OP.
-              call wrap_dsbmv(size(matrix(1,:)),size(matrix(:,1))-1, one,      &
-              &               matrix, workd(ipntr(1):ipntr(1)+n-1), zero,      &
-              &               workd(ipntr(2):ipntr(2)+n-1))
-              if (ido > 0) then       !no need to do this loop B=1
-                ! compute Z = B * X for B = unity
-                ! IPNTR(1) is the pointer into WORKD for X,
-                ! IPNTR(3) is the pointer into WORKD for Z.
-                do i = 1, n ! simply copy
-                  workd(ipntr(3)+i-1) = workd(ipntr(1)+i-1)
-                end do
-              end if
-            case (99)
-              exit
-            case default
-              write(*,*) "ERROR: Unknown value for ido: ", ido
-              stop 
-          end select
-        end do
+!       do
+!         iter = iter + 1
+!         call dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,       &
+!         &           iparam, ipntr, workd, workl, lworkl, info)
+!         select case (abs(ido))
+!           case (1)
+!             ! compute  Y = OP * X  where
+!             ! IPNTR(1) is the pointer into WORKD for X,
+!             ! IPNTR(2) is the pointer into WORKD for Y.
+!             ! This is for the initialization phase to force the
+!             ! starting vector into the range of OP.
+!             call wrap_dsbmv(size(matrix(1,:)),size(matrix(:,1))-1, one,      &
+!             &               matrix, workd(ipntr(1):ipntr(1)+n-1), zero,      &
+!             &               workd(ipntr(2):ipntr(2)+n-1))
+!             if (ido > 0) then       !no need to do this loop B=1
+!               ! compute Z = B * X for B = unity
+!               ! IPNTR(1) is the pointer into WORKD for X,
+!               ! IPNTR(3) is the pointer into WORKD for Z.
+!               do i = 1, n ! simply copy
+!                 workd(ipntr(3)+i-1) = workd(ipntr(1)+i-1)
+!               end do
+!             end if
+!           case (99)
+!             exit
+!           case default
+!             write(*,*) "ERROR: Unknown value for ido: ", ido
+!             stop 
+!         end select
+!       end do
 
-      case default
+!     case default
 
-        write(*,*) "ERROR: Unknown format"
-        stop
+!       write(*,*) "ERROR: Unknown format"
+!       stop
 
-    end select ! formt
+!   end select ! formt
 
-    call cpu_time(finish)
+!   call cpu_time(finish)
 
-    write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for first step of diagonalization = ', finish-start, 'seconds.'
+!   write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for first step of diagonalization = ', finish-start, 'seconds.'
 
-    if (allocated(matrix)) deallocate(matrix)
-    allocate(matrix(n,nev), stat=error)
-    call allocerror(error)
+!   if (allocated(matrix)) deallocate(matrix)
+!   allocate(matrix(n,nev), stat=error)
+!   call allocerror(error)
 
-    do j = 1, nev
-      do i = 1, n
-        matrix(i,j) = v(i,j)
-      end do
-    end do
+!   do j = 1, nev
+!     do i = 1, n
+!       matrix(i,j) = v(i,j)
+!     end do
+!   end do
 
-    call cpu_time(start)
+!   call cpu_time(start)
 
-    call dseupd(rvec, 'A', selct, d, matrix, ldv, sigma, bmat, n, which, nev,  &
-    &           tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl,  &
-    &           info)
+!   call dseupd(rvec, 'A', selct, d, matrix, ldv, sigma, bmat, n, which, nev,  &
+!   &           tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl,  &
+!   &           info)
 
-    call cpu_time(finish)
+!   call cpu_time(finish)
 
-    write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for second step of diagonalization = ', finish-start, 'seconds.'
-    if (.not. rvec) then
-      do i = 1,nev
-        eigenvals(i) = d(nev+1-i)
-      end do
-    else
-      do i = 1,nev
-        eigenvals(i) = d(i)
-      end do
-    end if
+!   write(iout,'(X,a,X,f10.5,X,a)') 'Time taken for second step of diagonalization = ', finish-start, 'seconds.'
+!   if (.not. rvec) then
+!     do i = 1,nev
+!       eigenvals(i) = d(nev+1-i)
+!     end do
+!   else
+!     do i = 1,nev
+!       eigenvals(i) = d(i)
+!     end do
+!   end if
 
-    deallocate(selct, d, v, workd)
-    if (allocated(resid)) deallocate(resid)
-    if (allocated(workl)) deallocate(workl)
+!   deallocate(selct, d, v, workd)
+!   if (allocated(resid)) deallocate(resid)
+!   if (allocated(workl)) deallocate(workl)
 
-  end subroutine diag_arpack_real_sym_matrix
+! end subroutine diag_arpack_real_sym_matrix
 
   ! Symmetric matrix-vector multiplication
   !! @description: See BLAS
