@@ -47,6 +47,10 @@ module ReadInput
         ! Read here the data related to orbitals
         orbital_ints = .true.
         call OrbitalInput(ir)
+      case("DENSITY")
+        ! Read here the data related to orbitals
+        get_density = .true.
+        call DensityInput(ir)
       case ("")
         check = check + 1
         if (check.gt.50) call report('input is empty', .true.)
@@ -109,6 +113,8 @@ module ReadInput
 
     limit_ml = .false.
     ml_max = 999
+
+    get_density = .false.
 
   end subroutine SetDVRInpDefaults
 
@@ -260,7 +266,6 @@ module ReadInput
 
   end subroutine DVRInput
 
-
   subroutine OrbitalInput(ir)
 
     integer, intent(in) :: ir
@@ -316,6 +321,63 @@ module ReadInput
     end do
 
   end subroutine OrbitalInput
+
+  subroutine DensityInput(ir)
+
+    use DensityData
+
+    integer, intent(in) :: ir
+    logical :: eof
+    character (len=100)  :: w
+    integer :: n_grids
+
+    r_val = 0.0d0
+    n_orb_den = -1
+    tot_orb = -1
+    file_1rdm = 'OneRDM'
+    file_2rdm = 'TwoRDM'
+
+    do
+      call read_line(eof, ir)
+      if (eof) then 
+        exit
+      end if  
+      call readu(w)
+
+      if (w(1:1).eq.'!'.or.w(1:1).eq.'#') cycle
+
+      select case(w)
+      
+      ! Number of Finite Elements grids
+      case("NUM-N-QN")
+        n_grids = 0
+        if (nitems==1) then
+          call stop_all('OrbitalInput', 'Please specify atleast one value for n_max')
+        end if
+        do while (item.lt.nitems)
+          n_grids = n_grids + 1
+          if (n_grids.gt.2) then
+            call stop_all('DVRInput','Not allowed to split the radial grids in to more than two regions 2')
+          end if
+          call geti(n_orb_den(n_grids))
+        end do
+      case("R-START") ! This option is now obsolete
+        call getf(r_val)
+      case("TOTAL-ORBS")
+        call geti(nfrz)
+      case("FILE-1RDM")
+        call readu(file_1rdm)
+      case("FILE-2RDM")
+        call readu(file_2rdm)
+      case("ENDDENSITY")
+        exit
+      case default
+        call stop_all('OrbitalInput', 'Keyword not recognized')
+      end select
+
+    end do
+
+  end subroutine DensityInput
 
   subroutine RHFInput(ir)
 

@@ -416,13 +416,9 @@ end subroutine stop_all
   !!               error that occured, and optionally an additional message
   !! @param: i              Error code (`stat` in allocate)
   !! @param: error_message  Additional error message to print
-  subroutine allocerror(i, error_message)
+  subroutine allocerror(i)
 
     integer,                    intent(in) :: i
-    character(len=*), optional, intent(in) :: error_message
-
-    integer :: proc_id, error
-    logical :: mpi_is_initialized
 
     if (i > 0) then
       write(*,*) 'Debugging:', i
@@ -443,7 +439,7 @@ end subroutine stop_all
 !----------------------------------------------------------------------*
     include 'date.h'
     integer, intent(in) :: lu
-    integer :: getcwd, nn
+    integer :: getcwd
     integer :: hostnm, stat
     character(255) :: dirname, host
 
@@ -465,13 +461,12 @@ end subroutine stop_all
   end  subroutine printversion
 !----------------------------------------------------------------------*
 
-  subroutine printheader(lu)
+  subroutine printheader()
 !----------------------------------------------------------------------*
     implicit none
 !----------------------------------------------------------------------*
 ! date.h is automatically created by date.sh:      
 !----------------------------------------------------------------------*
-    integer, intent(in) :: lu
     integer :: getcwd, nn
     integer :: hostnm, stat
     character(255) :: dirname, host, commit 

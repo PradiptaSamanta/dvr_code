@@ -226,7 +226,7 @@ module FieldIntegrals
     integer, intent(in)  :: iField
 
     complex(idp), allocatable :: IntPoint(:,:)
-    integer :: i, n_l, la, lb, lma, lmb, ma, mb, m1, m2, lmk, lmk_p, lma_p, lmb_p, n_l2
+    integer :: n_l, la, lb, lma, lmb, ma, mb, m1, m2, lmk, lmk_p, lma_p, lmb_p, n_l2
     complex(idp) :: RadPart, pre_fact
     real(idp), parameter :: val_1 = (1.0d0*sqrt_half)
     real(idp), parameter :: val_2 = (1.0d0*sqrt_half)
