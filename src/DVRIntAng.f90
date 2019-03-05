@@ -153,8 +153,8 @@ module DVRIntAng
     complex(idp),         intent(inout)    :: integrals(:,:,:,:,:)
     integer, allocatable, intent(in)       :: l_interm(:)
  
-    integer    :: n_l, n_mp, error, dim_l, dim_mp, k, q, q_init
-    integer    :: l1, l2, l3, l4, l13, l24, n_m1, n_m2, n_m3, n_m4
+    integer    :: n_l, n_mp, dim_l, dim_mp, k, q, q_init
+    integer    :: l1, l2, l3, l4, n_m1, n_m2, n_m3, n_m4
     integer    :: m1, m2, m3, m4, m1_init, m2_init, m3_init, m4_init
     integer    :: lma, lmb, lmc, lmd, lmk, m_abq, m_sign
 
@@ -371,7 +371,7 @@ module DVRIntAng
     real(idp), parameter :: val_1 = (1.0d0*sqrt_half)
     real(idp), parameter :: val_2 = (-1.0d0*sqrt_half)
     real(idp)    :: msign_1, msign_2, msign_3, msign_4, msign_5, msign_6, msign_7, msign_8
-    real(idp)    :: msign_9, msign_10, msign_11, msign_12, msign_13, msign_14, msign_15, msign_16
+    real(idp)    :: msign_9, msign_10, msign_11, msign_12, msign_13, msign_14, msign_15
 
     n_l  = sph_harm%n_l
     n_mp = sph_harm%n_mp

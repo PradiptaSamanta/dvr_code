@@ -28,10 +28,8 @@ contains
     real(idp), intent(in)    :: pot(:) 
     real(idp), allocatable, intent(in)    :: Tkin_cardinal(:,:)
 
-    integer                 :: nl, ku
+    integer                 :: ku
     integer                 :: i, ir, error, j
-    complex(idp)            :: cpulse
-    real(idp)               :: rpulse
 
     ku = grid%nl
 
@@ -85,7 +83,7 @@ contains
     integer,                   intent(in)    :: kl
     integer,                   intent(in)    :: ku
 
-    integer :: i, j, error, kd
+    integer :: i, j, error
 
     if (allocated(full)) then
       if ((lbound(full, 1) /= 1) .or.  (ubound(full, 1) /= n) .or.             &
