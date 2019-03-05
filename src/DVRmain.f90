@@ -3,8 +3,8 @@ program DVR
   use omp_lib
 !  use ReadInput, only : ReadInputMain
 
-  integer ( kind = 4 ) id
-  real ( kind = 8 ) wtime
+! integer ( kind = 4 ) id
+! real ( kind = 8 ) wtime
 
 !  wtime = omp_get_wtime ( )
 

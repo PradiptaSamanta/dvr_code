@@ -121,7 +121,7 @@ module angular_utils
     character(len=32), intent(in)           :: file_name_syntx
     integer,           intent(in)           :: l_interm(:)
 
-    integer    :: n_l, n_mp, error, dim_l, k
+    integer    :: n_l, n_mp, dim_l, k
     integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
     integer    :: n_m1, n_m2, n_m3, n_m4
 
@@ -206,7 +206,7 @@ module angular_utils
     character(len=32), intent(in)           :: file_name_syntx
     integer,           intent(in)           :: l_interm(:)
 
-    integer    :: n_l, n_mp, error, dim_l, k
+    integer    :: n_l, n_mp, dim_l, k
     integer    :: l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4
     integer    :: n_m1, n_m2, n_m3, n_m4
 

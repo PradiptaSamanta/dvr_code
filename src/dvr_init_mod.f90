@@ -30,7 +30,6 @@ contains
     real(idp)                   :: r_min, r_max, V_dr, min_dr, beta, E_max, &
     &                              r_max1, r_max2
     integer                     :: error, nl, m, l, j, nr_env, th, nr, m1, m2
-    character(len=datline_l)    :: header
     character(len=file_l)       :: read_envelope
     character(len=maptype_l)    :: maptype
     character(len=maptype_l)    :: basis_for_mapping
@@ -93,7 +92,7 @@ contains
         end if
         call get_spatial_coord(r_env, V_dr, weight, r_min, r_max, nr_env,      &
         &                      'const')
-        call envelope_pot_1d(V_env, r_env, para, 1)
+        call envelope_pot_1d(V_env, r_env, para)
       end if
      
       ! Calculate the global weights and GLL points
@@ -110,14 +109,12 @@ contains
       select case (maptype)
         case('diff')
           call map_diff_1d(X_mapped, grid%J, r_min, r_max, r_env,     &
-          &                V_env, nr, beta, para%mass, E_max,        &
-          &                basis_for_mapping)
+          &                V_env, nr, beta, para%mass, E_max)
           grid%dr = one
 
         case('int')
           call map_int_1d(X_mapped, grid%J, r_min, r_max, r_env,      &
-          &               V_env, nr, beta, para%mass, E_max,         &
-          &               basis_for_mapping)
+          &               V_env, nr, beta, para%mass, E_max)
           deallocate(grid%J)
         
         case('inner_outer')
@@ -339,7 +336,7 @@ contains
     real(idp),   intent(in)  :: old_op_a(:)
 
     type(spline_t)          :: spline
-    integer                 :: i, error
+    integer                 :: i
 
     call init_spline(spline, old_r, old_op_a)
 !   allocate(new_op_a(size(new_r)), stat=error)
@@ -359,8 +356,6 @@ contains
     type(spline_t), intent(inout) :: var
     logical, optional, intent(in) :: thorough
 
-    integer :: i1
-    integer :: error
     logical :: l_thorough
 
     l_thorough=.false.
@@ -384,7 +379,7 @@ contains
     type (para_t),    intent(in)  :: para
     real(idp),        intent(out) :: min_dr
 
-    integer                 :: j, k, nr, npot
+    integer                 :: k, nr
     real(idp)               :: rmax, rmin
     real(idp),  allocatable :: pot(:), r(:)
 
@@ -430,17 +425,16 @@ contains
   !! @param: r       Grid vector of the envelope potential
   !! @param: para    Parameter
   !! @param: gi      Index of grid that decides the system
-  subroutine envelope_pot_1d(venv, r, para, gi)
+  subroutine envelope_pot_1d(venv, r, para)
 
     real(idp),  allocatable, intent(out) :: venv(:)
     real(idp),               intent(in)  :: r(:)
     type(para_t),            intent(in)  :: para
-    integer,                 intent(in)  :: gi
 
     type(spline_t)          :: spline
     real(idp),  allocatable :: pot(:), file_pot(:), file_r(:)
     real(idp)               :: newpotval
-    integer                 :: i, j, ir, nr, error, npot
+    integer                 :: j, ir, nr, error
 
     nr = size(r)
     allocate (venv(nr), stat=error)
@@ -557,7 +551,7 @@ contains
   !! @param: E_max  Maximum energy cutoff
   !! @param: base   Base to be used in later propagation
   subroutine map_diff_1d(r, J, r_min, r_max, r_env, V_env, nr, beta, mass,     &
-  &                     E_max, base)
+  &                     E_max)
 
     real(idp), allocatable, intent(out)   :: r(:)
     real(idp), allocatable, intent(out)   :: J(:)
@@ -569,7 +563,7 @@ contains
     real(idp),              intent(in)    :: beta
     real(idp),              intent(in)    :: mass
     real(idp),              intent(in)    :: E_max
-    character(len=*),       intent(in)    :: base
+
 
     type (spline_t) :: spline
     real (idp), allocatable :: x(:)
@@ -632,7 +626,7 @@ contains
   !! @param: E_max  Maximum energy cutoff
   !! @param: base   Base to be used in later propagation
   subroutine map_int_1d(r, J, r_min, r_max, r_env, V_env, nr, beta, mass,      &
-  &                     E_max, base)
+  &                     E_max)
     real(idp), allocatable, intent(out)   :: r(:)
     real(idp), allocatable, intent(out)   :: J(:)
     real(idp),              intent(in)    :: r_min
@@ -643,7 +637,6 @@ contains
     real(idp),              intent(in)    :: beta
     real(idp),              intent(in)    :: mass
     real(idp),              intent(in)    :: E_max
-    character(len=*),       intent(in)    :: base
 
     real(idp), allocatable :: temp_r(:)
     real(idp), allocatable :: temp_J(:)
@@ -1149,7 +1142,7 @@ contains
     real(idp),                  intent(in)    :: mass
 
     real(idp), allocatable :: temp(:,:)
-    integer :: error, i, j, nl, m
+    integer :: error, i, j, nl
 
     nl = grid%nl
 
@@ -1240,7 +1233,7 @@ contains
     real(idp), allocatable, intent(inout) :: pot(:,:)
 
     real(idp), allocatable :: temp(:,:)
-    integer :: error, i, j, k
+    integer :: error, j, k
 
     allocate(temp(size(pot(:,1))-2,2*para%l+1),stat=error)
     call allocerror(error)

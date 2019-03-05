@@ -11,7 +11,7 @@ module DVRIntRad
 
   subroutine GetRadialElements()
 
-    integer                    :: i, j, a, b, l, l_val, error, l_n
+    integer                    :: i, j, a, b, l, l_val, error
     integer                    :: nr_limit !Only use up to this amount of
                                            !DVR primitives 
     logical                    :: inversion_check, alternative_formula
