@@ -83,7 +83,7 @@ subroutine DVRCore()
   end if 
 
   if (get_density) then
-    call CalcDensity() 
+    call CalcDensity(eigen_vecs) 
   end if
 
 ! call radial_check()

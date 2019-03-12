@@ -332,7 +332,8 @@ module ReadInput
     integer :: n_grids
 
     r_val = 0.0d0
-    n_orb_den = -1
+    n_orb_den(1) = -1
+    n_orb_den(2) = 0
     tot_orb = -1
     file_1rdm = 'OneRDM'
     file_2rdm = 'TwoRDM'
