@@ -49,6 +49,7 @@ module Density
     call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_orb, tot_prim)
 
     call Get1eYield(PrimDens1e, Yield1e, tot_prim)
+    call Get2eYield(PrimDens2e, Yield2e, tot_prim)
 
     deallocate(DensOrb1e, DensOrb2e)
 
@@ -93,7 +94,7 @@ module Density
       if (i.le.j) then
         ij = i*(i-1)/2 + j 
         Dens1e(ij) = cmplx(val, zero)
-        write(81, '(2i5, f25.17)') i, j, val
+        !write(81, '(2i5, f25.17)') i, j, val
       else
         cycle
       endif
@@ -138,6 +139,7 @@ module Density
 
     integer :: n_elements, i, j, k, l, error, ij, kl
     real(dp) :: val
+    real(dp) :: check(tot_orb), trace
     character(len=32) :: filename
     logical :: file_exists
 
@@ -162,21 +164,32 @@ module Density
       call stop_all('ReadTwoRDM', 'File for TwoRDM is not present for reading')
     end if
 
+    check = 0.0d0
+    trace = 0.0d0
+
     do
       read(12, *, iostat=error) i, j, k, l, val
       if  (error < 0) exit 
       if  (i < 0) exit 
+      if ((i.eq.k).and.(j.eq.l)) check(i) = check(i) + val
+      if ((i.eq.k).and.(j.eq.l)) trace = trace + val
       if (i.le.j.and.k.le.l) then
         ij = i*(i-1)/2 + j 
         kl = k*(l-1)/2 + l
         Dens2e(ij,kl) = cmplx(val, zero)
-        write(83, '(4i5, f25.17)') i, j, k, l, val
       else
         cycle
       endif
     end do
 
     close(12)
+
+    !do i = 1, tot_orb
+    !  write(77, '(2i6, g25.17)') i, i, check(i)
+    !end do
+
+    write(iout, '(a, g25.17)') ' Trace of the 1-RDM read from the file:', sum(check)
+    write(iout, '(a, g25.17)') ' Trace of the 2-RDM read from the file:', trace
 
     ! Read the imaginary part of the one body reduced density matrix
     filename = trim(file_1)//"2"
@@ -199,7 +212,7 @@ module Density
         ij = i*(i-1)/2 + j 
         kl = k*(l-1)/2 + l
         Dens2e(ij,kl) = cmplx(real(Dens2e(ij,kl)), val)
-        write(84, '(4i5, f25.17)') i, j, k, l, val
+        !write(84, '(4i5, f25.17)') i, j, k, l, val
       else
         cycle
       endif
@@ -207,7 +220,7 @@ module Density
 
     close(12)
 
-  end subroutine 
+  end subroutine ReadTwoRDM
 
   subroutine GetOrbCoeff(EigVecs, MOCoeff, tot_orb, tot_prim, ng, n_nqn, n_l, OrbInd)
 
@@ -269,7 +282,7 @@ module Density
         Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * real(Dens1(pp))
         !Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * Dens1(pp)
       end do
-      !write(78,'(i5,2f25.17)') k, Dens2(k)
+      write(78,'(i5,2f25.17)') k, Dens2(k)
     end do
 
   end subroutine TransformDens1e
@@ -344,10 +357,32 @@ module Density
         end do
         Dens2(kl) = cmplx(value, zero)
 
-       if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
+        if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
       end do
     end do
 
   end subroutine TransformDens2e
+
+  subroutine Get2eYield(Dens, Yield, tot_prim)
+    complex(idp), allocatable, intent(in) :: Dens(:)
+    real(dp), intent(out) :: Yield
+    integer, intent(in) :: tot_prim
+
+    integer :: i, j, ij
+
+    Yield = 0.0d0
+
+    do i = 1, tot_prim
+      do j = 1, i
+        ij = i*(i-1)/2 + j
+        if (abs(Dens(ij)).gt.1e-12) then
+          Yield = Yield + Dens(ij) 
+        end if
+      end do
+    end do
+
+    write(iout, '(a, f25.17)') ' Two electron photoionization yield: ', Yield
+
+  end subroutine Get2eYield
 
 end module Density
