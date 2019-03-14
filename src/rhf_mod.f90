@@ -396,8 +396,8 @@ module RHFMod
       &  call stop_all('GetFock', 'RHF is not implemented yet for only_inner or only_outer')
 
       n_l = para%l + 1
-      len_1 = para%m1*para%nl*n_l*n_l
-      len_2 = (para%m2*para%nl-1)*n_l*n_l
+      len_1 = para%m1*para%nl*para%dim_l
+      len_2 = (para%m2*para%nl-1)*para%dim_l
 
       do j = 1, len_1
         do i = 1, j
