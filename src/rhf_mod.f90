@@ -10,13 +10,14 @@ module RHFMod
 
   contains
 
-  subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbInd, ng, n_l, n_nqn, &
+  subroutine ExpandBasis(EigenVecs, MOCoeffs, OrbInd, ng, n_l, n_nqn, n_m, &
     &                RemoveL)
 
     real(dp), allocatable, intent(in) :: EigenVecs(:,:,:)
     real(dp), allocatable, intent(inout) :: MOCoeffs(:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer, intent(in) :: ng, n_l, n_nqn
+    integer, allocatable, intent(in) :: n_m(:)
     logical, intent(in) :: RemoveL
 
     integer :: i, n, l, m, indx_1, indx_2, l_val
@@ -35,7 +36,8 @@ module RHFMod
         do l = 1, l_val
           !val = EigenVecs(i,n,l)/(sqrt(grid%weights(i)) * grid%r(i))
           val = EigenVecs(i,n,l)
-          do m = 1, 2*l-1
+          !do m = 1, 2*l-1
+          do m = 1, n_m(l)
             indx_1 = OrbInd(n,l,m)
             indx_2 = OrbInd(i,l,m)
             MOCoeffs(indx_1, indx_2) = val
@@ -95,11 +97,12 @@ module RHFMod
 
   end subroutine GetDensity
 
-  subroutine CalcHCore(OneEInts, hcore, OrbInd, ng, RemoveL)
+  subroutine CalcHCore(OneEInts, hcore, OrbInd, ng, n_m, RemoveL)
 
     real(dp), allocatable, intent(in) :: OneEInts(:,:,:)
     real(dp), allocatable, intent(inout) :: hcore(:,:)
     integer, intent(in) :: ng
+    integer, allocatable, intent(in) :: n_m(:)
     logical, intent(in) :: RemoveL
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer :: i, j, l, m, ind_1, ind_2, l_prime
@@ -122,7 +125,8 @@ module RHFMod
         end if
         do l = 1, l_prime
 !         l_val = real(l * (l - 1), idp) / (two * para%mass * grid%r(i)**2) * delta(i,j)
-          do m = 1, 2*l-1
+          !do m = 1, 2*l-1
+          do m = 1, n_m(l)
             ind_1 = OrbInd(i, l, m)
             ind_2 = OrbInd(j, l, m)
             val = OneEInts(i,j,l)
@@ -136,43 +140,55 @@ module RHFMod
 
   end subroutine CalcHCore
 
-  subroutine CalcVred(TwoERadInts, AngInts, Den, Vred, OrbInd, n_nqn, n_l)
+  subroutine CalcVred(TwoERadInts, AngInts, Den, Vred, OrbInd, n_nqn, n_l, n_m)
 
     real(dp), allocatable, intent(in) :: TwoERadInts(:,:,:), Den(:,:)
     complex(idp), allocatable, intent(in) :: AngInts(:,:,:,:,:)
     real(dp), allocatable, intent(inout) :: Vred(:,:)
     integer, allocatable, intent(in) :: OrbInd(:,:,:)
     integer, intent(in) :: n_nqn, n_l
+    integer, allocatable, intent(in) :: n_m(:)
 
     integer :: k1, k3, l1, l2, l3, l4, m1, m2, m3, m4, lm1, lm2, lm3, lm4, nl2
     integer :: n_m1, n_m2, n_m3, n_m4, klm_1, klm_2, klm_3, klm_4, l, error
     complex(idp) :: val
     complex(idp), allocatable :: AngEls(:,:,:,:,:)
     real(dp) :: start, finish
+    integer, allocatable :: ml_interm(:)
 
-    nl2 = n_l**2
+    !nl2 = n_l**2
+    nl2 = para%dim_l
 
     call cpu_time(start)
 
     allocate(AngEls(2*para%l+1, nl2, nl2, nl2, nl2), stat=error)
     call allocerror(error)
 
+    allocate(ml_interm(n_l), stat=error)
+    call allocerror(error)
+
+    ml_interm(1) = 0
+    do l = 2, n_l
+      ml_interm(l) = sum(n_m(1:l-1))
+    end do
+
     do l4 = 1, n_l
       n_m4 = 2*l4 - 1
-      do m4 = 1, n_m4
-        lm4 = (l4-1)**2 + m4
+      do m4 = 1, n_m(l4)
+        !lm4 = (l4-1)**2 + m4
+        lm4 = ml_interm(l4) + m4
         do l3 = 1, n_l
           n_m3 = 2*l3 - 1
-          do m3 = 1, n_m3
-            lm3 = (l3-1)**2 + m3
+          do m3 = 1, n_m(l3)
+            lm3 = ml_interm(l3) + m3
             do l2 = 1, n_l
               n_m2 = 2*l2 - 1
-              do m2 = 1, n_m2
-                lm2 = (l2-1)**2 + m2
+              do m2 = 1, n_m(l2)
+                lm2 = ml_interm(l2) + m2
                 do l1 = 1, n_l
                   n_m1 = 2*l1 - 1
-                  do m1 = 1, n_m1
-                    lm1 = (l1-1)**2 + m1
+                  do m1 = 1, n_m(l1)
+                    lm1 = ml_interm(l1) + m1
 
                     do l = 1, 2*para%l + 1
                         AngEls(l, lm1, lm2, lm3, lm4) =  AngInts(l, lm1, lm2, lm3, lm4) - &
@@ -217,17 +233,17 @@ module RHFMod
 !   end do
 
     do l4 = 1, para%l + 1
-    do m4 = 1, 2*l4 - 1
-      lm4 = (l4-1)**2 + m4
+    do m4 = 1, n_m(l4)
+      lm4 = ml_interm(l4) + m4
       do l3 = 1, para%l + 1
-      do m3 = 1, 2*l3 - 1
-        lm3 = (l3-1)**2 + m3
+      do m3 = 1, n_m(l3)
+        lm3 = ml_interm(l3) + m3
         do l2 = 1, para%l + 1
-        do m2 = 1, 2*l2 - 1
-          lm2 = (l2-1)**2 + m2
+        do m2 = 1, n_m(l2)
+          lm2 = ml_interm(l2) + m2
           do l1 = 1, para%l + 1
-          do m1 = 1, 2*l1 - 1
-            lm1 = (l1-1)**2 + m1
+          do m1 = 1, n_m(l1)
+            lm1 = ml_interm(l1) + m1
             do l = 1, 2*para%l + 1
                val = AngEls(l, lm1, lm2, lm3, lm4)
                if (abs(val).gt.1e-12) then
@@ -312,7 +328,7 @@ module RHFMod
 !     end do
 !   end do
 
-    deallocate(AngEls)
+    deallocate(AngEls, ml_interm)
     call cpu_time(finish)
 
     if (debug.gt.6) &
@@ -444,13 +460,14 @@ module RHFMod
 
   end subroutine CalcEnergy
 
-  subroutine DiagFock(F, MOCoeff, ng, OrbEn)
+  subroutine DiagFock(F, MOCoeff, ng, n_m, OrbEn)
 
     use dvr_diag_mod, only : diag_matrix
 
     real(dp), allocatable, intent(inout) :: F(:,:), MOCoeff(:,:)
     real(dp), allocatable, intent(inout) :: OrbEn(:)
     integer, intent(in) :: ng
+    integer, allocatable, intent(in) :: n_m(:)
 
     real(dp), allocatable :: F_r(:,:), En(:)
     integer, allocatable :: OrbInd(:,:,:)
@@ -471,7 +488,7 @@ module RHFMod
     indx = 0
     do i = 1, ng
       do l = 1, para%l+1
-        do m = 1, 2*l - 1 
+        do m = 1, n_m(l)
           indx = indx + 1
           OrbInd(i, l, m) = indx
         end do
@@ -480,7 +497,7 @@ module RHFMod
 
     indx = 0
     do l = 1, para%l+1
-      do m = 1, 2*l - 1 
+      do m = 1, n_m(l)
         do i = 1, ng
           indx = indx + 1
           NewOrbInd(i, l, m) = indx
@@ -518,7 +535,7 @@ module RHFMod
       allocate(En(len_1))
 
       do l = 1, para%l+1
-        do m = 1, 2*l-1
+        do m = 1, n_m(l)
           F_r = 0.0d0
           do i = 1, len_1
             do j = 1, i
@@ -549,7 +566,7 @@ module RHFMod
       allocate(En(len_2))
 
       do l = 1, para%l+1
-        do m = 1, 2*l-1
+        do m = 1, n_m(l)
           F_r = 0.0d0
           do i = 1, len_2
             do j = 1, i
@@ -577,7 +594,7 @@ module RHFMod
     else
 
       do l = 1, para%l+1
-        do m = 1, 2*l-1
+        do m = 1, n_m(l)
           F_r = 0.0d0
           do i = 1, ng
             do j = 1, i
