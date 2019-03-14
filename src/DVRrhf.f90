@@ -13,7 +13,7 @@ module DVRrhf
   
   subroutine DoRHF(ng, EigVec, OneInts, TwoInts)
 
-    use DVRData, only:  integrals_ang
+    use DVRData, only:  integrals_ang, sph_harm
 
     integer, intent(in)   :: ng
     real(dp), allocatable, intent(inout) :: EigVec(:,:,:)
@@ -26,7 +26,7 @@ module DVRrhf
     real(dp), allocatable :: OrbEn(:)
     real(dp), allocatable :: OrbEn_l(:,:)
     real(dp), allocatable :: overlap(:,:)
-    integer, allocatable :: OrbInd(:,:,:)
+    integer, allocatable :: OrbInd(:,:,:), n_m(:)
     integer :: n_l, n_ml, n_nqn, error, indx, l_val, nTotOrbs
     integer :: i, j, k, iter, l, m, occ
     integer :: vopt
@@ -61,10 +61,14 @@ module DVRrhf
     indx = 0
     indx = 0
     
+    allocate(n_m(n_l))
+    n_m = sph_harm%n_m
+
     if (RemoveL) then
       do i = 1, ng
         do j = 1, min(n_l,i)
-          do k = 1, 2*j-1
+          !do k = 1, 2*j-1
+          do k = 1, n_m(j)
             indx = indx + 1
             OrbInd(i,j,k) = indx
           end do
@@ -74,7 +78,8 @@ module DVRrhf
     else
       do i = 1, ng
         do j = 1, n_l
-          do k = 1, 2*j-1
+          !do k = 1, 2*j-1
+          do k = 1, n_m(j)
             indx = indx + 1
             OrbInd(i,j,k) = indx
           end do
@@ -111,7 +116,7 @@ module DVRrhf
 
     ! First expand the matrix of eigen vectors that we already get from solving 
     ! the radial Schroedinger into a product basis of R_{n,l}*Y{l,m}
-    call ExpandBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn, &
+    call ExpandBasis(EigVec, MOCoeffs, OrbInd, ng, n_l, n_nqn, n_m, &
     &                RemoveL)
 
 !   do i = 1, ng
@@ -139,11 +144,11 @@ module DVRrhf
     call GetDensity(Den, DenOld, MOCoeffs,  nTotOrbs)
 
     ! Calculate the one-body part of the Fock matrix from the one-electron integrals stores in one_rad_int
-    call CalcHCore(OneInts, hcore, OrbInd, ng, RemoveL)
+    call CalcHCore(OneInts, hcore, OrbInd, ng, n_m, RemoveL)
 
 !   if (vopt.eq.1) then
 
-    call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, n_nqn, n_l)
+    call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, n_nqn, n_l, n_m)
 
 !   else 
 !     call Calc2ePrimOrbInts(TwoEInts, OrbInd, n_l, nTotOrbs)
@@ -167,7 +172,7 @@ module DVRrhf
       call cpu_time(start)
 
       ! First diagonalise the Fock matrix
-      call DiagFock(F , MOCoeffs, ng, OrbEn)
+      call DiagFock(F , MOCoeffs, ng, n_m, OrbEn)
 
 !     do i = 1, nTotOrbs
 !       do j = 1, nTotOrbs
@@ -187,7 +192,7 @@ module DVRrhf
 
       ! Calculate the new Fock matrix
       if (vopt.eq.1) then
-        call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, n_nqn, n_l)
+        call CalcVred(TwoInts, integrals_ang, Den, Vred, OrbInd, n_nqn, n_l, n_m)
       else
         call CalcVred_2(TwoEInts, Den, Vred, nTotOrbs)
       end if

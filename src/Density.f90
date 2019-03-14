@@ -289,7 +289,7 @@ module Density
     integer, allocatable, intent(in) :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:)
     integer, intent(in) :: tot_orb, tot_prim, ni, ng, n_cntr, n_l
 
-    integer :: error, indx_1, indx_2, n, i, l_val, l, m, i_p
+    integer :: error, indx_1, indx_2, n, i, l, m, i_p
     real(dp) :: val
 
     allocate(MOCoeff(tot_orb,tot_prim), stat=error)
