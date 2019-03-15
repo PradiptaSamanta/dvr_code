@@ -20,11 +20,24 @@ module FieldIntegrals
     integer :: iField 
     real(idp) :: tol, start, finish
     real(idp), allocatable :: EigVecs(:,:,:)
+    integer :: n_l, l
+    integer, allocatable :: n_m(:), ml_interm(:), m_init(:)
 
     call cpu_time(start)
 
     tol = 1e-12
     
+    n_l = para%l + 1
+    allocate(n_m(n_l), ml_interm(n_l), m_init(n_l))
+
+    n_m = sph_harm%n_m
+    m_init = sph_harm%m_init
+
+    ml_interm(1) = 0
+    do l = 2, n_l
+      ml_interm(l) = sum(n_m(1:l-1))
+    end do
+
     write(iout,*) '***********'
     write(iout, '(a)') ' Calculating field integrals...'
     write(iout, '(a,i4)') ' Total number of Fields:', nFields
@@ -35,7 +48,7 @@ module FieldIntegrals
 
     ! Integrals are calculated first in the primitive FE-DVR basis which required both 
     ! the radial and angular contributions
-    call DVRFieldInts()
+    call DVRFieldInts(n_m, ml_interm, m_init)
 
     ! Integrals are then calculated in the basis of eigenvectors obtained from 
     ! solving Schroedinger equation
@@ -47,9 +60,9 @@ module FieldIntegrals
     do iField = 1, nFields
 !     call CombineFieldInts(iField)
       if (para%split_grid) then
-        call ConvertFieldInts(iField, EigVecs)
+        call ConvertFieldInts(iField, EigVecs, n_m, ml_interm)
       else 
-        call ConvertFieldInts(iField, eigen_vecs)
+        call ConvertFieldInts(iField, eigen_vecs, n_m, ml_interm)
       end if
 
       call WriteFieldInts(iField, tol)
@@ -60,6 +73,8 @@ module FieldIntegrals
     write(iout,'(X,a,f10.5,X,a)') 'Time taken for calculating field integrals = ', finish-start, 'seconds.'
     write(iout,*) '***********'
 
+    deallocate(n_m, ml_interm, m_init)
+
   end subroutine CalcFieldInts
 
   subroutine SetupFieldInts()
@@ -67,7 +82,7 @@ module FieldIntegrals
     integer :: n_l, dim_lm, error
 
     n_l = para%l + 1
-    dim_lm = n_l**2
+    dim_lm = para%dim_l
 
     ! allocate the field integrals calculated in the primitive FE-DVR basis
     allocate(PrimFieldInts(dim_lm,dim_lm,para%ng,nFields), stat=error)
@@ -79,9 +94,10 @@ module FieldIntegrals
 
   end subroutine SetupFieldInts
 
-  subroutine DVRFieldInts()
+  subroutine DVRFieldInts(n_m, ml_interm, m_init)
 
     complex(idp), allocatable :: AngPart(:,:,:)
+    integer, allocatable, intent(in) ::  n_m(:), ml_interm(:), m_init(:)
 
     integer :: n_l, dim_lm, i, error
 
@@ -92,7 +108,7 @@ module FieldIntegrals
     ! components of these spherical harmonics are coming from the orbitals
 
     n_l = para%l + 1
-    dim_lm = n_l**2
+    dim_lm = para%dim_l
 
     allocate(AngPart(dim_lm,dim_lm,3), stat=error)
     call allocerror(error)
@@ -100,20 +116,21 @@ module FieldIntegrals
     ! Calculate the pure angular part of the field integrals. 
     ! A combination of these angular parts will be multiplied 
     ! with the radial contribution to give the field integrals
-    call GetAngParts(AngPart)
+    call GetAngParts(AngPart, n_m, ml_interm, m_init)
 
     do i = 1, nFields
 !     call CalcAngRealBasis(AngPart,i)
-      call CalcPrimFieldInts(AngPart, i)
+      call CalcPrimFieldInts(AngPart, i, ml_interm, m_init)
     end do
 
   end subroutine DVRFieldInts
 
-  subroutine GetAngParts(AngPart)
+  subroutine GetAngParts(AngPart, n_m, ml_interm, m_init)
 
     complex(idp), allocatable, intent(inout) :: AngPart(:,:,:)
+    integer, allocatable, intent(in) ::  n_m(:), ml_interm(:), m_init(:)
 
-    integer :: la, lb, lk, ma, mb, mk, lmk, lma, lmb, n_ma, n_mb, n_l, lmk_p
+    integer :: la, lb, lk, ma, mb, mk, lmk, lma, lmb, n_l, lmk_p
     integer :: ma_init, mb_init, la_p, lb_p, lk_p
     real(idp) :: mk_flt, ma_flt, mb_flt, lk_flt, la_flt, lb_flt, part_1, part_2
     real(idp), allocatable ::  pre_fact(:,:)
@@ -156,18 +173,18 @@ module FieldIntegrals
         mk_flt = -2.0d0 + float(mk)
         do lb = 1, n_l
           lb_flt = float(lb-1)
-          n_mb = 2*lb-1
-          mb_init = -1*lb
-          do mb = 1, n_mb 
+          !n_mb = 2*lb-1
+          mb_init = m_init(lb)
+          !do mb = 1, n_mb 
+          do mb = 1, n_m(lb)
             mb_flt = dfloat(mb_init + mb)
-            lmb = (lb-1)**2 + mb
+            lmb = ml_interm(lb) + mb
             do la = 1, n_l
               la_flt = float(la-1)
-              n_ma = 2*la-1
-              ma_init = -1*la
-              do ma = 1, n_ma 
+              ma_init = m_init(la)
+              do ma = 1, n_m(la)
                 ma_flt = dfloat(ma_init + ma)
-                lma = (la-1)**2 + ma
+                lma = ml_interm(la) + ma
                 if (mk.eq.2) then
 !                 AngPart(lma,lmb, lmk) = wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, mk_flt, mb_flt)*pre_fact(la,lb)
                   AngPart(lma,lmb, lmk) = m_one**(ma_flt) * wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)*pre_fact(la,lb)
@@ -191,18 +208,16 @@ module FieldIntegrals
         mk_flt = -2.0d0 + float(mk)
         do lb = 1, n_l
           lb_flt = float(lb-1)
-          n_mb = 2*lb-1
-          mb_init = -1*lb
-          do mb = 1, n_mb 
+          mb_init = m_init(lb)
+          do mb = 1, n_m(lb)
             mb_flt = dfloat(mb_init + mb)
-            lmb = (lb-1)**2 + mb
+            lmb = ml_interm(lb) + mb
             do la = 1, n_l
               la_flt = float(la-1)
-              n_ma = 2*la-1
-              ma_init = -1*la
-              do ma = 1, n_ma
+              ma_init = m_init(la)
+              do ma = 1, n_m(la)
                 ma_flt = dfloat(ma_init + ma)
-                lma = (la-1)**2 + ma
+                lma = ml_interm(la) + ma
      
                 AngPart(lma,lmb, lmk) = m_one**(ma_flt) * wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, 1.0d0*mk_flt, mb_flt)*pre_fact(la,lb)
 !               AngPart(lma,lmb, lmk) = m_one**ma_flt * wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)*pre_fact(la,lb)
@@ -218,9 +233,11 @@ module FieldIntegrals
 
     end if
 
+    deallocate(pre_fact)
+
   end subroutine GetAngParts
 
-  subroutine CalcAngRealBasis(AngPart, iField )
+  subroutine CalcAngRealBasis(AngPart, iField)
 
     complex(idp), allocatable, intent(in) :: AngPart(:,:,:)
     integer, intent(in)  :: iField
@@ -467,19 +484,22 @@ module FieldIntegrals
     end do  
   end subroutine CalcAngRealBasis
 
-  subroutine CalcPrimFieldInts(AngPart, iField )
+  subroutine CalcPrimFieldInts(AngPart, iField, ml_interm, m_init)
 
     complex(idp), allocatable, intent(in) :: AngPart(:,:,:)
     integer, intent(in)  :: iField
+    integer, allocatable, intent(in) ::  ml_interm(:), m_init(:)
 
     complex(idp), pointer :: IntPoint(:,:,:)
     integer :: i, n_l, la, lb, lma, lmb, ma, mb, m1, m2, lmk, lmk_p, lma_p, lmb_p
+    integer :: l10, l20
     complex(idp) :: RadPart, pre_fact
     real(idp), parameter :: val_1 = (1.0d0*sqrt_half)
     real(idp), parameter :: val_2 = (1.0d0*sqrt_half)
     complex(idp) :: int_1, int_2, int_3, int_4, int_5, int_6, int_7, int_8
     complex(idp) :: prim_fac_1, prim_fac_2, fac_1, fac_2, fac_3, fac_4
     real(idp) :: msign_1, msign_2, msign_3
+    integer, allocatable :: n_m(:), l_finish(:), pos_m_zero(:)
 
     prim_fac_1= dcmplx(0.0d0, val_1)
     prim_fac_2= dcmplx(val_1, 0.0d0)
@@ -488,6 +508,16 @@ module FieldIntegrals
 
     n_l = para%l + 1
 
+    ! n_m, l_finish and pos_m_zero are used here in the same way that they have been used in 
+    ! the 'calc_int_angular_combined' subroutine. More details about them can be found there
+    allocate(n_m(n_l), l_finish(n_l), pos_m_zero(n_l))
+
+    do i = 1, n_l
+      n_m(i) = min(i,para%ml_max+1)
+      l_finish(i) = sum(sph_harm%n_m(1:i))
+      pos_m_zero(i) = min(i,para%ml_max+1)
+    end do
+    
     select case (trim(FieldComp(iField)))
     case('Z')
 
@@ -497,18 +527,20 @@ module FieldIntegrals
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
+          l10 = pos_m_zero(la)
           do lb=1,n_l
-            do ma = 1,la
-              lma = (la-1)**2 + ma
-              if (ma.eq.la) then
-                do mb = 1, lb
-                  lmb = (lb-1)**2 + mb
+            l20 = pos_m_zero(lb)
+            do ma = 1, n_m(la)
+              lma = ml_interm(la) + ma
+              if (ma.eq.l10) then
+                do mb = 1, n_m(lb)
+                  lmb = ml_interm(lb) + mb
                   int_1 = AngPart(lma,lmb,lmk)
-                  if (mb.eq.lb) then
+                  if (mb.eq.l20) then
                     IntPoint(lma,lmb,i) = RadPart*int_1
                   else
-                    lmb_p = lb**2 - mb + 1
-                    m2 = -1*lb + mb
+                    lmb_p = l_finish(lb) - mb + 1
+                    m2 = m_init(lb) + mb
                     msign_1 = m_one**m2
                     int_2 = msign_1 * AngPart(lma,lmb_p,lmk)
                     fac_1 = prim_fac_1
@@ -518,21 +550,21 @@ module FieldIntegrals
                   end if
                 end do
               else
-                lma_p = la**2 - ma + 1
-                m1 = -1*la + ma
+                lma_p = l_finish(la) - ma + 1
+                m1 = m_init(la) + ma
                 msign_1 = m_one**m1
-                do mb = 1, lb
-                  lmb = (lb-1)**2 + mb
+                do mb = 1, n_m(lb)
+                  lmb = ml_interm(lb) + mb
                   int_1 =           AngPart(lma,lmb,lmk)
                   int_2 = msign_1 * AngPart(lma_p,lmb,lmk)
-                  if (mb.eq.lb) then
+                  if (mb.eq.l20) then
                     fac_1 = dconjg(prim_fac_1)
                     fac_2 = dconjg(prim_fac_2)
                     IntPoint(lma  ,lmb,i) = fac_1*RadPart*(int_1 - int_2)
                     IntPoint(lma_p,lmb,i) = fac_2*RadPart*(int_1 + int_2)
                   else
-                    lmb_p = lb**2 - mb + 1
-                    m2 = -1*lb + mb
+                    lmb_p = l_finish(lb) - mb + 1
+                    m2 = m_init(lb) + mb
                     msign_2 = m_one**(      m2 )
                     msign_3 = m_one**( m1 + m2 )
                     fac_1 = dconjg(prim_fac_1)*prim_fac_1
@@ -559,23 +591,24 @@ module FieldIntegrals
       lmk = 1
       lmk_p = 3
       pre_fact = prim_fac_1*sqrt(4*pi/3)
-      !pre_fact = prim_fac_1
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
+          l10 = pos_m_zero(la)
           do lb=1,n_l
-            do ma = 1,la
-              lma = (la-1)**2 + ma
-              if (ma.eq.la) then
-                do mb = 1, lb
-                  lmb = (lb-1)**2 + mb
+            l20 = pos_m_zero(lb)
+            do ma = 1, n_m(la)
+              lma = ml_interm(la) + ma
+              if (ma.eq.l10) then
+                do mb = 1, n_m(lb)
+                  lmb = ml_interm(lb) + mb
                   int_1 = AngPart(lma,lmb,lmk)
                   int_2 = AngPart(lma,lmb,lmk_p)
-                  if (mb.eq.lb) then
+                  if (mb.eq.l20) then
                     IntPoint(lma,lmb,i) = RadPart*(int_1 + int_2)
                   else
-                    lmb_p = lb**2 - mb + 1
-                    m2 = -1*lb + mb
+                    lmb_p = l_finish(lb) - mb + 1
+                    m2 = m_init(lb) + mb
                     msign_1 = m_one**m2
                     fac_1 = prim_fac_1
                     fac_2 = prim_fac_2
@@ -586,23 +619,23 @@ module FieldIntegrals
                   end if
                 end do
               else
-                lma_p = la**2 - ma + 1
-                m1 = -1*la + ma
+                lma_p = l_finish(la) - ma + 1
+                m1 = m_init(la) + ma
                 msign_1 = m_one**m1
-                do mb = 1, lb
-                  lmb = (lb-1)**2 + mb
+                do mb = 1, n_m(lb)
+                  lmb = ml_interm(lb) + mb
                   int_1 =           AngPart(lma  ,lmb,lmk  )
                   int_2 = msign_1 * AngPart(lma_p,lmb,lmk  )
                   int_3 =           AngPart(lma  ,lmb,lmk_p)
                   int_4 = msign_1 * AngPart(lma_p,lmb,lmk_p)
-                  if (mb.eq.lb) then
+                  if (mb.eq.l20) then
                     fac_1 = dconjg(prim_fac_1)
                     fac_2 = dconjg(prim_fac_2)
                     IntPoint(lma  ,lmb,i) = fac_1*RadPart*(int_1 - int_2 + int_3 - int_4)
                     IntPoint(lma_p,lmb,i) = fac_2*RadPart*(int_1 + int_2 + int_3 + int_4)
                   else
-                    lmb_p = lb**2 - mb + 1
-                    m2 = -1*lb + mb
+                    lmb_p = l_finish(lb) - mb + 1
+                    m2 = m_init(lb) + mb
                     msign_2 = m_one**(      m2 )
                     msign_3 = m_one**( m1 + m2 )
                     int_5 = msign_2 * AngPart(lma  ,lmb_p,lmk  )
@@ -637,19 +670,21 @@ module FieldIntegrals
       do i= 1, para%ng
         RadPart = pre_fact*grid%r(i)
         do la=1,n_l
+          l10 = pos_m_zero(la)
           do lb=1,n_l
-            do ma = 1,la
-              lma = (la-1)**2 + ma
-              if (ma.eq.la) then
-                do mb = 1, lb
-                  lmb = (lb-1)**2 + mb
+            l20 = pos_m_zero(lb)
+            do ma = 1, n_m(la)
+              lma = ml_interm(la) + ma
+              if (ma.eq.l10) then
+                do mb = 1, n_m(lb)
+                  lmb = ml_interm(lb) + mb
                   int_1 = AngPart(lma,lmb,lmk)
                   int_2 = AngPart(lma,lmb,lmk_p)
-                  if (mb.eq.lb) then
+                  if (mb.eq.l20) then
                     IntPoint(lma,lmb,i) = RadPart*(int_1 - int_2)
                   else
-                    lmb_p = lb**2 - mb + 1
-                    m2 = -1*lb + mb
+                    lmb_p = l_finish(lb) - mb + 1
+                    m2 = m_init(lb) + mb
                     msign_1 = m_one**m2
                     fac_1 = prim_fac_1
                     fac_2 = prim_fac_2
@@ -660,23 +695,23 @@ module FieldIntegrals
                   end if
                 end do
               else
-                lma_p = la**2 - ma + 1
-                m1 = -1*la + ma
+                lma_p = l_finish(la) - ma + 1
+                m1 = m_init(la) + ma
                 msign_1 = m_one**m1
-                do mb = 1, lb
-                  lmb = (lb-1)**2 + mb
+                do mb = 1, n_m(lb)
+                  lmb = ml_interm(lb) + mb
                   int_1 =           AngPart(lma  ,lmb,lmk  )
                   int_2 = msign_1 * AngPart(lma_p,lmb,lmk  )
                   int_3 =           AngPart(lma  ,lmb,lmk_p)
                   int_4 = msign_1 * AngPart(lma_p,lmb,lmk_p)
-                  if (mb.eq.lb) then
+                  if (mb.eq.l20) then
                     fac_1 = dconjg(prim_fac_1)
                     fac_2 = dconjg(prim_fac_2)
                     IntPoint(lma  ,lmb,i) = fac_1*RadPart*(int_1 - int_2 - int_3 + int_4)
                     IntPoint(lma_p,lmb,i) = fac_2*RadPart*(int_1 + int_2 - int_3 - int_4)
                   else
-                    lmb_p = lb**2 - mb + 1
-                    m2 = -1*lb + mb
+                    lmb_p = l_finish(lb) - mb + 1
+                    m2 = m_init(lb) + mb
                     msign_2 = m_one**(      m2 )
                     msign_3 = m_one**( m1 + m2 )
                     int_5 = msign_2 * AngPart(lma  ,lmb_p,lmk  )
@@ -705,6 +740,8 @@ module FieldIntegrals
       call stop_all('CalcPrimFieldInts', 'The perturbation '//trim(FieldComp(iField))//' is not among the available ones')
 
     end select
+
+    deallocate(l_finish, pos_m_zero)
 
   end subroutine CalcPrimFieldInts
 
@@ -783,11 +820,12 @@ module FieldIntegrals
 
   end subroutine CombineFieldInts
 
-  subroutine ConvertFieldInts(iField, EigVecs)
+  subroutine ConvertFieldInts(iField, EigVecs, n_m, ml_interm)
 
     integer, intent(in) :: iField
     real(idp), intent(in) :: EigVecs(:,:,:)
     complex(idp), allocatable ::  inter_int(:,:,:,:)
+    integer, allocatable, intent(in) ::  n_m(:), ml_interm(:)
 
     integer :: error, na, nb, la, lb, ma, mb, lma, lmb, n_l,  i
     integer :: ind_1, ind_2, n_lm
@@ -801,7 +839,7 @@ module FieldIntegrals
 
     inter_int = czero
     n_l = para%l + 1
-    n_lm = n_l**2
+    n_lm = para%dim_l
 
     write(iout,*) 'Converting the integrals for ', trim(FieldComp(iField)), ' from the FE-DVR basis to the contracted basis'
 
@@ -829,11 +867,11 @@ module FieldIntegrals
 !   end if
 
     do lb = 1, n_l
-      do mb = 1, 2*lb-1
-        lmb = (lb-1)**2 + mb
+      do mb = 1, n_m(lb)
+        lmb = ml_interm(lb) + mb
         do la = 1, n_l
-          do ma = 1, 2*la-1
-            lma = (la-1)**2 + ma
+          do ma = 1, n_m(la)
+            lma = ml_interm(la) + ma
             do na = 1, orb%n_max - (la-1)
               do i = 1, para%ng
                 inter_int(lma,lmb, na, i) = inter_int(lma,lmb, na, i) + EigVecs(i,na,la)*PrimPointInts(lma,lmb,i)
@@ -849,11 +887,11 @@ module FieldIntegrals
 
 
     do la = 1, n_l
-      do ma = 1, 2*la-1
-        lma = (la-1)**2 + ma
+      do ma = 1, n_m(la)
+        lma = ml_interm(la) + ma
         do lb = 1, n_l
-          do mb = 1, 2*lb-1
-            lmb = (lb-1)**2 + mb
+          do mb = 1, n_m(lb)
+            lmb = ml_interm(lb) + mb
             do na = 1, orb%n_max - (la-1) 
               do nb = 1, orb%n_max - (lb-1) 
                 int_val = 0.0d0
@@ -959,7 +997,7 @@ module FieldIntegrals
         j_n = j + nFrozen
         int_value = PointInts(i_n,j_n)
         if (abs(int_value).gt.tol) &
-        & write(f_int, 1005) real(int_value), i, j, 0, 0
+          write(f_int, 1005) real(int_value), i, j, 0, 0
 !       if (abs(int_value).gt.tol) &
 !       write(f_int, 1006) i, j, real(int_value), aimag(int_value)
       end do 

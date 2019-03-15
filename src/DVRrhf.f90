@@ -313,7 +313,7 @@ module DVRrhf
 
     write(iout,*) '***** RHF is done...'
 
-    deallocate(Den, DenOld, F, hcore, Vred, OrbInd, OrbEn, MOCoeffs)
+    deallocate(Den, DenOld, F, hcore, Vred, OrbInd, OrbEn, MOCoeffs, n_m)
 
   end subroutine DoRHF
 end module DVRrhf
