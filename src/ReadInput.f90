@@ -336,6 +336,8 @@ module ReadInput
     n_orb_den(2) = 0
     file_1rdm = 'OneRDM'
     file_2rdm = 'TwoRDM'
+    tAvRDM = .false.
+    nReadRDMs = 1
 
     do
       call read_line(eof, ir)
@@ -364,7 +366,11 @@ module ReadInput
       case("R-START") ! This option is now obsolete
         call getf(r_val)
       case("TOTAL-ORBS")
-        call geti(nfrz)
+      case("AVERAGE-RDM")
+        tAvRDM = .true.
+        file_1rdm = 'OneRDM'
+        file_2rdm = 'spinfree_TwoRDM.'
+        call geti(nReadRDMs)
       case("FILE-1RDM")
         call readu(file_1rdm)
       case("FILE-2RDM")
