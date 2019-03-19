@@ -15,14 +15,24 @@ module Density
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
 
     real(dp), allocatable :: MOCoeff(:,:)
-    integer, allocatable :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:)
+    integer, allocatable :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:), n_m(:)
     integer :: n_l, n_cntr, i, j, k, error, tot_prim, n_prim, start_prim, tot_cntr
+    integer :: n_m1, n_m2
     real(dp) :: start, finish
 
     call cpu_time(start)
 
     ! upper limit for the number of l quantum number
     n_l = para%l + 1
+
+    allocate(n_m(n_l))
+
+    n_m1 = 2*para%ml_max + 1
+    do i = 1, n_l
+      n_m2 = 2*i - 1
+      n_m(i) = min(n_m1, n_m2)
+    end do
+
     ! upper limit for the n quantum number in the contracted basis in which the RDMs will be read
     n_cntr = sum(n_orb_den)
     if (n_cntr.lt.0) call stop_all('CalcDenstiy','Number of orbitals are put wrong in the input')
@@ -50,7 +60,7 @@ module Density
     tot_cntr = 0
     do i = 1, n_cntr
       do j = 1, min(n_l,i)
-        do k = 1, 2*j-1
+        do k = 1, n_m(j)
           tot_cntr = tot_cntr + 1
           OrbInd_cntr(i,j,k) = tot_cntr
         end do
@@ -63,7 +73,7 @@ module Density
     do i = 1, n_prim
       !do j = 1, min(n_l,i)
       do j = 1, n_l
-        do k = 1, 2*j-1
+        do k = 1, n_m(j)
           tot_prim = tot_prim + 1
           OrbInd_prim(i,j,k) = tot_prim
         end do
@@ -71,11 +81,17 @@ module Density
     end do
 
     ! First read one and two electron RDMs obtained from a real-time (FCIQMC) simulation
-    call ReadOneRDM(DensOrb1e, file_1rdm, tot_cntr)
-    call ReadTwoRDM(DensOrb2e, file_2rdm, tot_cntr)
+    if (tAvRDM) then
+      call ReadAvOneRDM(DensOrb1e, file_1rdm, tot_cntr, nReadRDMs)
+      call ReadAvTwoRDM(DensOrb2e, file_2rdm, tot_cntr, nReadRDMs)
+    else
+      call ReadOneRDM(DensOrb1e, file_1rdm, tot_cntr)
+      call ReadTwoRDM(DensOrb2e, file_2rdm, tot_cntr)
+    end if
+
 
     ! Transform one and two electron RDMs from the MO orbitals basis to the basis of the primitive orbitals
-    call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, OrbInd_cntr, OrbInd_prim)
+    call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
     call TransformDens1e(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, tot_prim)
     call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
 
@@ -191,6 +207,96 @@ module Density
 
   end subroutine ReadOneRDM
 
+  subroutine ReadAvOneRDM(Dens1e, file_1, tot_orb, nFiles)
+
+    complex(idp), allocatable, intent(inout) :: Dens1e(:)
+    character(len=32), intent(in) :: file_1
+    integer, intent(in) :: tot_orb, nFiles
+
+    complex(idp), allocatable :: DensTemp(:,:)
+    complex(idp), allocatable :: Dens2(:)
+    complex(idp) :: csum
+    integer :: n_elements, i, j, error, ij, iFile, i_f
+    real(dp) :: val, Yield
+    character(len=32) :: filename
+    logical :: file_exists
+
+    n_elements = tot_orb*(tot_orb + 1)/2
+
+    allocate(Dens1e(n_elements), DensTemp(n_elements, nFiles))
+
+    Dens1e = czero
+    DensTemp = czero
+
+    do iFile = 1, nFiles
+    ! First read the real part of the one body reduced density matrix
+      i_f = 2*iFile - 1
+      filename = trim(file_1)//int2str(i_f)
+ 
+      write(iout, *)  'Reading the real part of the 1-body RDM from the file ', trim(filename)
+      inquire(file=trim(filename), exist=file_exists)
+ 
+      if (file_exists) then
+        open(12, file=trim(filename), form="formatted",&
+        &    action="read", recl=100000)
+      else
+        call stop_all('ReadOneRDM', 'File for OneRDM is not present for reading')
+      end if
+ 
+      do
+        read(12, *, iostat=error) i, j, val
+        if  (error < 0) exit 
+        if (i.le.j) then
+          ij = i*(i-1)/2 + j 
+          DensTemp(ij, iFile) = cmplx(val, zero)
+          !write(81, '(2i5, f25.17)') i, j, val
+        else
+          cycle
+        endif
+      end do
+ 
+      close(12)
+ 
+      ! Read the imaginary part of the one body reduced density matrix
+      i_f = 2*iFile
+      filename = trim(file_1)//int2str(i_f)
+ 
+      write(iout, *)  'Reading the imaginary part of the 1-body RDM from the file ', trim(filename)
+      inquire(file=trim(filename), exist=file_exists)
+ 
+      if (file_exists) then
+        open(12, file=trim(filename), form="formatted",&
+        &    action="read", recl=100000)
+      else
+        call stop_all('ReadOneRDM', 'File for OneRDM is not present for reading')
+      end if
+ 
+      do
+        read(12, *, iostat=error) i, j, val
+        if  (error < 0) exit 
+        if (i.le.j) then
+          ij = i*(i-1)/2 + j 
+          DensTemp(ij, iFile) = cmplx(real(DensTemp(ij, iFile)), val)
+          !write(81, '(2i5, f25.17)') i, j, val
+        else
+          cycle
+        endif
+      end do
+ 
+      close(12)
+    end do
+
+    do i = 1, n_elements
+        csum = sum(DensTemp(i,:))
+        if (abs(csum).gt.1e-12) Dens1e(i) = csum/nFiles
+    end do
+
+    deallocate(DensTemp)
+
+    write(iout, *) 'One electron RDM is averaged out'
+
+  end subroutine ReadAvOneRDM
+
   subroutine ReadTwoRDM(Dens2e, file_1, tot_orb)
 
     complex(idp), allocatable, intent(inout) :: Dens2e(:,:)
@@ -233,9 +339,9 @@ module Density
       if  (i < 0) exit 
       if ((i.eq.k).and.(j.eq.l)) check(i) = check(i) + val
       if ((i.eq.k).and.(j.eq.l)) trace = trace + val
-      if (i.le.j.and.k.le.l) then
+      if (i.ge.j.and.k.ge.l) then
         ij = i*(i-1)/2 + j 
-        kl = k*(l-1)/2 + l
+        kl = k*(k-1)/2 + l
         Dens2e(ij,kl) = cmplx(val, zero)
       else
         cycle
@@ -268,11 +374,11 @@ module Density
       read(12, *, iostat=error) i, j, k, l, val
       if  (error < 0) exit 
       if  (i < 0) exit 
-      if (i.le.j.and.k.le.l) then
+      if (i.ge.j.and.k.ge.l) then
         ij = i*(i-1)/2 + j 
-        kl = k*(l-1)/2 + l
+        kl = k*(k-1)/2 + l
         Dens2e(ij,kl) = cmplx(real(Dens2e(ij,kl)), val)
-        !write(84, '(4i5, f25.17)') i, j, k, l, val
+        write(84, '(6i5, 2f25.17)') i, j, k, l, ij, kl, real(Dens2e(ij,kl)), aimag(Dens2e(ij,kl)) 
       else
         cycle
       endif
@@ -282,11 +388,125 @@ module Density
 
   end subroutine ReadTwoRDM
 
-  subroutine GetOrbCoeff(EigVecs, MOCoeff, tot_orb, tot_prim, ni, ng, n_cntr, n_l, OrbInd_cntr, OrbInd_prim)
+  subroutine ReadAvTwoRDM(Dens2e, file_1, tot_orb, nFiles)
+
+    complex(idp), allocatable, intent(inout) :: Dens2e(:,:)
+    character(len=32), intent(in) :: file_1
+    integer, intent(in) :: tot_orb, nFiles
+
+    complex(idp), allocatable :: DensTemp(:,:,:)
+    complex(idp) :: csum
+    integer :: n_elements, i, j, k, l, error, ij, kl, iFile, i_f
+    real(dp) :: val
+    real(dp) :: check(tot_orb), trace
+    character(len=32) :: filename
+    logical :: file_exists
+
+    n_elements = tot_orb*(tot_orb + 1)/2
+
+   !allocate(Dens2e(n_elements, n_elements), stat=error)
+   !call allocerror(error)
+    allocate(Dens2e(n_elements, n_elements))
+    allocate(DensTemp(n_elements, n_elements, nFiles))
+
+    Dens2e = czero
+    DensTemp = czero
+
+
+    do iFile = 1, nFiles
+      ! First read the real part of the two body reduced density matrix
+      i_f = 2*iFile - 1
+      filename = trim(file_1)//int2str(i_f)
+ 
+      write(iout, *)  'Reading the real part of the 2-body RDM from the file ', trim(filename)
+      inquire(file=trim(filename), exist=file_exists)
+ 
+      if (file_exists) then
+        open(12, file=trim(filename), form="formatted",&
+        &    action="read", recl=100000)
+      else
+        call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+      end if
+ 
+      check = 0.0d0
+      trace = 0.0d0
+ 
+      do
+        read(12, *, iostat=error) i, j, k, l, val
+        if  (error < 0) exit 
+        if  (i < 0) exit 
+        if ((i.eq.k).and.(j.eq.l)) check(i) = check(i) + val
+        if ((i.eq.k).and.(j.eq.l)) trace = trace + val
+        if (i.ge.j.and.k.ge.l) then
+          ij = i*(i-1)/2 + j 
+          kl = k*(k-1)/2 + l
+          DensTemp(ij,kl,iFile) = cmplx(val, zero)
+        else
+          cycle
+        endif
+      end do
+ 
+      close(12)
+ 
+      !do i = 1, tot_orb
+      !  write(77, '(2i6, g25.17)') i, i, check(i)
+      !end do
+ 
+      write(iout, '(a, g25.17)') ' Trace of the 1-RDM read from the file:', sum(check)
+      write(iout, '(a, g25.17)') ' Trace of the 2-RDM read from the file:', trace
+ 
+      ! Read the imaginary part of the one body reduced density matrix
+      i_f = 2*iFile
+      filename = trim(file_1)//int2str(i_f)
+ 
+      write(iout, *)  'Reading the imaginary part of the 2-body RDM from the file ', trim(filename)
+      inquire(file=trim(filename), exist=file_exists)
+ 
+      if (file_exists) then
+        open(12, file=trim(filename), form="formatted",&
+        &    action="read", recl=100000)
+      else
+        call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+      end if
+ 
+      do
+        read(12, *, iostat=error) i, j, k, l, val
+        if  (error < 0) exit 
+        if  (i < 0) exit 
+        if (i.ge.j.and.k.ge.l) then
+          ij = i*(i-1)/2 + j 
+          kl = k*(k-1)/2 + l
+          DensTemp(ij,kl,iFile) = cmplx(real(DensTemp(ij,kl,iFile)), val)
+          !write(84, '(4i5, f25.17)') i, j, k, l, val
+        else
+          cycle
+        endif
+      end do
+ 
+      close(12)
+    end do
+
+    do i = 1, n_elements
+      do j = 1, n_elements
+        csum = sum(DensTemp(i,j,:))
+        if (abs(csum).gt.1e-12) then 
+          Dens2e(i,j) = csum/nFiles
+          Dens2e(j,i) = dconjg(csum)/nFiles
+        end if
+      end do
+    end do
+
+    deallocate(DensTemp)
+
+    write(iout, *) 'Two electron RDM is averaged out'
+
+  end subroutine ReadAvTwoRDM
+
+  subroutine GetOrbCoeff(EigVecs, MOCoeff, tot_orb, tot_prim, ni, ng, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
 
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     real(dp), allocatable, intent(out) :: MOCoeff(:,:)
-    integer, allocatable, intent(in) :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:)
+    integer, allocatable, intent(in) :: n_m(:), OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:)
     integer, intent(in) :: tot_orb, tot_prim, ni, ng, n_cntr, n_l
 
     integer :: error, indx_1, indx_2, n, i, l, m, i_p
@@ -302,7 +522,7 @@ module Density
         do i = 1, ng
         i_p = i + ni - 1
           val = EigVecs(i_p,n,l)
-          do m = 1, 2*l-1
+          do m = 1, n_m(l)
             indx_1 = OrbInd_cntr(n,l,m)
             indx_2 = OrbInd_prim(i,l,m)
             MOCoeff(indx_1, indx_2) = val
@@ -322,6 +542,11 @@ module Density
     integer, intent(in) :: tot_orb, tot_prim
 
     integer :: error, p, q, pp, pq, k
+    real :: start, finish
+
+    call cpu_time(start)
+
+    write(iout, *) 'Transforming 1-RDM from the contracted basis to the primitive one'
 
     allocate(Dens2(tot_prim), stat=error)
     call allocerror(error)
@@ -344,6 +569,9 @@ module Density
       end do
       write(78,'(i5,2f25.17)') k, Dens2(k)
     end do
+
+    call cpu_time(finish)
+    write(iout, *) 'Time taken ... ', finish-start
 
   end subroutine TransformDens1e
 
@@ -373,7 +601,11 @@ module Density
 
     integer :: error, p, q, pq, k, l,  kl, r, s, rs
     integer :: dim_dens
-    real :: value
+    real :: value, start, finish
+
+    call cpu_time(start)
+
+    write(iout, *) 'Transforming 2-RDM from the contracted basis to the primitive one'
 
     dim_dens = tot_prim*(tot_prim+1)/2
 
@@ -420,6 +652,9 @@ module Density
         if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
       end do
     end do
+
+    call cpu_time(finish)
+    write(iout, *) 'Time taken ... ', finish-start
 
   end subroutine TransformDens2e
 
