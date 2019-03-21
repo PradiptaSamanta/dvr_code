@@ -308,7 +308,6 @@ module DVRrhf
           end do
         end do
       end do
-      write(81,*) '#### j=', j
     end do
 
     write(iout,*) '***** RHF is done...'

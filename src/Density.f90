@@ -11,13 +11,15 @@ module Density
 
     use DensityData
     use DVRData, only : para, grid
+    use OrbInts, only : SetUpEigVec
   
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
 
     real(dp), allocatable :: MOCoeff(:,:)
-    integer, allocatable :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:), n_m(:)
+    real(dp), allocatable :: EigVecs_mod(:,:,:)
+    integer, allocatable :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:), n_m(:), get_l(:)
     integer :: n_l, n_cntr, i, j, k, error, tot_prim, n_prim, start_prim, tot_cntr
-    integer :: n_m1, n_m2
+    integer :: n_m1, n_m2, ni
     real(dp) :: start, finish
 
     call cpu_time(start)
@@ -40,11 +42,11 @@ module Density
     ! First, the number of n quantum number which will be involved in calculating the photonization yield (n_prim) is calculated.
     ! Photonization yied is calculated by integrating electron density outside a certian spherical region. That is why
     ! the initial grid points are not needed while calculating the yield
+    start_prim = 1
+    n_prim = para%ng
+
     if (abs(r_val).gt.1e-8) then
       call CalcStartOrb(grid%r, para%ng, r_val, n_prim, start_prim)
-    else 
-      start_prim = 1
-      n_prim = para%ng
     end if
 
     ! The array that gives the orbital index in the primitive basis is allocated here
@@ -67,9 +69,21 @@ module Density
       end do
     end do
 
+    allocate(get_l(tot_cntr))
+
+    do i = 1, n_cntr
+      do j = 1, min(n_l,i)
+        do k = 1, n_m(j)
+          ni = OrbInd_cntr(i,j,k)
+          get_l(ni) = j
+        end do
+      end do
+    end do
+
     ! Get the total number of orbitals involved in the primitive basis (tot_prim) and
     ! an array that gives the index of a primitive orbital for given, n, l and m
     tot_prim = 0
+    !do i = start_prim, para%ng
     do i = 1, n_prim
       !do j = 1, min(n_l,i)
       do j = 1, n_l
@@ -91,15 +105,22 @@ module Density
 
 
     ! Transform one and two electron RDMs from the MO orbitals basis to the basis of the primitive orbitals
-    call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+    if (para%split_grid) then
+      call SetUpEigVec(EigVecs, EigVecs_mod)
+      call GetOrbCoeff(EigVecs_mod, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+    else
+      call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+    endif
+
     call TransformDens1e(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, tot_prim)
-    call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
+    !call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
+    call TransformDens2e_alt(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim, OrbInd_prim, n_prim, n_l, n_m, get_l)
 
     call Get1eYield(PrimDens1e, Yield1e, tot_prim)
     call Get2eYield(PrimDens2e, Yield2e, tot_prim)
 
     deallocate(OrbInd_cntr, OrbInd_prim)
-    deallocate(DensOrb1e, DensOrb2e)
+    deallocate(DensOrb1e, DensOrb2e, get_l)
 
     call cpu_time(finish)
     write(iout,'(a, f10.5)') ' Time taken to calculate the Density: ', finish - start
@@ -217,9 +238,11 @@ module Density
     complex(idp), allocatable :: Dens2(:)
     complex(idp) :: csum
     integer :: n_elements, i, j, error, ij, iFile, i_f
-    real(dp) :: val, Yield
+    real(dp) :: val, Yield, start, finish
     character(len=32) :: filename
     logical :: file_exists
+
+    call cpu_time(start)
 
     n_elements = tot_orb*(tot_orb + 1)/2
 
@@ -294,6 +317,8 @@ module Density
     deallocate(DensTemp)
 
     write(iout, *) 'One electron RDM is averaged out'
+    call cpu_time(finish)
+    write(iout, *) 'Time taken ... ', finish-start
 
   end subroutine ReadAvOneRDM
 
@@ -398,9 +423,11 @@ module Density
     complex(idp) :: csum
     integer :: n_elements, i, j, k, l, error, ij, kl, iFile, i_f
     real(dp) :: val
-    real(dp) :: check(tot_orb), trace
+    real(dp) :: check(tot_orb), trace, start, finish
     character(len=32) :: filename
     logical :: file_exists
+
+    call cpu_time(start)
 
     n_elements = tot_orb*(tot_orb + 1)/2
 
@@ -487,7 +514,7 @@ module Density
     end do
 
     do i = 1, n_elements
-      do j = 1, n_elements
+      do j = 1, i
         csum = sum(DensTemp(i,j,:))
         if (abs(csum).gt.1e-12) then 
           Dens2e(i,j) = csum/nFiles
@@ -499,34 +526,39 @@ module Density
     deallocate(DensTemp)
 
     write(iout, *) 'Two electron RDM is averaged out'
+    call cpu_time(finish)
+    write(iout, *) 'Time taken ... ', finish-start
 
   end subroutine ReadAvTwoRDM
 
   subroutine GetOrbCoeff(EigVecs, MOCoeff, tot_orb, tot_prim, ni, ng, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+
+    use DVRData, only : para, grid
 
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     real(dp), allocatable, intent(out) :: MOCoeff(:,:)
     integer, allocatable, intent(in) :: n_m(:), OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:)
     integer, intent(in) :: tot_orb, tot_prim, ni, ng, n_cntr, n_l
 
-    integer :: error, indx_1, indx_2, n, i, l, m, i_p
-    real(dp) :: val
+    integer :: error, indx_1, indx_2, n, i, l, m, i_p, n_prim, start_prim
+    real(dp) :: val, r_v
 
     allocate(MOCoeff(tot_orb,tot_prim), stat=error)
     call allocerror(error)
 
+    MOCoeff = 0.0d0
     indx_1 = 0
     indx_2 = 0
-    do l = 1, n_l
-      do n = l, n_cntr
+    do n = 1, n_cntr
+      do l = 1, min(n_l, n) 
         do i = 1, ng
-        i_p = i + ni - 1
-          val = EigVecs(i_p,n,l)
+          i_p = i + ni - 1
+          val = EigVecs(i_p,n-l+1,l)
           do m = 1, n_m(l)
             indx_1 = OrbInd_cntr(n,l,m)
             indx_2 = OrbInd_prim(i,l,m)
             MOCoeff(indx_1, indx_2) = val
-            !write(77,'(6i4,f15.8)') n, l, m, i, indx_1, indx_2, MOCoeff(indx_1,indx_2)
+            !write(77,'(6i4,f15.8)') n, l, m, i_p, indx_1, indx_2, MOCoeff(indx_1,indx_2)
           end do
         end do
       end do
@@ -542,7 +574,7 @@ module Density
     integer, intent(in) :: tot_orb, tot_prim
 
     integer :: error, p, q, pp, pq, k
-    real :: start, finish
+    real(dp) :: start, finish
 
     call cpu_time(start)
 
@@ -555,6 +587,7 @@ module Density
 
     do k = 1, tot_prim
       do p = 1, tot_orb
+        if (abs(MOCoeff(p,k)).lt.1e-12) cycle
         pp = p*(p-1)/2 + p
         do q = 1, p-1
 
@@ -567,7 +600,6 @@ module Density
         Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * real(Dens1(pp))
         !Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * Dens1(pp)
       end do
-      write(78,'(i5,2f25.17)') k, Dens2(k)
     end do
 
     call cpu_time(finish)
@@ -601,7 +633,7 @@ module Density
 
     integer :: error, p, q, pq, k, l,  kl, r, s, rs
     integer :: dim_dens
-    real :: value, start, finish
+    real(dp) :: value, start, finish
 
     call cpu_time(start)
 
@@ -657,6 +689,106 @@ module Density
     write(iout, *) 'Time taken ... ', finish-start
 
   end subroutine TransformDens2e
+
+  subroutine TransformDens2e_alt(Dens1, Dens2, MOCoeff, tot_orb, tot_prim, OrbInd, n_prim, n_l, n_m, get_l)
+
+    complex(idp), allocatable, intent(in) :: Dens1(:,:)
+    complex(idp), allocatable, intent(out) :: Dens2(:)
+    real(dp), allocatable, intent(in) :: MOCoeff(:,:)
+    integer, intent(in) :: tot_orb, tot_prim, n_prim, n_l
+    integer, allocatable, intent(in) :: OrbInd(:,:,:), n_m(:), get_l(:)
+
+    integer :: error, p, q, pq, k, l,  kl, r, s, rs, l1, l2, n1, n2, m1, m2
+    integer :: dim_dens
+    real(dp) :: value, start, finish
+    real(dp), allocatable :: coeff_1(:), coeff_2(:)
+
+    call cpu_time(start)
+
+    write(iout, *) 'Transforming 2-RDM from the contracted basis to the primitive one'
+
+    dim_dens = tot_prim*(tot_prim+1)/2
+
+    allocate(Dens2(dim_dens), stat=error)
+    call allocerror(error)
+    allocate(coeff_1(tot_orb), stat=error)
+    call allocerror(error)
+    allocate(coeff_2(tot_orb), stat=error)
+    call allocerror(error)
+    
+    Dens2 = czero
+
+    do l1 = 1, n_l
+      do l2 = 1, n_l
+        do n1 = 1, n_prim
+          do n2 = 1, n_prim
+            do m1 = 1, n_m(l1)
+              do m2 = 1, n_m(l2)
+                k = OrbInd(n1, l1, m1)
+                l = OrbInd(n2, l2, m2)
+                if (l.gt.k) cycle
+                kl = k*(k-1)/2 + l
+                value = 0.0d0
+                coeff_1(:) = MOCoeff(:,k) 
+                coeff_2(:) = MOCoeff(:,l) 
+                do r = 1, tot_orb
+                  !if (get_l(r).ne.l1) cycle
+                  if (abs(coeff_1(r)).lt.1e-12) cycle
+                  do s = 1, r
+                    !if (get_l(s).ne.l2) cycle
+                    if (abs(coeff_2(s)).lt.1e-12) cycle
+                    do p = 1, r
+                      !if (get_l(p).ne.l1) cycle
+                      if (abs(coeff_1(p)).lt.1e-12) cycle
+                      do q = 1, p
+                        !if (get_l(q).ne.l2) cycle
+                        if (abs(coeff_2(q)).lt.1e-12) cycle
+ 
+                        pq = p*(p-1)/2 + q
+                        rs = r*(r-1)/2 + s
+                        if (abs(Dens1(pq,rs)).gt.1e-12) then
+                          if (p.eq.q.and.r.eq.s) then
+                            if (q.eq.r) then
+                         !    value = value + real(Dens1(pq,rs)) * coeff_1(p)**2 * coeff_2(p)**2
+                              value = value + real(Dens1(pq,rs)) * MOCoeff(p,k)**2 * MOCoeff(p,l)**2
+                              cycle
+                            else
+                         !    value = value + 2.0d0 * real(Dens1(pq,rs)) * coeff_1(p) * coeff_2(p) * coeff_1(r) * coeff_2(r)
+                              value = value + 2.0d0 * real(Dens1(pq,rs)) * MOCoeff(p,k) * MOCoeff(p,l) * MOCoeff(r,k) * MOCoeff(r,l)
+                            end if
+                          elseif (p.eq.r.and.q.eq.s) then
+                         !    value = value + real(Dens1(pq,rs)) * ( (coeff_1(p)**2 * coeff_2(q)**2) + (coeff_2(p)**2 * coeff_1(q)**2) )
+                              value = value + real(Dens1(pq,rs)) * ( (MOCoeff(p,k)**2 * MOCoeff(q,l)**2) + (MOCoeff(p,l)**2 * MOCoeff(q,k)**2) )
+                          elseif (p.eq.s.and.q.eq.r) then
+                         !    value = value + 2.0d0 * real(Dens1(pq,rs)) * coeff_1(p) * coeff_2(p) * coeff_1(q) * coeff_2(q)
+                              value = value + 2.0d0 * real(Dens1(pq,rs)) * MOCoeff(p,k) * MOCoeff(p,l) * MOCoeff(q,k) * MOCoeff(q,l)
+                          else
+                         !    value = value + 2.0d0 * real(Dens1(pq,rs)) * ( (coeff_1(p)*coeff_2(q)*coeff_1(r)*coeff_2(s)) + &
+                         !                                                   (coeff_2(p)*coeff_1(q)*coeff_2(r)*coeff_1(s)) )
+                              value = value + 2.0d0 * real(Dens1(pq,rs)) * ( (MOCoeff(p,k)*MOCoeff(q,l)*MOCoeff(r,k)*MOCoeff(s,l)) + &
+                                                                             (MOCoeff(p,l)*MOCoeff(q,k)*MOCoeff(r,l)*MOCoeff(s,k)) )
+                          endif
+                        end if
+                    
+                      end do
+                    end do
+                  end do
+                end do
+                Dens2(kl) = cmplx(value, zero)
+              end do
+            end do
+          end do
+        end do
+
+        if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
+      end do
+    end do
+
+    call cpu_time(finish)
+    write(iout, *) 'Time taken ... ', finish-start
+    deallocate(coeff_1, coeff_2)
+
+  end subroutine TransformDens2e_alt
 
   subroutine Get2eYield(Dens, Yield, tot_prim)
     complex(idp), allocatable, intent(in) :: Dens(:)
