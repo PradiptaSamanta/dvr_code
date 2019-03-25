@@ -14,6 +14,7 @@ module OrbData
     logical   :: reduce_orb
     integer   :: break
     integer   :: n_red
+    integer   :: n_shift_out_orb
 
   end type orb_t
 

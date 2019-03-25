@@ -2,7 +2,7 @@ module OrbInts
 
   use constants
   use util_mod, only : stop_all, allocerror
-  use ReadInput, only : n_max, two_e_int, nfrz, shift_int, reduce_int, red_start, red_num
+  use ReadInput, only : n_max, two_e_int, nfrz, shift_int, reduce_int, red_start, red_num, n_shift_out_orb
   use OrbData
   use CombineInts, only : CombineOrbInts, Calc2eRadOrbInts
 
@@ -23,6 +23,7 @@ module OrbInts
       orb%n_outer = n_max(2)
       orb%n_max = sum(n_max)
       orb%shift_int = shift_int
+      orb%n_shift_out_orb = n_shift_out_orb
     else 
       orb%n_max = n_max(1)
     end if
@@ -62,6 +63,7 @@ module OrbInts
     if (para%split_grid) then
       write(iout, '(X,A,3X, I6)') 'orb%n_inner     =', orb%n_inner
       write(iout, '(X,A,3X, I6)') 'orb%n_outer     =', orb%n_outer
+      write(iout, '(X,A,3X, I6)') 'orb%n_shift_out_orb     =', orb%n_shift_out_orb
     end if
     write(iout, '(X,A,3X, I6)') 'orb%nSpatialOrbs     =', indx
     write(iout, *) '***********' 
@@ -144,7 +146,7 @@ module OrbInts
     len_1 = para%m1*para%nl
     len_2 = para%m2*para%nl - 1
 
-    n_shift = 0
+    n_shift = orb%n_shift_out_orb
     !n_shift = 0
 
     if (orb%shift_int) then

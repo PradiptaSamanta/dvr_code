@@ -94,9 +94,16 @@ module Density
       end do
     end do
 
+    if (para%split_grid) then
+      call SetUpEigVec(EigVecs, EigVecs_mod)
+      call GetOrbCoeff(EigVecs_mod, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+    else
+      call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+    endif
+
     ! First read one and two electron RDMs obtained from a real-time (FCIQMC) simulation
     if (tAvRDM) then
-      call ReadAvOneRDM(DensOrb1e, file_1rdm, tot_cntr, nReadRDMs)
+      call ReadAvOneRDM(DensOrb1e, file_1rdm, tot_cntr, nReadRDMs, MoCoeff, tot_cntr, tot_prim)
       call ReadAvTwoRDM(DensOrb2e, file_2rdm, tot_cntr, nReadRDMs)
     else
       call ReadOneRDM(DensOrb1e, file_1rdm, tot_cntr)
@@ -105,12 +112,6 @@ module Density
 
 
     ! Transform one and two electron RDMs from the MO orbitals basis to the basis of the primitive orbitals
-    if (para%split_grid) then
-      call SetUpEigVec(EigVecs, EigVecs_mod)
-      call GetOrbCoeff(EigVecs_mod, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
-    else
-      call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
-    endif
 
     call TransformDens1e(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, tot_prim)
     !call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
@@ -228,17 +229,20 @@ module Density
 
   end subroutine ReadOneRDM
 
-  subroutine ReadAvOneRDM(Dens1e, file_1, tot_orb, nFiles)
+  subroutine ReadAvOneRDM(Dens1e, file_1, tot_orb, nFiles, MOCoeff, tot_cntr, tot_prim)
 
     complex(idp), allocatable, intent(inout) :: Dens1e(:)
+    real(dp), allocatable, intent(in) :: MOCoeff(:,:)
     character(len=32), intent(in) :: file_1
     integer, intent(in) :: tot_orb, nFiles
+    integer, intent(in) :: tot_cntr, tot_prim
 
     complex(idp), allocatable :: DensTemp(:,:)
     complex(idp), allocatable :: Dens2(:)
+    real(dp) :: Yield
     complex(idp) :: csum
     integer :: n_elements, i, j, error, ij, iFile, i_f
-    real(dp) :: val, Yield, start, finish
+    real(dp) :: val, start, finish
     character(len=32) :: filename
     logical :: file_exists
 
@@ -307,8 +311,17 @@ module Density
       end do
  
       close(12)
+
     end do
 
+    do i = 1, nFiles
+      Dens1e(:) = DensTemp(:,i)
+      call TransformDens1e(Dens1e, Dens2, MOCoeff, tot_cntr, tot_prim)
+      call Get1eYield(Dens2, Yield, tot_prim)
+      write(81, *) i, Yield
+    end do
+
+    Dens1e = 0.0d0
     do i = 1, n_elements
         csum = sum(DensTemp(i,:))
         if (abs(csum).gt.1e-12) Dens1e(i) = csum/nFiles
@@ -574,7 +587,7 @@ module Density
     integer, intent(in) :: tot_orb, tot_prim
 
     integer :: error, p, q, pp, pq, k
-    real(dp) :: start, finish
+    real(dp) :: start, finish, norm
 
     call cpu_time(start)
 
@@ -582,8 +595,9 @@ module Density
 
     allocate(Dens2(tot_prim), stat=error)
     call allocerror(error)
-    
+ 
     Dens2 = czero
+    norm = zero
 
     do k = 1, tot_prim
       do p = 1, tot_orb
@@ -600,6 +614,7 @@ module Density
         Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * real(Dens1(pp))
         !Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * Dens1(pp)
       end do
+      norm = norm + Dens2(k)
     end do
 
     call cpu_time(finish)
@@ -609,7 +624,7 @@ module Density
 
   subroutine Get1eYield(Dens, Yield, tot_prim)
     complex(idp), allocatable, intent(in) :: Dens(:)
-    real(dp), intent(out) :: Yield
+    real(dp), intent(inout) :: Yield
     integer, intent(in) :: tot_prim
 
     integer :: i
