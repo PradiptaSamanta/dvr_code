@@ -305,6 +305,8 @@ module ReadInput
         prim_integrals = .true.
       case("NOSHIFT")
         shift_int = .false.
+      case("MOVE-OUT-ORB")
+        call geti(n_shift_out_orb)
       case("REDUCE")
         reduce_int = .false.
         if (nitems.lt.3) then
