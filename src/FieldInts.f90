@@ -7,7 +7,7 @@ module FieldIntegrals
   use angular_utils
   use util_mod
   use OrbData
-  use OrbInts, only : SetUpEigVec
+  use OrbInts, only : SetUpEigVec, SetUpEigVecBreak
 
   implicit none
 
@@ -55,11 +55,13 @@ module FieldIntegrals
     ! First the eigenvectors are made block diagonal when the total radial grid are split
     if (para%split_grid) then
       call SetUpEigVec(eigen_vecs, EigVecs)
+    elseif (break_inn) then
+        call SetUpEigVecBreak(eigen_vecs, EigVecs) ! ** Not fully checked
     end if
 
     do iField = 1, nFields
 !     call CombineFieldInts(iField)
-      if (para%split_grid) then
+      if (para%split_grid.or.break_inn) then
         call ConvertFieldInts(iField, EigVecs, n_m, ml_interm)
       else 
         call ConvertFieldInts(iField, eigen_vecs, n_m, ml_interm)

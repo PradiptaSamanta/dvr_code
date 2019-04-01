@@ -11,7 +11,7 @@ module DensityData
     character(len=32) :: file_1rdm, file_2rdm
     complex(idp), allocatable :: DensOrb1e(:), DensOrb2e(:,:)
     complex(idp), allocatable :: PrimDens1e(:), PrimDens2e(:)
-    logical :: tAvRDM
+    logical :: tAvRDM, tBinaryRDM
     integer :: nReadRDMs
 
 end module DensityData
