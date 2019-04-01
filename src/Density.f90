@@ -104,7 +104,7 @@ module Density
     ! First read one and two electron RDMs obtained from a real-time (FCIQMC) simulation
     if (tAvRDM) then
       call ReadAvOneRDM(DensOrb1e, file_1rdm, tot_cntr, nReadRDMs, MoCoeff, tot_cntr, tot_prim)
-      call ReadAvTwoRDM(DensOrb2e, file_2rdm, tot_cntr, nReadRDMs)
+      call ReadAvTwoRDM(DensOrb2e, file_2rdm, tot_cntr, nReadRDMs, tBinaryRDM)
     else
       call ReadOneRDM(DensOrb1e, file_1rdm, tot_cntr)
       call ReadTwoRDM(DensOrb2e, file_2rdm, tot_cntr)
@@ -426,17 +426,18 @@ module Density
 
   end subroutine ReadTwoRDM
 
-  subroutine ReadAvTwoRDM(Dens2e, file_1, tot_orb, nFiles)
+  subroutine ReadAvTwoRDM(Dens2e, file_1, tot_orb, nFiles, tBinaryRDM)
 
     complex(idp), allocatable, intent(inout) :: Dens2e(:,:)
     character(len=32), intent(in) :: file_1
     integer, intent(in) :: tot_orb, nFiles
+    logical, intent(in) :: tBinaryRDM
 
     complex(idp), allocatable :: DensTemp(:,:,:)
     complex(idp) :: csum
     integer :: n_elements, i, j, k, l, error, ij, kl, iFile, i_f
     real(dp) :: val
-    real(dp) :: check(tot_orb), trace, start, finish
+    real(dp) :: check(tot_orb), trace, start, finish, t1, t2
     character(len=32) :: filename
     logical :: file_exists
 
@@ -461,39 +462,71 @@ module Density
       write(iout, *)  'Reading the real part of the 2-body RDM from the file ', trim(filename)
       inquire(file=trim(filename), exist=file_exists)
  
-      if (file_exists) then
-        open(12, file=trim(filename), form="formatted",&
-        &    action="read", recl=100000)
-      else
-        call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
-      end if
- 
       check = 0.0d0
       trace = 0.0d0
  
-      do
-        read(12, *, iostat=error) i, j, k, l, val
-        if  (error < 0) exit 
-        if  (i < 0) exit 
-        if ((i.eq.k).and.(j.eq.l)) check(i) = check(i) + val
-        if ((i.eq.k).and.(j.eq.l)) trace = trace + val
-        if (i.ge.j.and.k.ge.l) then
-          ij = i*(i-1)/2 + j 
-          kl = k*(k-1)/2 + l
-          DensTemp(ij,kl,iFile) = cmplx(val, zero)
+      call cpu_time(t1)
+
+      if (tBinaryRDM) then
+        if (file_exists) then
+          open(12, file=trim(filename), form="unformatted",&
+          &    action="read", recl=100000)
         else
-          cycle
-        endif
-      end do
+          call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+        end if
  
+        do
+          read(12, iostat=error) i, j, k, l, val
+          if  (error < 0) exit 
+          if  (i < 0) exit 
+          !if ((i.eq.k).and.(j.eq.l)) check(i) = check(i) + val
+          !if ((i.eq.k).and.(j.eq.l)) trace = trace + val
+          if (i.ge.j.and.k.ge.l) then
+            ij = i*(i-1)/2 + j 
+            kl = k*(k-1)/2 + l
+            DensTemp(ij,kl,iFile) = cmplx(val, zero)
+          else
+            cycle
+          endif
+        end do
+ 
+      else 
+
+        if (file_exists) then
+          open(12, file=trim(filename), form="formatted",&
+          &    action="read", recl=100000)
+        else
+          call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+        end if
+ 
+        do
+          read(12, *, iostat=error) i, j, k, l, val
+          if  (error < 0) exit 
+          if  (i < 0) exit 
+          !if ((i.eq.k).and.(j.eq.l)) check(i) = check(i) + val
+          !if ((i.eq.k).and.(j.eq.l)) trace = trace + val
+          if (i.ge.j.and.k.ge.l) then
+            ij = i*(i-1)/2 + j 
+            kl = k*(k-1)/2 + l
+            DensTemp(ij,kl,iFile) = cmplx(val, zero)
+          else
+            cycle
+          endif
+        end do
+ 
+
+      end if
+
       close(12)
+      call cpu_time(t2)
+      write(iout, *) 'Time 1 ... ', t2-t1
  
       !do i = 1, tot_orb
       !  write(77, '(2i6, g25.17)') i, i, check(i)
       !end do
  
-      write(iout, '(a, g25.17)') ' Trace of the 1-RDM read from the file:', sum(check)
-      write(iout, '(a, g25.17)') ' Trace of the 2-RDM read from the file:', trace
+     !write(iout, '(a, g25.17)') ' Trace of the 1-RDM read from the file:', sum(check)
+     !write(iout, '(a, g25.17)') ' Trace of the 2-RDM read from the file:', trace
  
       ! Read the imaginary part of the one body reduced density matrix
       i_f = 2*iFile
@@ -502,30 +535,60 @@ module Density
       write(iout, *)  'Reading the imaginary part of the 2-body RDM from the file ', trim(filename)
       inquire(file=trim(filename), exist=file_exists)
  
-      if (file_exists) then
-        open(12, file=trim(filename), form="formatted",&
-        &    action="read", recl=100000)
+      if(tBinaryRDM) then 
+        if (file_exists) then
+          open(12, file=trim(filename), form="unformatted",&
+          &    action="read", recl=100000)
+        else
+          call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+        end if
+  
+        call cpu_time(t1)
+        do
+          read(12, iostat=error) i, j, k, l, val
+          !read(12, *) i, j, k, l, val
+          if  (error < 0) exit 
+          if  (i < 0) exit 
+          if (i.ge.j.and.k.ge.l) then
+            ij = i*(i-1)/2 + j 
+            kl = k*(k-1)/2 + l
+            DensTemp(ij,kl,iFile) = cmplx(real(DensTemp(ij,kl,iFile)), val)
+            !write(84, '(4i5, f25.17)') i, j, k, l, val
+          else
+            cycle
+          endif
+        end do
       else
-        call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+        if (file_exists) then
+          open(12, file=trim(filename), form="formatted",&
+          &    action="read", recl=100000)
+        else
+          call stop_all('ReadAvTwoRDM', 'File for TwoRDM is not present for reading')
+        end if
+  
+        call cpu_time(t1)
+        do
+          read(12, *, iostat=error) i, j, k, l, val
+          !read(12, *) i, j, k, l, val
+          if  (error < 0) exit 
+          if  (i < 0) exit 
+          if (i.ge.j.and.k.ge.l) then
+            ij = i*(i-1)/2 + j 
+            kl = k*(k-1)/2 + l
+            DensTemp(ij,kl,iFile) = cmplx(real(DensTemp(ij,kl,iFile)), val)
+            !write(84, '(4i5, f25.17)') i, j, k, l, val
+          else
+            cycle
+          endif
+        end do
       end if
  
-      do
-        read(12, *, iostat=error) i, j, k, l, val
-        if  (error < 0) exit 
-        if  (i < 0) exit 
-        if (i.ge.j.and.k.ge.l) then
-          ij = i*(i-1)/2 + j 
-          kl = k*(k-1)/2 + l
-          DensTemp(ij,kl,iFile) = cmplx(real(DensTemp(ij,kl,iFile)), val)
-          !write(84, '(4i5, f25.17)') i, j, k, l, val
-        else
-          cycle
-        endif
-      end do
- 
       close(12)
+      call cpu_time(t2)
+      write(iout, *) 'Time 2 ... ', t2-t1
     end do
 
+    call cpu_time(t1)
     do i = 1, n_elements
       do j = 1, i
         csum = sum(DensTemp(i,j,:))
@@ -535,6 +598,8 @@ module Density
         end if
       end do
     end do
+    call cpu_time(t2)
+    write(iout, *) 'Time 3 ... ', t2-t1
 
     deallocate(DensTemp)
 

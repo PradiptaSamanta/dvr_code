@@ -268,6 +268,8 @@ module ReadInput
 
   subroutine OrbitalInput(ir)
 
+    use OrbData, only: break_inn, break_orb
+
     integer, intent(in) :: ir
     logical :: eof
     character (len=100)  :: w
@@ -307,6 +309,11 @@ module ReadInput
         shift_int = .false.
       case("MOVE-OUT-ORB")
         call geti(n_shift_out_orb)
+      case("BREAK-INN-ORB")
+        break_inn = .true.
+        call  geti(break_orb(1))
+        call  geti(break_orb(2))
+        call  geti(break_orb(3))
       case("REDUCE")
         reduce_int = .false.
         if (nitems.lt.3) then
@@ -340,6 +347,7 @@ module ReadInput
     file_2rdm = 'TwoRDM'
     tAvRDM = .false.
     nReadRDMs = 1
+    tBinaryRDM = .false.
 
     do
       call read_line(eof, ir)
@@ -377,6 +385,8 @@ module ReadInput
         call readu(file_1rdm)
       case("FILE-2RDM")
         call readu(file_2rdm)
+      case("BINARY-RDM")
+        tBinaryRDM = .true.
       case("ENDDENSITY")
         exit
       case default

@@ -35,4 +35,11 @@ module OrbData
 
   character(32)          :: file_int
 
+  ! whether the inner orbitals are divided further
+  logical :: break_inn
+  ! break_orb(1) : Number of orbital before the break
+  ! break_orb(2) : Number of orbital to remove
+  ! break_orb(3) : Number of orbital after the break
+  integer :: break_orb(3)
+
 end module OrbData

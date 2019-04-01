@@ -85,6 +85,7 @@ module OrbInts
   subroutine GetOrbInts()
 
     use DVRData, only : para, eigen_vecs
+    use OrbData, only : break_inn, break_orb
 
     real(dp) :: tol
 
@@ -98,12 +99,16 @@ module OrbInts
         call SetUpEigVec(eigen_vecs, EigVecs)
     elseif (orb%reduce_orb) then
         call SetUpEigVecNorm(eigen_vecs, EigVecs) ! ** Not fully checked
+    elseif (break_inn) then
+        call SetUpEigVecBreak(eigen_vecs, EigVecs) ! ** Not fully checked
     end if
 
     ! Calculate the one-electron part of the Hamiltonian in the contracted basis
     if (para%split_grid) then
       call Calc1eOrbInts(EigVecs)
     else if (orb%reduce_orb) then
+      call Calc1eOrbInts(EigVecs)
+    else if (break_inn) then
       call Calc1eOrbInts(EigVecs)
     else
       call Calc1eOrbInts(eigen_vecs)
@@ -115,6 +120,8 @@ module OrbInts
     if (para%split_grid) then
       call Calc2eRadOrbInts(EigVecs)
     else if (orb%reduce_orb) then
+      call Calc2eRadOrbInts(EigVecs)
+    else if (break_inn) then
       call Calc2eRadOrbInts(EigVecs)
     else
       call Calc2eRadOrbInts(eigen_vecs)
@@ -197,6 +204,62 @@ module OrbInts
 !   end do
 
   end subroutine SetUpEigVec
+
+  subroutine SetUpEigVecBreak(VecsOld, EigVecs)
+
+    use DVRData, only : para, grid
+
+    real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
+    real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
+
+    integer :: len_2, i, j, l, n_shift, n_l, len_1, j_p, tot_orb
+    integer, allocatable :: len_mid(:)
+
+    n_l = para%l + 1
+    allocate(len_mid(n_l))
+
+    len_mid = break_orb(1) + break_orb(2)
+    do l = 1, n_l
+      len_mid(l) = len_mid(l) - l + 1
+    end do
+
+    tot_orb = break_orb(1) + break_orb(3)
+
+    write(iout, *) 'The integrals are now calculated after orbitals being distributed over two sets'
+    write(iout, '(a, i3)') ' Orbitals in the first set: 1 -', break_orb(1)
+    write(iout, '(a,i3,a,i3)') ' Orbitals in the second set: ', len_mid(1)+1, ' -', len_mid(1)+ break_orb(3)
+
+!   do i = 1, size(grid%r)
+!     write(78, '(11f10.6)') (VecsOld(i,j,3), j=1, size(VecsOld(1,:,2)))
+!   end do
+
+    allocate(EigVecs(size(grid%r), tot_orb, n_l))
+    EigVecs = 0.0d0
+    do l = 1, n_l
+      do j = 1, break_orb(1) - l + 1
+        do i = 1, size(grid%r)
+          EigVecs(i,j,l) = VecsOld(i,j,l)
+        end do
+      end do
+    end do
+
+    do l = 1, n_l
+      if ((len_mid(l)+break_orb(3)+l-1).gt.size(grid%r))  &
+      &  call stop_all('SetUpEigVecBreak','Not enough orbitals in the outer region')
+      do j = 1, break_orb(3) + l - 1
+        j_p = j + break_orb(1) - l + 1
+        do i = 1, size(grid%r)
+          EigVecs(i,j_p,l) = VecsOld(i,j+len_mid(l),l)
+          !EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
+        end do
+      end do
+    end do
+
+!   do i = 1, size(grid%r)
+!     write(79, '(11f10.6)') (EigVecs(i,j,3), j=1, size(EigVecs(1,:,2)))
+!   end do
+
+  end subroutine SetUpEigVecBreak 
 
   subroutine SetUpEigVecNorm(VecsOld, EigVecs)
 
