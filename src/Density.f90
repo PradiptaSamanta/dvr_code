@@ -115,7 +115,7 @@ module Density
 
     call TransformDens1e(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, tot_prim)
     !call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
-    call TransformDens2e_alt(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim, OrbInd_prim, n_prim, n_l, n_m, get_l)
+    call TransformDens2e_alt(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim, OrbInd_prim, n_prim, n_l, n_m)
 
     call Get1eYield(PrimDens1e, Yield1e, tot_prim)
     call Get2eYield(PrimDens2e, Yield2e, tot_prim)
@@ -611,15 +611,13 @@ module Density
 
   subroutine GetOrbCoeff(EigVecs, MOCoeff, tot_orb, tot_prim, ni, ng, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
 
-    use DVRData, only : para, grid
-
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
     real(dp), allocatable, intent(out) :: MOCoeff(:,:)
     integer, allocatable, intent(in) :: n_m(:), OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:)
     integer, intent(in) :: tot_orb, tot_prim, ni, ng, n_cntr, n_l
 
-    integer :: error, indx_1, indx_2, n, i, l, m, i_p, n_prim, start_prim
-    real(dp) :: val, r_v
+    integer :: error, indx_1, indx_2, n, i, l, m, i_p
+    real(dp) :: val
 
     allocate(MOCoeff(tot_orb,tot_prim), stat=error)
     call allocerror(error)
@@ -770,13 +768,14 @@ module Density
 
   end subroutine TransformDens2e
 
-  subroutine TransformDens2e_alt(Dens1, Dens2, MOCoeff, tot_orb, tot_prim, OrbInd, n_prim, n_l, n_m, get_l)
+  !subroutine TransformDens2e_alt(Dens1, Dens2, MOCoeff, tot_orb, tot_prim, OrbInd, n_prim, n_l, n_m, get_l)
+  subroutine TransformDens2e_alt(Dens1, Dens2, MOCoeff, tot_orb, tot_prim, OrbInd, n_prim, n_l, n_m)
 
     complex(idp), allocatable, intent(in) :: Dens1(:,:)
     complex(idp), allocatable, intent(out) :: Dens2(:)
     real(dp), allocatable, intent(in) :: MOCoeff(:,:)
     integer, intent(in) :: tot_orb, tot_prim, n_prim, n_l
-    integer, allocatable, intent(in) :: OrbInd(:,:,:), n_m(:), get_l(:)
+    integer, allocatable, intent(in) :: OrbInd(:,:,:), n_m(:)
 
     integer :: error, p, q, pq, k, l,  kl, r, s, rs, l1, l2, n1, n2, m1, m2
     integer :: dim_dens

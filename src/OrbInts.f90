@@ -85,7 +85,7 @@ module OrbInts
   subroutine GetOrbInts()
 
     use DVRData, only : para, eigen_vecs
-    use OrbData, only : break_inn, break_orb
+    use OrbData, only : break_inn
 
     real(dp) :: tol
 
@@ -208,11 +208,12 @@ module OrbInts
   subroutine SetUpEigVecBreak(VecsOld, EigVecs)
 
     use DVRData, only : para, grid
+    use OrbData, only : break_orb
 
     real(dp), allocatable, intent(in) :: VecsOld(:,:,:)
     real(dp), allocatable, intent(inout) :: EigVecs(:,:,:)
 
-    integer :: len_2, i, j, l, n_shift, n_l, len_1, j_p, tot_orb
+    integer :: i, j, l, n_l, j_p, tot_orb
     integer, allocatable :: len_mid(:)
 
     n_l = para%l + 1
