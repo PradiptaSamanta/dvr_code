@@ -224,7 +224,7 @@ module FieldIntegrals
                 AngPart(lma,lmb, lmk) = m_one**(ma_flt) * wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, 1.0d0*mk_flt, mb_flt)*pre_fact(la,lb)
 !               AngPart(lma,lmb, lmk) = m_one**ma_flt * wigner3j(la_flt, lb_flt, lk_flt, -1.0d0*ma_flt, mb_flt, mk_flt)*pre_fact(la,lb)
      
-                if (abs(AngPart(lma,lmb,lmk)).gt.1e-12) write(78,'(3i4,2f15.8)') lma, lmb, lmk, AngPart(lma,lmb,lmk)
+!               if (abs(AngPart(lma,lmb,lmk)).gt.1e-12) write(78,'(3i4,2f15.8)') lma, lmb, lmk, AngPart(lma,lmb,lmk)
 !               write(79,'(6i4,f15.8)') la, lb, lk, int(-1.0d0*ma_flt), int(mb_flt), int(mk_flt), wigner3j(la_flt, lk_flt, lb_flt, -1.0d0*ma_flt, mk_flt, mb_flt)
        
               end do 
@@ -579,7 +579,6 @@ module FieldIntegrals
                     IntPoint(lma_p,lmb  ,i) = fac_2*RadPart*(int_1 + int_2 - int_3 - int_4)
                     IntPoint(lma  ,lmb_p,i) = fac_3*RadPart*(int_1 - int_2 + int_3 - int_4)
                     IntPoint(lma_p,lmb_p,i) = fac_4*RadPart*(int_1 + int_2 + int_3 + int_4)
-!                   write(81, '(2i4, 6f15.8)') lma, lmb, real(int_1), real(int_2), real(int_3), real(int_4), real(IntPoint(lma_p,lmb,i)), real(IntPoint(lma,lmb_p,i))
                   end if
                 end do
               end if
@@ -652,9 +651,6 @@ module FieldIntegrals
                     IntPoint(lma_p,lmb  ,i) = fac_2*RadPart*(int_1 + int_2 + int_3 + int_4 - int_5 - int_6 - int_7 - int_8)
                     IntPoint(lma  ,lmb_p,i) = fac_3*RadPart*(int_1 - int_2 + int_3 - int_4 + int_5 - int_6 + int_7 - int_8)
                     IntPoint(lma_p,lmb_p,i) = fac_4*RadPart*(int_1 + int_2 + int_3 + int_4 + int_5 + int_6 + int_7 + int_8)
-                    if (abs(IntPoint(lma_p,lmb_p,i)).gt.0.0d0) then
-                        write(95,'(8f15.8)') real(int_1), real(int_2), real(int_3), real(int_4), real(int_5), real(int_6), real(int_7), real(int_8)
-                    end if
                   end if
                 end do
               end if
@@ -770,22 +766,6 @@ module FieldIntegrals
     PointInts => FieldInts(:,:,iField)
     PrimPointInts => PrimFieldInts(:,:,:,iField)
 
-!   if (trim(FieldComp(iField)).eq.'Z') then
-!     do i= 1, para%ng
-!       do la=1,n_l
-!         do ma = 1,2*la-1
-!           lma = (la-1)**2 + ma
-!           do lb=1,n_l
-!             do mb = 1, 2*lb-1
-!               lmb = (lb-1)**2 + mb
-!               write(78,'(5i4,f15.8)') la, ma, lb, mb, i, real(PrimFieldInts(lma,lmb,i,iField))
-!             end do
-!           end do
-!         end do
-!       end do
-!     end do
-!   end if
-
     do la = 1, n_l
       do ma = 1, 2*la-1
         lma = (la-1)**2 + ma
@@ -830,7 +810,7 @@ module FieldIntegrals
     integer, allocatable, intent(in) ::  n_m(:), ml_interm(:)
 
     integer :: error, na, nb, la, lb, ma, mb, lma, lmb, n_l,  i
-    integer :: ind_1, ind_2, n_lm
+    integer :: ind_1, ind_2, n_lm, f_int
     complex(idp) ::  int_val
 
     complex(idp), pointer :: PointInts(:,:), PrimPointInts(:,:,:)
@@ -852,21 +832,27 @@ module FieldIntegrals
     PointInts => FieldInts(:,:,iField)
     PrimPointInts => PrimFieldInts(:,:,:,iField)
 
-!   if (trim(FieldComp(iField)).eq.'Z') then
-!     do i= 1, para%ng
-!       do la=1,n_l
-!         do ma = 1,2*la-1
-!           lma = (la-1)**2 + ma
-!           do lb=1,n_l
-!             do mb = 1, 2*lb-1
-!               lmb = (lb-1)**2 + mb
-!               write(78,'(5i4,f15.8)') la, ma, lb, mb, i, real(PrimFieldInts(lma,lmb,i,iField))
-!             end do
+!   file_int =  'PRIMDIP'//FieldComp(iField)
+!   f_int = 15
+!   open(f_int, file=file_int, status='unknown', form="formatted")
+
+!   write(15,'(a)') ' #   la,   ma,   lb,   mb,   n, PrimFieldInts(la,ma,lb,mb, n)'
+
+!   do i= 1, para%ng
+!     do la=1,n_l
+!       do ma = 1,2*la-1
+!         lma = (la-1)**2 + ma
+!         do lb=1,n_l
+!           do mb = 1, 2*lb-1
+!             lmb = (lb-1)**2 + mb
+!             if(abs(PrimPointInts(lma,lmb,i)).gt.1e-12) write(15,'(5i5,f15.8)') la, ma, lb, mb, i, real(PrimFieldInts(lma,lmb,i,iField))
 !           end do
 !         end do
 !       end do
 !     end do
-!   end if
+!   end do
+
+!   close(15)
 
     do lb = 1, n_l
       do mb = 1, n_m(lb)

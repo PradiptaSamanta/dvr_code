@@ -11,7 +11,8 @@ module Density
 
     use DensityData
     use DVRData, only : para, grid
-    use OrbInts, only : SetUpEigVec
+    use OrbData, only : break_inn
+    use OrbInts, only : SetUpEigVec, SetUpEigVecBreak
   
     real(dp), allocatable, intent(in) :: EigVecs(:,:,:)
 
@@ -97,6 +98,9 @@ module Density
     if (para%split_grid) then
       call SetUpEigVec(EigVecs, EigVecs_mod)
       call GetOrbCoeff(EigVecs_mod, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
+    elseif (break_inn) then
+        call SetUpEigVecBreak(EigVecs, EigVecs_mod) ! ** Not fully checked
+        call GetOrbCoeff(EigVecs_mod, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
     else
       call GetOrbCoeff(EigVecs, MOCoeff, tot_cntr, tot_prim, start_prim, n_prim, n_cntr, n_l, n_m, OrbInd_cntr, OrbInd_prim)
     endif
@@ -122,6 +126,7 @@ module Density
 
     deallocate(OrbInd_cntr, OrbInd_prim)
     deallocate(DensOrb1e, DensOrb2e, get_l)
+    !deallocate(DensOrb1e, get_l)
 
     call cpu_time(finish)
     write(iout,'(a, f10.5)') ' Time taken to calculate the Density: ', finish - start
@@ -189,10 +194,10 @@ module Density
     do
       read(12, *, iostat=error) i, j, val
       if  (error < 0) exit 
-      if (i.le.j) then
+      if (i.ge.j) then
         ij = i*(i-1)/2 + j 
-        Dens1e(ij) = cmplx(val, zero)
-        !write(81, '(2i5, f25.17)') i, j, val
+        Dens1e(ij) = dcmplx(val, zero)
+        !write(80, '(2i5, g25.17)') i, j, real(Dens1e(ij))
       else
         cycle
       endif
@@ -216,9 +221,9 @@ module Density
     do
       read(12, *, iostat=error) i, j, val
       if  (error < 0) exit 
-      if (i.le.j) then
+      if (i.ge.j) then
         ij = i*(i-1)/2 + j 
-        Dens1e(ij) = cmplx(real(Dens1e(ij)), val)
+        Dens1e(ij) = dcmplx(real(Dens1e(ij)), val)
         !write(81, '(2i5, f25.17)') i, j, val
       else
         cycle
@@ -273,9 +278,9 @@ module Density
       do
         read(12, *, iostat=error) i, j, val
         if  (error < 0) exit 
-        if (i.le.j) then
+        if (i.ge.j) then
           ij = i*(i-1)/2 + j 
-          DensTemp(ij, iFile) = cmplx(val, zero)
+          DensTemp(ij, iFile) = dcmplx(val, zero)
           !write(81, '(2i5, f25.17)') i, j, val
         else
           cycle
@@ -301,9 +306,9 @@ module Density
       do
         read(12, *, iostat=error) i, j, val
         if  (error < 0) exit 
-        if (i.le.j) then
+        if (i.ge.j) then
           ij = i*(i-1)/2 + j 
-          DensTemp(ij, iFile) = cmplx(real(DensTemp(ij, iFile)), val)
+          DensTemp(ij, iFile) = dcmplx(real(DensTemp(ij, iFile)), val)
           !write(81, '(2i5, f25.17)') i, j, val
         else
           cycle
@@ -380,7 +385,7 @@ module Density
       if (i.ge.j.and.k.ge.l) then
         ij = i*(i-1)/2 + j 
         kl = k*(k-1)/2 + l
-        Dens2e(ij,kl) = cmplx(val, zero)
+        Dens2e(ij,kl) = dcmplx(val, zero)
       else
         cycle
       endif
@@ -415,7 +420,7 @@ module Density
       if (i.ge.j.and.k.ge.l) then
         ij = i*(i-1)/2 + j 
         kl = k*(k-1)/2 + l
-        Dens2e(ij,kl) = cmplx(real(Dens2e(ij,kl)), val)
+        Dens2e(ij,kl) = dcmplx(real(Dens2e(ij,kl)), val)
         write(84, '(6i5, 2f25.17)') i, j, k, l, ij, kl, real(Dens2e(ij,kl)), aimag(Dens2e(ij,kl)) 
       else
         cycle
@@ -484,7 +489,7 @@ module Density
           if (i.ge.j.and.k.ge.l) then
             ij = i*(i-1)/2 + j 
             kl = k*(k-1)/2 + l
-            DensTemp(ij,kl,iFile) = cmplx(val, zero)
+            DensTemp(ij,kl,iFile) = dcmplx(val, zero)
           else
             cycle
           endif
@@ -508,7 +513,7 @@ module Density
           if (i.ge.j.and.k.ge.l) then
             ij = i*(i-1)/2 + j 
             kl = k*(k-1)/2 + l
-            DensTemp(ij,kl,iFile) = cmplx(val, zero)
+            DensTemp(ij,kl,iFile) = dcmplx(val, zero)
           else
             cycle
           endif
@@ -552,7 +557,7 @@ module Density
           if (i.ge.j.and.k.ge.l) then
             ij = i*(i-1)/2 + j 
             kl = k*(k-1)/2 + l
-            DensTemp(ij,kl,iFile) = cmplx(real(DensTemp(ij,kl,iFile)), val)
+            DensTemp(ij,kl,iFile) = dcmplx(real(DensTemp(ij,kl,iFile)), val)
             !write(84, '(4i5, f25.17)') i, j, k, l, val
           else
             cycle
@@ -575,7 +580,7 @@ module Density
           if (i.ge.j.and.k.ge.l) then
             ij = i*(i-1)/2 + j 
             kl = k*(k-1)/2 + l
-            DensTemp(ij,kl,iFile) = cmplx(real(DensTemp(ij,kl,iFile)), val)
+            DensTemp(ij,kl,iFile) = dcmplx(real(DensTemp(ij,kl,iFile)), val)
             !write(84, '(4i5, f25.17)') i, j, k, l, val
           else
             cycle
@@ -634,7 +639,7 @@ module Density
             indx_1 = OrbInd_cntr(n,l,m)
             indx_2 = OrbInd_prim(i,l,m)
             MOCoeff(indx_1, indx_2) = val
-            !write(77,'(6i4,f15.8)') n, l, m, i_p, indx_1, indx_2, MOCoeff(indx_1,indx_2)
+            if (abs(val).gt.1e-12) write(77,'(6i4,f20.16)') n, l, m, i_p, indx_1, indx_2, MOCoeff(indx_1,indx_2)
           end do
         end do
       end do
@@ -757,7 +762,7 @@ module Density
             end do
           end do
         end do
-        Dens2(kl) = cmplx(value, zero)
+        Dens2(kl) = dcmplx(value, zero)
 
         if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
       end do
@@ -853,7 +858,7 @@ module Density
                     end do
                   end do
                 end do
-                Dens2(kl) = cmplx(value, zero)
+                Dens2(kl) = dcmplx(value, zero)
               end do
             end do
           end do
