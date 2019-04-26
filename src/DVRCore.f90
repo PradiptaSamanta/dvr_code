@@ -15,6 +15,7 @@ subroutine DVRCore()
   use DVRRHF, only: DoRHF
   use FieldIntegrals
   use Density, only: CalcDensity
+  use DensityPrim, only: CalcDensityPrim
 
   implicit none
 
@@ -83,7 +84,11 @@ subroutine DVRCore()
   end if 
 
   if (get_density) then
-    call CalcDensity(eigen_vecs) 
+    if (prim_integrals) then
+      call CalcDensityPrim(eigen_vecs)
+    else 
+      call CalcDensity(eigen_vecs)
+    end if
   end if
 
 ! call radial_check()

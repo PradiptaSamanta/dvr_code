@@ -18,7 +18,7 @@ module Density
 
     real(dp), allocatable :: MOCoeff(:,:)
     real(dp), allocatable :: EigVecs_mod(:,:,:)
-    integer, allocatable :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:), n_m(:), get_l(:)
+    integer, allocatable :: OrbInd_cntr(:,:,:), OrbInd_prim(:,:,:), n_m(:), get_l(:), get_m(:)
     integer :: n_l, n_cntr, i, j, k, error, tot_prim, n_prim, start_prim, tot_cntr
     integer :: n_m1, n_m2, ni
     real(dp) :: start, finish
@@ -71,12 +71,14 @@ module Density
     end do
 
     allocate(get_l(tot_cntr))
+    allocate(get_m(tot_cntr))
 
     do i = 1, n_cntr
       do j = 1, min(n_l,i)
         do k = 1, n_m(j)
           ni = OrbInd_cntr(i,j,k)
           get_l(ni) = j
+          get_m(ni) = k
         end do
       end do
     end do
@@ -108,25 +110,31 @@ module Density
     ! First read one and two electron RDMs obtained from a real-time (FCIQMC) simulation
     if (tAvRDM) then
       call ReadAvOneRDM(DensOrb1e, file_1rdm, tot_cntr, nReadRDMs, MoCoeff, tot_cntr, tot_prim)
-      call ReadAvTwoRDM(DensOrb2e, file_2rdm, tot_cntr, nReadRDMs, tBinaryRDM)
+      !call ReadAvTwoRDM(DensOrb2e, file_2rdm, tot_cntr, nReadRDMs, tBinaryRDM)
     else
       call ReadOneRDM(DensOrb1e, file_1rdm, tot_cntr)
-      call ReadTwoRDM(DensOrb2e, file_2rdm, tot_cntr)
+      !call ReadTwoRDM(DensOrb2e, file_2rdm, tot_cntr)
     end if
 
 
     ! Transform one and two electron RDMs from the MO orbitals basis to the basis of the primitive orbitals
 
-    call TransformDens1e(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, tot_prim)
-    !call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
-    call TransformDens2e_alt(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim, OrbInd_prim, n_prim, n_l, n_m)
+    if (tOneRDMDiag) then
+      call TransformDens1e(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, tot_prim)
+      call Get1eYield(PrimDens1e, Yield1e, tot_prim)
+    else
+      call TransformDens1e_alt(DensOrb1e, PrimDens1e, MOCoeff, tot_cntr, n_prim, get_l, get_m, OrbInd_prim)
+      call Get1eYield(PrimDens1e, Yield1e, n_prim)
+    end if
 
-    call Get1eYield(PrimDens1e, Yield1e, tot_prim)
-    call Get2eYield(PrimDens2e, Yield2e, tot_prim)
+    !!call TransformDens2e(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim)
+    !call TransformDens2e_alt(DensOrb2e, PrimDens2e, MOCoeff, tot_cntr, tot_prim, OrbInd_prim, n_prim, n_l, n_m)
+
+    !call Get2eYield(PrimDens2e, Yield2e, tot_prim)
 
     deallocate(OrbInd_cntr, OrbInd_prim)
-    deallocate(DensOrb1e, DensOrb2e, get_l)
-    !deallocate(DensOrb1e, get_l)
+    !deallocate(DensOrb1e, DensOrb2e, get_l)
+    deallocate(DensOrb1e, get_l)
 
     call cpu_time(finish)
     write(iout,'(a, f10.5)') ' Time taken to calculate the Density: ', finish - start
@@ -639,7 +647,7 @@ module Density
             indx_1 = OrbInd_cntr(n,l,m)
             indx_2 = OrbInd_prim(i,l,m)
             MOCoeff(indx_1, indx_2) = val
-            if (abs(val).gt.1e-12) write(77,'(6i4,f20.16)') n, l, m, i_p, indx_1, indx_2, MOCoeff(indx_1,indx_2)
+            !if (abs(val).gt.1e-12) write(77,'(6i4,f20.16)') n, l, m, i_p, indx_1, indx_2, MOCoeff(indx_1,indx_2)
           end do
         end do
       end do
@@ -674,13 +682,14 @@ module Density
         do q = 1, p-1
 
           pq = p*(p-1)/2 + q
+          if (abs(Dens1(pq)).gt.1e-12) then
           Dens2(k) = Dens2(k) + 2 * MOCoeff(p,k) * MOCoeff(q,k) * real(Dens1(pq))
          !Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(q,k) * Dens1(pq) + &
          !                      MOCoeff(p,k) * MOCoeff(q,k) * dconjg(Dens1(pq))
           
+          end if
         end do
         Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * real(Dens1(pp))
-        !Dens2(k) = Dens2(k) + MOCoeff(p,k) * MOCoeff(p,k) * Dens1(pp)
       end do
       norm = norm + Dens2(k)
     end do
@@ -689,6 +698,60 @@ module Density
     write(iout, *) 'Time taken ... ', finish-start
 
   end subroutine TransformDens1e
+
+  subroutine TransformDens1e_alt(Dens1, Dens2, MOCoeff, tot_orb, n_prim, get_l, get_m, OrbInd)
+
+    complex(idp), allocatable, intent(in) :: Dens1(:)
+    complex(idp), allocatable, intent(out) :: Dens2(:)
+    real(dp), allocatable, intent(in) :: MOCoeff(:,:)
+    integer, intent(in) :: tot_orb, n_prim
+    integer, allocatable, intent(in) :: get_l(:), get_m(:), OrbInd(:,:,:)
+
+    integer :: error, p, q, pp, pq, k
+    integer :: k1, k2, l1, l2, m1, m2
+    real(dp) :: start, finish, norm
+
+    call cpu_time(start)
+
+    write(iout, *) 'Transforming 1-RDM from the contracted basis to the primitive one'
+
+    allocate(Dens2(n_prim), stat=error)
+    call allocerror(error)
+ 
+    Dens2 = czero
+    norm = zero
+
+    do k = 1, n_prim
+      do p = 1, tot_orb
+        if (abs(MOCoeff(p,k)).lt.1e-12) cycle
+        pp = p*(p-1)/2 + p
+        l1 = get_l(p)
+        m1 = get_m(p)
+        k1 = OrbInd(k, l1, m1)
+        do q = 1, p-1
+
+          pq = p*(p-1)/2 + q
+          if (abs(Dens1(pq)).gt.1e-12) then
+
+          l2 = get_l(q)
+          m2 = get_m(q)
+          k2 = OrbInd(k, l2, m2)
+!         if (p.eq.28.and.q.eq.1) then
+!           write(78, '(2i5, 4f20.12)') k1, k2, MOCoeff(p,k1), MOCoeff(q,k2), real(Dens1(pq)), 2*MOCoeff(p,k1) * MOCoeff(q,k2) * real(Dens1(pq))   
+!         end if
+
+          Dens2(k) = Dens2(k) + 2 * MOCoeff(p,k1) * MOCoeff(q,k1) * real(Dens1(pq))
+          
+          end if
+        end do
+        Dens2(k) = Dens2(k) + MOCoeff(p,k1) * MOCoeff(p,k1) * real(Dens1(pp))
+      end do
+    end do
+
+    call cpu_time(finish)
+    write(iout, *) 'Time taken ... ', finish-start
+
+  end subroutine TransformDens1e_alt
 
   subroutine Get1eYield(Dens, Yield, tot_prim)
     complex(idp), allocatable, intent(in) :: Dens(:)
@@ -700,7 +763,7 @@ module Density
     Yield = 0.0d0
 
     do i = 1, tot_prim
-      Yield = Yield + Dens(i)
+      Yield = Yield + real(Dens(i))
     end do
 
     write(iout, '(a, f25.17)') ' One electron photoionization yield: ', Yield
@@ -764,7 +827,7 @@ module Density
         end do
         Dens2(kl) = dcmplx(value, zero)
 
-        if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
+        !if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
       end do
     end do
 
@@ -864,7 +927,7 @@ module Density
           end do
         end do
 
-        if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
+        !if (value.gt.1e-12) write(79,'(2i5,2f25.17)') k, l, Dens2(kl)
       end do
     end do
 

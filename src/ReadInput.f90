@@ -348,6 +348,7 @@ module ReadInput
     tAvRDM = .false.
     nReadRDMs = 1
     tBinaryRDM = .false.
+    tOneRDMDiag = .true.
 
     do
       call read_line(eof, ir)
@@ -387,6 +388,8 @@ module ReadInput
         call readu(file_2rdm)
       case("BINARY-RDM")
         tBinaryRDM = .true.
+      case("FULL-1RDM")
+        tOneRDMDiag = .false.
       case("ENDDENSITY")
         exit
       case default
