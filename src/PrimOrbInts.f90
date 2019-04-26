@@ -57,7 +57,7 @@ module PrimOrbInts
 
     write(iout, *) '**********'
     write(iout, *) 'Setting up these parameters for the orbitals:'
-    write(iout, '(X,A,3X, I6)') 'orb%n_max     =', n_max
+    write(iout, '(X,A,3X, I6)') 'orb%n_max     =', orb%n_max
     write(iout, '(X,A,3X, I6)') 'orb%nSpatialOrbs     =', indx
     write(iout, *) '***********' 
 
