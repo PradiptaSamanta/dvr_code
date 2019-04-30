@@ -392,29 +392,45 @@ module RHFMod
 
     if (para%split_grid) then
 
-      if (para%diagtype == 'only_inner'.or.para%diagtype == 'only_outer') &
-      &  call stop_all('GetFock', 'RHF is not implemented yet for only_inner or only_outer')
+      !if (para%diagtype == 'only_inner'.or.para%diagtype == 'only_outer') &
+      if (para%diagtype == 'only_outer')  then
+        call stop_all('GetFock', 'RHF is not implemented yet for only_inner or only_outer')
+      elseif (para%diagtype == 'only_inner') then
 
-      n_l = para%l + 1
-      len_1 = para%m1*para%nl*para%dim_l
-      len_2 = (para%m2*para%nl-1)*para%dim_l
+        n_l = para%l + 1
+        len_1 = para%m1*para%nl*para%dim_l
+        !len_1 = (para%m1*para%nl-1)*para%dim_l
+        do j = 1, len_1
+          do i = 1, j
+            val = hcore(i,j) + V(i,j)
+            F(i,j) = val
+            F(j,i) = val
+!           if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+          end do
+        end do
 
-      do j = 1, len_1
-        do i = 1, j
-          val = hcore(i,j) + V(i,j)
-          F(i,j) = val
-          F(j,i) = val
-!         if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+      else 
+        n_l = para%l + 1
+        len_1 = para%m1*para%nl*para%dim_l
+        len_2 = (para%m2*para%nl-1)*para%dim_l
+     
+        do j = 1, len_1
+          do i = 1, j
+            val = hcore(i,j) + V(i,j)
+            F(i,j) = val
+            F(j,i) = val
+!           if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+          end do
         end do
-      end do
-      do j = len_1+1, len_1+len_2
-        do i = len_1+1, j
-          val = hcore(i,j) + V(i,j)
-          F(i,j) = val
-          F(j,i) = val
-!         if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+        do j = len_1+1, len_1+len_2
+          do i = len_1+1, j
+            val = hcore(i,j) + V(i,j)
+            F(i,j) = val
+            F(j,i) = val
+!           if (abs(F(i,j)).gt.1e-12) write(84,*) i, j, F(i,j)
+          end do
         end do
-      end do
+      end if
 
     else
       do j = 1, n_COs
@@ -529,6 +545,8 @@ module RHFMod
 
       len_1 = para%m1*para%nl
       len_2 = para%m2*para%nl - 1
+!     len_1 = para%m1*para%nl - 1
+!     len_2 = para%m2*para%nl
       if (allocated(F_r)) deallocate(F_r)
       allocate(F_r(len_1, len_1))
       if (allocated(En)) deallocate(En)
@@ -560,37 +578,40 @@ module RHFMod
         end do
       end do
 
-      deallocate(F_r)
-      allocate(F_r(len_2, len_2))
-      deallocate(En)
-      allocate(En(len_2))
+      if (.not.(para%diagtype == 'only_inner')) then 
 
-      do l = 1, para%l+1
-        do m = 1, n_m(l)
-          F_r = 0.0d0
-          do i = 1, len_2
-            do j = 1, i
+        deallocate(F_r)
+        allocate(F_r(len_2, len_2))
+        deallocate(En)
+        allocate(En(len_2))
+ 
+        do l = 1, para%l+1
+          do m = 1, n_m(l)
+            F_r = 0.0d0
+            do i = 1, len_2
+              do j = 1, i
+                ind_1 = OrbInd(i+len_1, l, m)
+                ind_2 = OrbInd(j+len_1, l, m)
+                val = F(ind_1, ind_2)
+                F_r(i,j) = val
+                F_r(j,i) = val
+              end do
+            end do
+            call diag_matrix(F_r, En)
+            do i = 1, len_2
               ind_1 = OrbInd(i+len_1, l, m)
-              ind_2 = OrbInd(j+len_1, l, m)
-              val = F(ind_1, ind_2)
-              F_r(i,j) = val
-              F_r(j,i) = val
+              do j = 1, len_2
+                ind_2 = OrbInd(j+len_1, l, m)
+                val = F(j,i)
+                F(ind_1,ind_2) = F_r(i,j)
+                F(ind_2,ind_1) = F_r(j,i)
+              end do
+              OrbEn(ind_1) = En(i)
             end do
-          end do
-          call diag_matrix(F_r, En)
-          do i = 1, len_2
-            ind_1 = OrbInd(i+len_1, l, m)
-            do j = 1, len_2
-              ind_2 = OrbInd(j+len_1, l, m)
-              val = F(j,i)
-              F(ind_1,ind_2) = F_r(i,j)
-              F(ind_2,ind_1) = F_r(j,i)
-            end do
-            OrbEn(ind_1) = En(i)
           end do
         end do
-      end do
 
+      end if
     else
 
       do l = 1, para%l+1

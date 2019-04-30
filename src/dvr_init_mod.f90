@@ -198,50 +198,118 @@ contains
 
     else ! Initialize dimension dim as unmapped GLL grid
 
+      allocate (grid%r(nl * m + 1), stat=error)
+      call allocerror(error)
+
       grid%nl = nl
       grid%m = m
       grid%dr = one
+
       call get_lobatto_points(nl, grid%gllp, grid%gllw,      &
       &                       grid%D_primitive)
+     
+      if (para%split_grid) then
 
-      allocate (grid%r(nl * m + 1), stat=error)
-      call allocerror(error)
-      do l = 1, m, 1
-        do j = 0, nl-1, 1
-          grid%r(j + nl * (l - 1) + 1) =                              &
-          &        grid%gllp(j) * (r_max - r_min) / (real(2 * m,idp)) &
-          &        + r_min + (real(l,idp)- half) * (r_max - r_min) / real(m,idp)
+        grid%r = 0.0d0
+        do l = 1, m1, 1
+          do j = 0, nl-1, 1
+            grid%r(j + nl * (l - 1) + 1) =                              &
+            &        grid%gllp(j) * (r_max1 - r_min) / (real(2 * m1,idp)) &
+            &        + r_min + (real(l,idp)- half) * (r_max1 - r_min) / real(m1,idp)
+          end do
         end do
-      end do
+     
+        do l = m1+1, m1+m2, 1
+          do j = 0, nl-1, 1
+            grid%r(j + nl * (l - 1) + 1) =                              &
+            &        grid%gllp(j) * (r_max - r_max1) / (real(2 * m2,idp)) + &
+            &        + r_max1 + (real(l-m1,idp)- half) * (r_max - r_max1) / real(m2,idp)
+          end do
+        end do
+     
+        grid%r(nl * m + 1) =                                            &
+        &            grid%gllp(nl) * (r_max - r_min) / (real(2 * m,idp))&
+        &            + r_min + (real(m,idp)- half) * (r_max - r_min) / real(m,idp)
+     
+        allocate (grid%jac(m), stat=error)
+        call allocerror(error)
+        do j = 1, m1, 1
+          grid%jac(j) = (r_max1 - r_min) / (real(2 * m1,idp))
+        end do
 
-      grid%r(nl * m + 1) =                                            &
-      &            grid%gllp(nl) * (r_max - r_min) / (real(2 * m,idp))&
-      &            + r_min + (real(m,idp)- half) * (r_max - r_min) / real(m,idp)
+        do j = m1+1, m1+m2, 1
+          grid%jac(j) = (r_max - r_max1) / (real(2 * m2,idp))
+        end do
 
-      allocate (grid%jac(m), stat=error)
-      call allocerror(error)
-      do j = 1, m, 1
-        grid%jac(j) = (r_max - r_min) / (real(2 * m,idp))
-      end do
-
-      allocate(grid%weights(nl * m + 1), stat = error)
-      call allocerror(error)
-      do j = 0, nl, 1
-        grid%weights(j+1) = grid%gllw(j)
-      end do
-
-      do l = 2, m, 1
+        allocate(grid%weights(nl * m + 1), stat = error)
+        call allocerror(error)
         do j = 0, nl, 1
-          if (j == 0) then
-            grid%weights(j + nl * (l - 1) + 1) =                      &
-            &         grid%weights(nl + nl * (l - 2) + 1)             &
-            &         + grid%gllw(0)
-          else
-            grid%weights(j + nl * (l - 1) + 1) = grid%gllw(j)
-          end if
+          grid%weights(j+1) = grid%gllw(j)
         end do
-      end do
-      grid%weights = grid%jac(1) * grid%weights
+     
+        do l = 2, m, 1
+          do j = 0, nl, 1
+            if (j == 0) then
+              grid%weights(j + nl * (l - 1) + 1) =                      &
+              &         grid%weights(nl + nl * (l - 2) + 1)             &
+              &         + grid%gllw(0)
+            else
+              grid%weights(j + nl * (l - 1) + 1) = grid%gllw(j)
+            end if
+          end do
+        end do
+        grid%weights = grid%jac(1) * grid%weights
+
+       !do l = 1, size(grid%r)
+       !  write(51, '(f25.17)' ) grid%r(l)
+       !  write(52, '(e25.17)' ) grid%weights(l)
+       !end do
+
+      else 
+
+        do l = 1, m, 1
+          do j = 0, nl-1, 1
+            grid%r(j + nl * (l - 1) + 1) =                              &
+            &        grid%gllp(j) * (r_max - r_min) / (real(2 * m,idp)) &
+            &        + r_min + (real(l,idp)- half) * (r_max - r_min) / real(m,idp)
+          end do
+        end do
+     
+        grid%r(nl * m + 1) =                                            &
+        &            grid%gllp(nl) * (r_max - r_min) / (real(2 * m,idp))&
+        &            + r_min + (real(m,idp)- half) * (r_max - r_min) / real(m,idp)
+     
+        allocate (grid%jac(m), stat=error)
+        call allocerror(error)
+        do j = 1, m, 1
+          grid%jac(j) = (r_max - r_min) / (real(2 * m,idp))
+        end do
+     
+        allocate(grid%weights(nl * m + 1), stat = error)
+        call allocerror(error)
+        do j = 0, nl, 1
+          grid%weights(j+1) = grid%gllw(j)
+        end do
+     
+        do l = 2, m, 1
+          do j = 0, nl, 1
+            if (j == 0) then
+              grid%weights(j + nl * (l - 1) + 1) =                      &
+              &         grid%weights(nl + nl * (l - 2) + 1)             &
+              &         + grid%gllw(0)
+            else
+              grid%weights(j + nl * (l - 1) + 1) = grid%gllw(j)
+            end if
+          end do
+        end do
+        grid%weights = grid%jac(1) * grid%weights
+
+       !do l = 1, size(grid%r)
+       !  write(53, '(f25.17)' ) grid%r(l)
+       !  write(54, '(e25.17)' ) grid%weights(l)
+       !end do
+
+      end if
 
     endif
 
