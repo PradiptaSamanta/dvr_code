@@ -143,6 +143,10 @@ subroutine DoRHFSplit()
           eigen_vecs(i,j,:) = EigVec(i,j,:)
         end do
       end do
+      do i = 1, len_2
+        j = i + len_1
+        eigen_vecs(j,j,:) = 1.0d0
+      end do
 
       deallocate(EigVec, OneInts, TwoInts)
 
