@@ -523,7 +523,7 @@ module OrbInts
     end if
     write(f_int, 1005) h_core, 0, 0, 0, 0
 
-1005 format(f20.16,x,5i5)
+1005 format(f20.12,x,5i5)
 
 
     close(f_int)

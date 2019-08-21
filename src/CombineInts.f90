@@ -240,6 +240,9 @@ module CombineInts
 !       end do 
 !     end do ! end loop over n_max
 
+    ! deallocate the large arrays after they are used
+    deallocate(inter_int_1, inter_int_2, inter_int_3, vec_1)
+
     call cpu_time(finish)
     write(iout,'(X,a,f10.5,X,a)') 'Time taken for 2e transformation = ', finish-start, 'seconds.'
 
