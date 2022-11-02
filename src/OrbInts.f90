@@ -163,6 +163,9 @@ module OrbInts
       end do
     else
       len_mid = para%m1*para%nl + n_shift
+      do l = 1, n_l
+        len_mid(l) = len_mid(l) - l + 1
+      end do
     end if
 
 
@@ -194,6 +197,7 @@ module OrbInts
         j_p = j + orb%n_inner - l + 1
         do i = 1, len_2
           EigVecs(i+len_1,j_p,l) = VecsOld(i+len_1,j+len_mid(l),l)
+!         write(78,'(4i5,f20.16)') i+len_1, j_p, l, len_mid(l), EigVecs(i+len_1,j_p,l)
           !EigVecs(i+len_1,j+orb%n_inner,:) = VecsOld(i+len_1,j+len_mid,:)
         end do
       end do
@@ -293,9 +297,9 @@ module OrbInts
     write(iout, '(a, i3)') ' Orbitals from the first half: 1 -', len_1
     write(iout, '(a,i3,a,i3)') ' Orbitals from the second half: ', len_mid(1)+1, ' -', len_mid(1)+len_2
 
-    do i = 1, size(grid%r)
-      write(78, '(11f10.6)') (VecsOld(i,j,3), j=1, size(VecsOld(1,:,2)))
-    end do
+!   do i = 1, size(grid%r)
+!     write(78, '(11f10.6)') (VecsOld(i,j,3), j=1, size(VecsOld(1,:,2)))
+!   end do
 
     allocate(EigVecs(size(grid%r),orb%n_max-orb%n_red,n_l))
     EigVecs = 0.0d0
@@ -365,7 +369,7 @@ module OrbInts
 !            write(77,'(3i4,3f20.10)') i, n, l, one_e_rad_int(i,j,l),EigVecs(j,n,l),int_value
           end do 
           inter_int(i,n) = int_value
-!         write(iout,*) i, n, l, int_value
+!         write(77,'(3i4,f20.16)') i, n, l, int_value
         end do 
       end do ! end loop over n_max
 
@@ -379,6 +383,7 @@ module OrbInts
             int_value = int_value + EigVecs(i,m,l) * inter_int(i,n)
 !            write(78,'(3i4,3f20.10)') m, n, l, inter_int(i,n), EigVecs(i,m,l), int_value
           end do
+!         write(77,'(3i4,f20.16)') m, n, l, int_value
 
 !         write(iout,*) m, n, l, int_value
 
@@ -523,7 +528,7 @@ module OrbInts
     end if
     write(f_int, 1005) h_core, 0, 0, 0, 0
 
-1005 format(f20.12,x,5i5)
+1005 format(f20.16,x,5i5)
 
 
     close(f_int)
