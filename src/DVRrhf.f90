@@ -27,8 +27,9 @@ module DVRrhf
     real(dp), allocatable :: OrbEn_l(:,:)
     real(dp), allocatable :: overlap(:,:)
     integer, allocatable :: OrbInd(:,:,:), n_m(:)
+    integer, allocatable :: OrbInd_contr(:,:,:)
     integer :: n_l, n_ml, n_nqn, error, indx, l_val, nTotOrbs
-    integer :: i, j, k, iter, l, m, occ
+    integer :: i, j, k, iter, l, m, occ, tot_cntr, indx_1, indx_2, n
     integer :: vopt
     real(dp) :: Energy, Del, start, finish, tol, val
     logical :: RemoveL
@@ -52,10 +53,13 @@ module DVRrhf
 
     allocate(OrbInd(ng,para%l+1,2*para%l+1), stat=error)
     call allocerror(error)
+    allocate(OrbInd_contr(10,para%l+1,2*para%l+1), stat=error)
+    call allocerror(error)
     allocate(OrbEn_l(ng,para%l+1), stat=error)
     call allocerror(error)
 
     OrbInd = 0
+    OrbInd_contr = 0
     nTotOrbs = 0
 
     indx = 0
@@ -87,6 +91,16 @@ module DVRrhf
       end do
       nTotOrbs = indx
     end if
+
+    tot_cntr = 0
+    do i = 1, 10
+      do j = 1, min(n_l,i)
+        do k = 1, n_m(j)
+          tot_cntr = tot_cntr + 1
+          OrbInd_contr(i,j,k) = tot_cntr
+        end do
+      end do
+    end do
 
     write(iout,'(a,i6)')  ' Total number of spatial orbitals involved in the RHF calculations: ', nTotOrbs
 !   if (nTotOrbs.ne.(n_nqn*n_ml)) call stop_all('DVRrhf','Total number of orbitals does not match')
@@ -292,23 +306,46 @@ module DVRrhf
 
     end do
 
-    do j = 1, 10
-      do i = 1, ng
-        if (RemoveL) then
-          l_val = min(i,n_l)
-        else
-          l_val = n_l
-        end if
-        do l = 1, l_val
-          do m = 1, 2*l-1
-            indx = OrbInd(i,l,m)
-!           if (abs(MOCoeffs(j,indx)).gt.1e-12) then
-!           write(81,'(3i4,f15.8)') i, l, m, MOCoeffs(j,indx)
-!           end if
+    deallocate(MOCoeffs)
+
+    allocate(MOCoeffs(tot_cntr,nTotOrbs), stat=error)
+    call allocerror(error)
+
+    MOCoeffs = 0.0d0
+    indx_1 = 0
+    indx_2 = 0
+    do n = 1, 10
+      do l = 1, min(n_l, n) 
+        do i = 1, para%ng
+          val = EigVec(i,n-l+1,l)
+          do m = 1, n_m(l)
+            indx_1 = OrbInd_contr(n,l,m)
+            indx_2 = OrbInd(i,l,m)
+            MOCoeffs(indx_1, indx_2) = val
+            if (abs(val).gt.1e-12) write(78,'(6i4,f20.16)') n, l, m, i, indx_1, indx_2, MOCoeffs(indx_1,indx_2)
           end do
         end do
       end do
     end do
+
+!   do j = 1, 10
+!     do i = 1, ng
+!       if (RemoveL) then
+!         l_val = min(i,n_l)
+!       else
+!         l_val = n_l
+!       end if
+!       do l = 1, l_val
+!         do m = 1, 2*l-1
+!           indx = OrbInd(i,l,m)
+!           MOCoeffs(j, indx )= EigVec(i, j, l)
+!           if (abs(MOCoeffs(j,indx)).gt.1e-12) then
+!           write(81,'(3i4,f15.8)') i, l, m, MOCoeffs(j,indx)
+!           end if
+!         end do
+!       end do
+!     end do
+!   end do
 
     write(iout,*) '***** RHF is done...'
 
